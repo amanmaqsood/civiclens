@@ -65,24 +65,24 @@ export default function LandingPage({
       <div className="bg-slate-100 border border-slate-200/50 p-4 rounded-2xl flex flex-col gap-3">
         <h3 className="text-[10px] font-black text-slate-400 uppercase tracking-widest flex items-center gap-1">
           <TrendingUp className="w-3.5 h-3.5 text-[#4F46E5]" />
-          Resolution Accountability Stats
+          Live Network Stats
         </h3>
 
         <div className="grid grid-cols-3 gap-1.5 text-center">
           <div className="p-2.5 bg-white rounded-xl border border-slate-200/30">
-            <p className="text-[9px] font-bold text-slate-400">Lodged</p>
-            <p className="text-sm font-black text-amber-500">{4730 + issues.length}</p>
+            <p className="text-[9px] font-bold text-slate-400">Total Reported</p>
+            <p id="stats-total-reported" className="text-sm font-black text-amber-500">{issues.length}</p>
           </div>
           <div className="p-2.5 bg-white rounded-xl border border-slate-200/30">
-            <p className="text-[9px] font-bold text-slate-400">Verifying</p>
-            <p className="text-sm font-black text-indigo-600">
-              {1920 + issues.filter(i => i.status === "Verified" || i.status === "In Progress").length}
+            <p className="text-[9px] font-bold text-slate-400">In Progress</p>
+            <p id="stats-in-progress" className="text-sm font-black text-indigo-600">
+              {issues.filter(i => i.status === "In Progress" || i.status === "Verified").length}
             </p>
           </div>
           <div className="p-2.5 bg-white rounded-xl border border-slate-200/30">
             <p className="text-[9px] font-bold text-slate-400">Resolved</p>
-            <p className="text-sm font-black text-emerald-600">
-              {3680 + issues.filter(i => i.status === "Resolved").length}
+            <p id="stats-resolved" className="text-sm font-black text-emerald-600">
+              {issues.filter(i => i.status === "Resolved").length}
             </p>
           </div>
         </div>

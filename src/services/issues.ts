@@ -58,6 +58,61 @@ export function calculatePriorityScore(issue: {
   return Math.round(score * 10) / 10; // Round to 1 decimal place
 }
 
+export function isDuplicateCandidate(
+  newReport: Partial<IssueReport>,
+  existing: Partial<IssueReport>,
+  nowMs: number = Date.now()
+): boolean {
+  if (
+    typeof newReport.lat !== "number" ||
+    typeof newReport.lng !== "number" ||
+    isNaN(newReport.lat) ||
+    isNaN(newReport.lng)
+  ) {
+    return false;
+  }
+  
+  if (existing.category !== newReport.category) return false;
+  if (existing.status === "Resolved") return false;
+  if (!existing.timestamp) return false;
+  const createdTime = Date.parse(existing.timestamp);
+  const fourteenDaysMs = 14 * 24 * 60 * 60 * 1000;
+  if (isNaN(createdTime) || nowMs - createdTime > fourteenDaysMs) return false;
+
+  if (
+    typeof existing.lat !== "number" ||
+    typeof existing.lng !== "number" ||
+    isNaN(existing.lat) ||
+    isNaN(existing.lng)
+  ) {
+    return false;
+  }
+
+  const distance = getDistance(newReport.lat, newReport.lng, existing.lat, existing.lng);
+  return distance <= 150;
+}
+
+export function isValidStatusTransition(
+  currentStatus: "Submitted" | "Verified" | "In Progress" | "Resolved",
+  nextStatus: "Submitted" | "Verified" | "In Progress" | "Resolved",
+  isAiVerified: boolean,
+  manualOverride: boolean
+): boolean {
+  if (currentStatus === "Submitted") {
+    return nextStatus === "Verified";
+  }
+  if (currentStatus === "Verified") {
+    return nextStatus === "In Progress";
+  }
+  if (currentStatus === "In Progress") {
+    if (nextStatus === "Resolved") {
+      return isAiVerified || manualOverride;
+    }
+    return false;
+  }
+  return false;
+}
+
 export function getPriorityBreakdown(issue: {
   severity?: number;
   urgency?: string;
@@ -317,60 +372,38 @@ export async function findDuplicateCandidates(
     const fourteenDaysMs = 14 * 24 * 60 * 60 * 1000;
 
     snapshot.forEach((doc) => {
-      const data = doc.data();
-      const issueLat = data.lat;
-      const issueLng = data.lng;
+      const data = doc.data() as Partial<IssueReport>;
+      if (!isDuplicateCandidate(newReport, data, now)) return;
 
-      // Check same category
-      if (data.category !== newReport.category) return;
-      // Status not 'Resolved'
-      if (data.status === "Resolved") return;
-      // Created within the last 14 days
-      if (!data.timestamp) return;
-      const createdTime = Date.parse(data.timestamp);
-      if (isNaN(createdTime) || now - createdTime > fourteenDaysMs) return;
-
-      // Within 150 meters
-      if (
-        typeof issueLat !== "number" ||
-        typeof issueLng !== "number" ||
-        isNaN(issueLat) ||
-        isNaN(issueLng)
-      ) {
-         return;
-      }
-
-      const distance = getDistance(newReport.lat!, newReport.lng!, issueLat, issueLng);
-      if (distance <= 150) {
-        candidates.push({
-          issue: {
-            id: doc.id,
-            ticketId: data.ticketId,
-            image: data.image,
-            category: data.category,
-            description: data.description,
-            lat: data.lat,
-            lng: data.lng,
-            locationName: data.locationName,
-            status: data.status,
-            citizenUpvotes: data.citizenUpvotes || 0,
-            userId: data.userId,
-            timestamp: data.timestamp,
-            title: data.title,
-            summary: data.summary,
-            severity: data.severity,
-            urgency: data.urgency,
-            visibleHazards: data.visibleHazards,
-            affectedArea: data.affectedArea,
-            privacyFlags: data.privacyFlags,
-            confidence: data.confidence,
-            reportCount: data.reportCount || 1,
-            agentTrace: data.agentTrace || [],
-            resolutionPlan: data.resolutionPlan || undefined,
-          },
-          distance,
-        });
-      }
+      const distance = getDistance(newReport.lat!, newReport.lng!, data.lat!, data.lng!);
+      candidates.push({
+        issue: {
+          id: doc.id,
+          ticketId: data.ticketId!,
+          image: data.image!,
+          category: data.category!,
+          description: data.description!,
+          lat: data.lat!,
+          lng: data.lng!,
+          locationName: data.locationName,
+          status: data.status!,
+          citizenUpvotes: data.citizenUpvotes || 0,
+          userId: data.userId!,
+          timestamp: data.timestamp!,
+          title: data.title,
+          summary: data.summary,
+          severity: data.severity,
+          urgency: data.urgency,
+          visibleHazards: data.visibleHazards,
+          affectedArea: data.affectedArea,
+          privacyFlags: data.privacyFlags,
+          confidence: data.confidence,
+          reportCount: data.reportCount || 1,
+          agentTrace: data.agentTrace || [],
+          resolutionPlan: data.resolutionPlan || undefined,
+        },
+        distance,
+      });
     });
 
     // Sort nearest first, keep top 5
@@ -435,6 +468,7 @@ export async function generateResolutionPlan(issue: IssueReport): Promise<Resolu
       locationName: issue.locationName || "Default Civic Landmark",
       lat: issue.lat,
       lng: issue.lng,
+      ticketId: issue.ticketId || "N/A",
     }),
   });
 
@@ -798,6 +832,7 @@ export async function triggerAutoEscalation(issue: IssueReport): Promise<any> {
       locationName: issue.locationName || "Unspecified Location",
       category: issue.category,
       recommendedAuthority: issue.resolutionPlan?.recommendedAuthority || "Municipal Corporation",
+      ticketId: issue.ticketId || "N/A",
     }),
   });
 

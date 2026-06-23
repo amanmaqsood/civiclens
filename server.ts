@@ -314,13 +314,14 @@ Output STRICT, VALID JSON conforming exactly to the response schema.`;
 
   // Server-side Gemini Resolution Plan Generator (with Google Search Grounding)
   app.post("/api/resolution-plan", async (req, res) => {
-    const { category, title, summary, locationName, lat, lng } = req.body;
+    const { category, title, summary, locationName, lat, lng, ticketId } = req.body;
 
     if (!category || !title || !summary) {
       return res.status(400).json({ success: false, error: "Missing required category, title, or summary parameters." });
     }
 
     try {
+      const todayStr = new Date().toLocaleDateString("en-US", { year: "numeric", month: "long", day: "numeric" });
       const promptText = `Determine the responsible Indian municipal authority or department and draft a formal compliance complaint (an action packet) for this reported civic issue.
 Use Google Search grounding to lookup the real-world departments, municipal corporations, or utility boards that govern this category of issues in this specific Indian city or state (based on the location/address description: "${locationName || "India"}", and coordinates if provided: lat: ${lat || "unknown"}, lng: ${lng || "unknown"}).
 
@@ -328,6 +329,8 @@ Issue details:
 - Category: ${category}
 - Title: ${title}
 - Summary: ${summary}
+- Official Ticket ID / Reference ID: ${ticketId || "N/A"}
+- Reporting Date (Today): ${todayStr}
 
 Perform a ground-truth lookup for this Indian location. If the city or municipality is identified (e.g. Bangalore/Bengaluru -> BBMP/BWSSB, Mumbai -> BMC, Delhi -> MCD/DJB, Pune -> PMC, Chennai -> GCC, etc.), determine:
 1. The actual municipal corporation or government board responsible (recommendedAuthority).
@@ -339,6 +342,10 @@ Perform a ground-truth lookup for this Indian location. If the city or municipal
    - bodyHindi: A translated version of the complaint body in fluent official Hindi (हिन्दी), starting with official greetings, outlining the grievance clearly, and appealing for swift remedial action.
    - summaryHindi: A brief 1-2 sentence Hindi (हिन्दी) summary of the problem, suitable for the complainant to read.
    - nextActions: 3 actionable steps for the citizen (e.g., "Post on Twitter tagging Commissioner", "Initiate phone escalation at civic helpline", "Follow up via Ward Committee").
+
+CRITICAL COMPLIANCE DIRECTIVE:
+You MUST use ONLY the actual ticketId ('${ticketId || "N/A"}') and the actual current date ('${todayStr}') for any reference numbers, complaint IDs, or reporting dates in the drafted emails/documents.
+NEVER invent, simulate, or hallucinate different reference numbers, other case tracking IDs, dates, or fake past event histories/follow-ups.
 
 Output STRICT, VALID JSON conforming exactly to this schema:
 {
@@ -505,9 +512,10 @@ Return a STRICT JSON response adhering precisely to this schema. Do not include 
 
   // Auto-Escalation + RTI generator endpoint
   app.post("/api/escalation", async (req, res) => {
-    const { title, summary, locationName, category, recommendedAuthority } = req.body;
+    const { title, summary, locationName, category, recommendedAuthority, ticketId } = req.body;
 
     try {
+      const todayStr = new Date().toLocaleDateString("en-US", { year: "numeric", month: "long", day: "numeric" });
       const promptText = `Under the provisions of Indian municipal governance and the Right to Information (RTI) Act 2005, draft a formal public grievance escalation letter and a formal RTI request for this unresolved civic complaint.
       
 Complaint Title: ${title || "Civic Grievance"}
@@ -515,6 +523,8 @@ Category: ${category || "General"}
 Context Summary: ${summary || "Unresolved infrastructure/civic problem"}
 Location description: ${locationName || "India"}
 Recommended Initial Department: ${recommendedAuthority || "Municipal Corporation"}
+Official Ticket ID / Reference ID: ${ticketId || "N/A"}
+Reporting Reference Date (Today): ${todayStr}
 
 Draft two separate documents:
 1. escalationLetter: A professional, strongly-worded formal grievance escalation letter directed to the next-higher administrative authority (such as the Municipal Commissioner, District Magistrate, or Department Secretary). It should cite the initial delay, impact on public safety/sanity, and demand urgent intervention.
@@ -523,6 +533,10 @@ Draft two separate documents:
    - The names, designations, and contact numbers of the officers responsible for addressing this grievance.
    - Any comments, reports, or file notes recorded in the official grievance register by the inspecting authorities.
    - The official timeframe/SLA allotted for this category of work and explanation for the delay.
+
+CRITICAL COMPLIANCE DIRECTIVE:
+You MUST use ONLY the actual ticketId ('${ticketId || "N/A"}') and the actual current date ('${todayStr}') for any reference numbers, complaint IDs, or reporting dates in the letters/petitions. 
+NEVER invent, simulate, or generate outer reference numbers, other case tracking IDs, dates, or fake past event histories/follow-ups that do not exist.
 
 Return a STRICT JSON response adhering precisely to this schema:
 {

@@ -240,12 +240,14 @@ export default function HomeMap({
           }}
           internalUsageAttributionIds={["gmp_mcp_codeassist_v1_aistudio"]}
           style={{ width: "100%", height: "100%" }}
-          options={{
-            styles: mapStyles,
-            gestureHandling: "cooperative",
-            disableDefaultUI: true,
-            zoomControl: true,
-          }}
+          {...{
+            options: {
+              styles: mapStyles,
+              gestureHandling: "cooperative",
+              disableDefaultUI: true,
+              zoomControl: true,
+            }
+          } as any}
         >
           {validIssues.map((issue) => {
             const color = getSeverityColor(issue.severity);

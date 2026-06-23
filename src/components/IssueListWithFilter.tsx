@@ -140,6 +140,9 @@ export default function IssueListWithFilter({
                     <img
                       src={issue.image}
                       alt={issue.category}
+                      width={56}
+                      height={56}
+                      loading="lazy"
                       className="w-full h-full object-cover group-hover:scale-105 transition-transform"
                       referrerPolicy="no-referrer"
                     />

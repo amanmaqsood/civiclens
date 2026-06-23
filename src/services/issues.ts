@@ -313,7 +313,8 @@ export async function submitIssueReport(
     confirmCount: 0,
     disputeCount: 0,
     verificationStatus: "unverified",
-    agentTrace: [perceiveTrace, locateTrace, deduplicateTrace],
+    agentTrace: params.agentTrace || [perceiveTrace, locateTrace, deduplicateTrace],
+    resolutionPlan: params.resolutionPlan || undefined,
   };
 
   if (typeof params.lat === "number" && !isNaN(params.lat)) {

@@ -29,14 +29,16 @@ async function startServer() {
     return status === 503 || status === "UNAVAILABLE" || errMsg.includes("503") || errMsg.includes("UNAVAILABLE");
   }
 
-  async function generateContentWithRetry(aiClient: any, args: any): Promise<any> {
+  async function generateContentWithRetry(aiClient: any, args: any): Promise<{ response: any; retried: boolean }> {
     try {
-      return await aiClient.models.generateContent(args);
+      const response = await aiClient.models.generateContent(args);
+      return { response, retried: false };
     } catch (error: any) {
       if (isUnavailableError(error)) {
         console.warn("Gemini 503/UNAVAILABLE encountered. Waiting 1.5s to retry once...");
         await sleep(1500);
-        return await aiClient.models.generateContent(args);
+        const response = await aiClient.models.generateContent(args);
+        return { response, retried: true };
       }
       throw error;
     }
@@ -93,8 +95,9 @@ async function startServer() {
 Output a structured description including hazards, severity, scale, and urgency. 
 If confidence is low (under 0.6) or ambiguity exists, ask a targeted clarificationQuestion to verify if this is the citizen's intended issue to report.`;
 
+      const startTime = Date.now();
       // Main Gemini Content Generation
-      const response = await generateContentWithRetry(ai, {
+      const mainResult = await generateContentWithRetry(ai, {
         model: "gemini-2.5-flash",
         contents: [imagePart, { text: promptText }],
         config: {
@@ -163,6 +166,11 @@ If confidence is low (under 0.6) or ambiguity exists, ask a targeted clarificati
         },
       });
 
+      const durationMs = Date.now() - startTime;
+      const response = mainResult.response;
+      let finalRetried = mainResult.retried;
+      let fallbackUsed = false;
+
       const responseText = response.text || "";
       let parsedData: any;
       let parseSuccess = false;
@@ -178,6 +186,7 @@ If confidence is low (under 0.6) or ambiguity exists, ask a targeted clarificati
 
       // Repair Once Mechanism
       if (!parseSuccess) {
+        fallbackUsed = true;
         try {
           const repairPrompt = `The previous attempt to generate structured JSON failed schema validation or was malformed.
 Please repair the JSON and output STRICT, VALID JSON conforming exactly to the requested schema.
@@ -199,7 +208,7 @@ ${responseText}
 
 Respond ONLY with the corrected, valid JSON object.`;
 
-          const repairResponse = await generateContentWithRetry(ai, {
+          const repairResult = await generateContentWithRetry(ai, {
             model: "gemini-2.5-flash",
             contents: repairPrompt,
             config: {
@@ -207,7 +216,11 @@ Respond ONLY with the corrected, valid JSON object.`;
             },
           });
 
-          parsedData = JSON.parse((repairResponse.text || "").trim());
+          if (repairResult.retried) {
+            finalRetried = true;
+          }
+
+          parsedData = JSON.parse((repairResult.response.text || "").trim());
           if (validateSchema(parsedData)) {
             parseSuccess = true;
           }
@@ -216,14 +229,36 @@ Respond ONLY with the corrected, valid JSON object.`;
         }
       }
 
+      const truncatedDesc = description ? (description.length > 30 ? description.slice(0, 30) + "..." : description) : "None";
+      const inputDigest = `photo (${mimeType}) + description: "${truncatedDesc}"`;
+      const outputSummary = parseSuccess
+        ? `${parsedData.category || "issue"} · severity ${parsedData.severity || 1}/5 · ${parsedData.visibleHazards?.length || 0} hazards · ${(parsedData.confidence || 0).toFixed(2)} conf`
+        : "Fallback to manual form";
+
       if (parseSuccess) {
-        return res.json({ success: true, fallback: false, data: parsedData });
+        return res.json({
+          success: true,
+          fallback: false,
+          data: parsedData,
+          durationMs,
+          confidence: parsedData.confidence,
+          inputDigest,
+          outputSummary,
+          retried: finalRetried,
+          fallbackUsed,
+        });
       } else {
         // Fall back cleanly to manual form
         return res.json({
           success: false,
           fallback: true,
           error: "Schema validation failed, falling back to manual entry mode.",
+          durationMs,
+          confidence: 0,
+          inputDigest,
+          outputSummary,
+          retried: finalRetried,
+          fallbackUsed,
         });
       }
     } catch (error: any) {
@@ -262,7 +297,8 @@ Guidelines:
 
 Output STRICT, VALID JSON conforming exactly to the response schema.`;
 
-      const response = await generateContentWithRetry(ai, {
+      const startTime = Date.now();
+      const result = await generateContentWithRetry(ai, {
         model: "gemini-2.5-flash",
         contents: promptText,
         config: {
@@ -294,6 +330,10 @@ Output STRICT, VALID JSON conforming exactly to the response schema.`;
         },
       });
 
+      const durationMs = Date.now() - startTime;
+      const response = result.response;
+      const retried = result.retried;
+
       const responseText = (response.text || "").trim();
       let parsedData = JSON.parse(responseText);
       
@@ -302,7 +342,18 @@ Output STRICT, VALID JSON conforming exactly to the response schema.`;
         parsedData.bestCandidateId = null;
       }
 
-      return res.json({ success: true, data: parsedData });
+      const inputDigest = `Compare: ${newReport.category} vs ${candidates.length} candidates`;
+      const outputSummary = `Rec: ${parsedData.recommendation} · similarity: ${(parsedData.similarity || 0).toFixed(2)}`;
+
+      return res.json({ 
+        success: true, 
+        data: parsedData,
+        durationMs,
+        confidence: parsedData.similarity,
+        inputDigest,
+        outputSummary,
+        retried
+      });
     } catch (error: any) {
       console.error("Duplicate detection error:", error);
       return res.status(500).json({
@@ -363,13 +414,18 @@ Output STRICT, VALID JSON conforming exactly to this schema:
 
 Output ONLY valid JSON and nothing else.`;
 
-      const response = await generateContentWithRetry(ai, {
+      const startTime = Date.now();
+      const result = await generateContentWithRetry(ai, {
         model: "gemini-2.5-flash",
         contents: promptText,
         config: {
           tools: [{ googleSearch: {} }],
         },
       });
+
+      const durationMs = Date.now() - startTime;
+      const response = result.response;
+      const retried = result.retried;
 
       const responseText = (response.text || "").trim();
       let cleanText = responseText;
@@ -400,7 +456,18 @@ Output ONLY valid JSON and nothing else.`;
       // Append sources to parsed data
       parsedData.groundingSources = uniqueSources;
 
-      return res.json({ success: true, data: parsedData });
+      const inputDigest = `${category}: "${title}"`;
+      const outputSummary = `Auth: ${parsedData.recommendedAuthority} · SLA: ${parsedData.slaDays} days`;
+
+      return res.json({ 
+        success: true, 
+        data: parsedData,
+        durationMs,
+        confidence: 0.95,
+        inputDigest,
+        outputSummary,
+        retried
+      });
     } catch (error: any) {
       console.error("Resolution plan generation error:", error);
       return res.status(500).json({
@@ -469,7 +536,8 @@ Return a STRICT JSON response adhering precisely to this schema. Do not include 
 
       contentsList.push({ text: promptText });
 
-      const response = await generateContentWithRetry(ai, {
+      const startTime = Date.now();
+      const result = await generateContentWithRetry(ai, {
         model: "gemini-2.5-flash",
         contents: contentsList,
         config: {
@@ -494,13 +562,29 @@ Return a STRICT JSON response adhering precisely to this schema. Do not include 
         },
       });
 
+      const durationMs = Date.now() - startTime;
+      const response = result.response;
+      const retried = result.retried;
+
       const responseText = (response.text || "").trim();
       let cleanText = responseText;
       // Strip markdown code fences if present
       cleanText = cleanText.replace(/^```(?:json)?\s*/i, "").replace(/```\s*$/, "").trim();
 
       const parsedResult = JSON.parse(cleanText);
-      return res.json({ success: true, data: parsedResult });
+
+      const inputDigest = `Compare original vs afterImage`;
+      const outputSummary = `Resolved: ${parsedResult.resolved} · Rec: ${parsedResult.recommendation} · conf: ${(parsedResult.confidence || 0).toFixed(2)}`;
+
+      return res.json({ 
+        success: true, 
+        data: parsedResult,
+        durationMs,
+        confidence: parsedResult.confidence,
+        inputDigest,
+        outputSummary,
+        retried
+      });
     } catch (error: any) {
       console.error("verify-resolution error:", error);
       return res.status(500).json({
@@ -544,7 +628,8 @@ Return a STRICT JSON response adhering precisely to this schema:
   "rtiRequest": "string"
 }`;
 
-      const response = await generateContentWithRetry(ai, {
+      const startTime = Date.now();
+      const result = await generateContentWithRetry(ai, {
         model: "gemini-2.5-flash",
         contents: promptText,
         config: {
@@ -560,13 +645,29 @@ Return a STRICT JSON response adhering precisely to this schema:
         },
       });
 
+      const durationMs = Date.now() - startTime;
+      const response = result.response;
+      const retried = result.retried;
+
       const responseText = (response.text || "").trim();
       let cleanText = responseText;
       // Strip markdown code fences if present
       cleanText = cleanText.replace(/^```(?:json)?\s*/i, "").replace(/```\s*$/, "").trim();
 
       const parsedResult = JSON.parse(cleanText);
-      return res.json({ success: true, data: parsedResult });
+
+      const inputDigest = `Escalate ticket ${ticketId || "N/A"}`;
+      const outputSummary = `Drafted Escalation Letter + RTI Request`;
+
+      return res.json({ 
+        success: true, 
+        data: parsedResult,
+        durationMs,
+        confidence: 0.90,
+        inputDigest,
+        outputSummary,
+        retried
+      });
     } catch (error: any) {
       console.error("escalation generation error:", error);
       return res.status(500).json({

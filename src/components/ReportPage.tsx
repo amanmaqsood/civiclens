@@ -52,6 +52,7 @@ export default function ReportPage({ onBack, onSubmit, prefilledLocation }: Repo
   const [currentStageIndex, setCurrentStageIndex] = useState(0);
   const [apiError, setApiError] = useState<string | null>(null);
 
+  const [analysisResult, setAnalysisResult] = useState<any>(null);
   const [aiResult, setAiResult] = useState<any>(null);
   const [showClarification, setShowClarification] = useState(false);
   const [clarificationResponse, setClarificationResponse] = useState("");
@@ -107,6 +108,11 @@ export default function ReportPage({ onBack, onSubmit, prefilledLocation }: Repo
   const handleImageChange = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
     if (file) {
+      const allowedTypes = ["image/jpeg", "image/png", "image/webp"];
+      if (!allowedTypes.includes(file.type)) {
+        setLocError("Unsupported format. Please upload JPEG, PNG, or WebP proof files.");
+        return;
+      }
       try {
         setLocError(null);
         const compressedBase64 = await compressImage(file);
@@ -150,6 +156,7 @@ export default function ReportPage({ onBack, onSubmit, prefilledLocation }: Repo
       clearInterval(interval);
 
       if (result.success && result.data) {
+        setAnalysisResult(result);
         setAiResult(result.data);
         setIsAnalyzing(false);
         if (result.data.confidence < 0.6 && result.data.clarificationQuestion) {
@@ -186,6 +193,15 @@ export default function ReportPage({ onBack, onSubmit, prefilledLocation }: Repo
       affectedArea: aiResult.affectedArea,
       privacyFlags: aiResult.privacyFlags,
       confidence: aiResult.confidence,
+      // Pass the perceive tracing metadata
+      perceiveMeta: analysisResult ? {
+        durationMs: analysisResult.durationMs,
+        confidence: analysisResult.confidence,
+        inputDigest: analysisResult.inputDigest,
+        outputSummary: analysisResult.outputSummary,
+        retried: analysisResult.retried,
+        fallbackUsed: analysisResult.fallbackUsed,
+      } : undefined
     });
   };
 

@@ -1,4 +1,4 @@
-export type ActiveView = "landing" | "report" | "success" | "issues" | "detail" | "duplicate" | "dashboard";
+export type ActiveView = "landing" | "report" | "success" | "issues" | "detail" | "duplicate" | "dashboard" | "submitting";
 
 export interface AgentTraceEntry {
   step: string;
@@ -6,6 +6,13 @@ export interface AgentTraceEntry {
   status: "done" | "skipped" | "failed";
   rationale: string;
   ts: string;
+  inputDigest?: string;        // short summary of what went into the step
+  outputSummary?: string;      // short summary of the structured result
+  confidence?: number;         // 0..1 where the model returns one
+  durationMs?: number;         // measured latency of the step
+  retried?: boolean;           // a retry/repair was needed
+  fallbackUsed?: boolean;      // a fallback path was taken
+  errorMsg?: string;           // present if the step failed
 }
 
 export interface ResolutionPlan {
@@ -61,6 +68,7 @@ export interface IssueReport {
   disputeCount?: number;
   verificationStatus?: string;
   agentTrace?: AgentTraceEntry[];
+  perceiveMeta?: any;
   resolutionPlan?: ResolutionPlan;
   closureAssessment?: ClosureAssessment;
   escalation?: {

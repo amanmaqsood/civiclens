@@ -89,7 +89,7 @@ export default function ReportFallbackForm({
         className="w-full flex items-center justify-center gap-2 bg-marigold border border-hairline text-ink font-bold text-xs py-3 px-5 rounded-xl shadow-xs cursor-pointer hover:bg-marigold/90 transition-all mt-1"
         style={{ minHeight: "44px" }}
       >
-        <span>Confirm & Submit grienvance</span>
+        <span>Confirm & Submit grievance</span>
         <ChevronRight className="w-4 h-4 shrink-0" />
       </button>
     </form>

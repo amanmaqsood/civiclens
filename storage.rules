@@ -1,0 +1,17 @@
+rules_version = '2';
+service firebase.storage {
+  match /b/{bucket}/o {
+    match /reports/{imageId} {
+      // Anyone signed in (anonymous auth) may view report images
+      allow read: if request.auth != null;
+      // Only signed-in users may upload, and only real images under 12MB
+      allow write: if request.auth != null
+        && request.resource.contentType.matches('image/.*')
+        && request.resource.size < 12 * 1024 * 1024;
+      allow delete: if false;
+    }
+    match /{allPaths=**} {
+      allow read, write: if false;
+    }
+  }
+}

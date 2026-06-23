@@ -35,7 +35,9 @@ service cloud.firestore {
         allow update, delete: if false;
       }
       match /activity/{aid} {
-        allow read, write: if isSignedIn();
+        allow read: if isSignedIn();
+        allow create: if isSignedIn();
+        allow update, delete: if false;
       }
     }
   }

@@ -67,7 +67,14 @@ export default function IssueFeed({ issues, onUpvote, upvoteLoadingId }: IssueFe
             <div className="flex gap-3">
               {issue.image && (
                 <div className="w-16 h-16 rounded-xl overflow-hidden bg-slate-100 flex-shrink-0 border border-slate-100">
-                  <img src={issue.image} alt={issue.category} className="w-full h-full object-cover" />
+                  <img 
+                    src={issue.image} 
+                    alt={issue.category} 
+                    width={64} 
+                    height={64} 
+                    loading="lazy" 
+                    className="w-full h-full object-cover" 
+                  />
                 </div>
               )}
               

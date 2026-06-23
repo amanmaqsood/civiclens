@@ -9,7 +9,8 @@ import {
   where, 
   limit, 
   increment,
-  getDoc
+  getDoc,
+  deleteDoc
 } from "firebase/firestore";
 import { ref, uploadString, getDownloadURL } from "firebase/storage";
 import { db, auth, storage, handleFirestoreError, OperationType } from "../lib/firebase";
@@ -201,6 +202,7 @@ export async function fetchRecentIssues(): Promise<IssueReport[]> {
         verificationStatus: data.verificationStatus || "unverified",
         agentTrace: data.agentTrace || [],
         resolutionPlan: data.resolutionPlan || undefined,
+        isDemoData: data.isDemoData || false,
       };
 
       // Add dynamic fallback of priorityScore if not explicitly stored
@@ -401,6 +403,7 @@ export async function findDuplicateCandidates(
           reportCount: data.reportCount || 1,
           agentTrace: data.agentTrace || [],
           resolutionPlan: data.resolutionPlan || undefined,
+          isDemoData: data.isDemoData || false,
         },
         distance,
       });
@@ -1188,5 +1191,18 @@ export async function seedDemoIssuesBengaluru(): Promise<boolean> {
   }
 
   return true;
+}
+
+export async function clearDemoIssues(): Promise<void> {
+  try {
+    const q = query(collection(db, COLLECTION_NAME), where("isDemoData", "==", true));
+    const querySnapshot = await getDocs(q);
+    for (const docSnap of querySnapshot.docs) {
+      await deleteDoc(doc(db, COLLECTION_NAME, docSnap.id));
+    }
+  } catch (err: any) {
+    console.error("Error clearing demo issues:", err);
+    throw handleFirestoreError(err, OperationType.DELETE, COLLECTION_NAME);
+  }
 }
 

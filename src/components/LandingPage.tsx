@@ -1,4 +1,4 @@
-import React from "react";
+import React, { useState } from "react";
 import { Camera, TrendingUp, CheckCircle2, Users } from "lucide-react";
 import { ActiveView, IssueReport } from "../types";
 import HomeMap from "./HomeMap";
@@ -10,6 +10,8 @@ interface LandingPageProps {
   onUpvote: (id: string) => Promise<void>;
   upvoteLoadingId: string | null;
   onSelectIssue: (id: string) => void;
+  userLocation: { lat: number; lng: number } | null;
+  onUserLocationChange: (loc: { lat: number; lng: number } | null) => void;
 }
 
 export default function LandingPage({
@@ -18,9 +20,34 @@ export default function LandingPage({
   onUpvote,
   upvoteLoadingId,
   onSelectIssue,
+  userLocation,
+  onUserLocationChange,
 }: LandingPageProps) {
+  const [showDemoBanner, setShowDemoBanner] = useState(true);
+  const hasDemoData = issues.some(i => i.isDemoData);
+
   return (
     <div id="landing-page-root" className="flex flex-col gap-4 px-4 py-4 font-sans pb-16">
+      {/* Noticeable but dismissible alert banner */}
+      {showDemoBanner && hasDemoData && (
+        <div className="bg-marigold/10 border border-marigold/35 text-ink text-xs p-3 rounded-2xl flex items-start gap-2.5 relative shadow-3xs">
+          <div className="flex-1">
+            <p className="font-bold text-xs text-ink">Sample data</p>
+            <p className="text-slate text-[11px] mt-0.5 leading-relaxed">
+              These Bengaluru reports are pre-seeded samples to demonstrate the workflow. File your own report anytime, or clear samples from the Operator panel.
+            </p>
+          </div>
+          <button 
+            type="button"
+            onClick={() => setShowDemoBanner(false)}
+            className="text-slate hover:text-ink font-bold text-lg leading-none p-0.5 -mt-0.5 shrink-0 select-none cursor-pointer"
+            aria-label="Dismiss demo banner"
+          >
+            &times;
+          </button>
+        </div>
+      )}
+
       {/* Banner Card / Hero */}
       <div className="bg-ink text-white p-5 rounded-2xl relative overflow-hidden shadow-[0_6px_24px_-8px_rgba(14,26,43,0.3)] border border-white/5">
         <div className="absolute -right-12 -bottom-12 w-40 h-40 rounded-full bg-marigold/10 blur-2xl" />
@@ -50,7 +77,12 @@ export default function LandingPage({
         <h3 className="text-xs font-display font-bold text-ink uppercase tracking-wider px-1">
           Live map
         </h3>
-        <HomeMap issues={issues} onSelectIssue={onSelectIssue} />
+        <HomeMap 
+          issues={issues} 
+          onSelectIssue={onSelectIssue} 
+          userLocation={userLocation}
+          onUserLocationChange={onUserLocationChange}
+        />
       </div>
 
       {/* Searchable, Filterable list section */}

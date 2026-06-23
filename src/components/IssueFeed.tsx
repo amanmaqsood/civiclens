@@ -47,10 +47,17 @@ export default function IssueFeed({ issues, onUpvote, upvoteLoadingId }: IssueFe
             className="bg-white border border-slate-100 rounded-2xl p-4 shadow-3xs flex flex-col gap-3 relative transition-all hover:border-slate-200"
           >
             {/* Upper Badge Line */}
-            <div className="flex items-center justify-between">
-              <span className="text-[10px] bg-slate-100 text-slate-700 font-bold px-2 py-0.5 rounded-full">
-                {issue.category}
-              </span>
+            <div className="flex items-center justify-between gap-2">
+              <div className="flex items-center gap-1.5">
+                <span className="text-[10px] bg-slate-100 text-slate-700 font-bold px-2 py-0.5 rounded-full">
+                  {issue.category}
+                </span>
+                {issue.isDemoData && (
+                  <span className="text-[9px] px-1.5 py-0.5 rounded font-mono font-bold bg-slate-500/10 text-slate-500/80">
+                    DEMO
+                  </span>
+                )}
+              </div>
               <span className={`text-[10px] font-bold border px-2 py-0.5 rounded-full ${getStatusColor(issue.status)}`}>
                 {issue.status}
               </span>

@@ -1,11 +1,14 @@
-import React, { useMemo } from "react";
+import React, { useMemo, useState, useEffect } from "react";
 import { APIProvider, Map, Marker } from "@vis.gl/react-google-maps";
 import { IssueReport } from "../types";
 import { humanizeCategory } from "../utils/humanize";
+import { Navigation } from "lucide-react"; // Nice looking icon for location action
 
 interface HomeMapProps {
   issues: IssueReport[];
   onSelectIssue: (id: string) => void;
+  userLocation?: { lat: number; lng: number } | null;
+  onUserLocationChange?: (loc: { lat: number; lng: number } | null) => void;
 }
 
 const API_KEY =
@@ -55,7 +58,24 @@ const mapStyles = [
   }
 ];
 
-export default function HomeMap({ issues, onSelectIssue }: HomeMapProps) {
+export default function HomeMap({ 
+  issues, 
+  onSelectIssue,
+  userLocation: propUserLocation,
+  onUserLocationChange
+}: HomeMapProps) {
+  const [localUserLocation, setLocalUserLocation] = useState<{ lat: number; lng: number } | null>(null);
+  const userLocation = propUserLocation !== undefined ? propUserLocation : localUserLocation;
+  const setUserLocation = (loc: { lat: number; lng: number } | null) => {
+    if (onUserLocationChange) {
+      onUserLocationChange(loc);
+    } else {
+      setLocalUserLocation(loc);
+    }
+  };
+
+  const [geoStatus, setGeoStatus] = useState<"granted" | "denied" | "unavailable" | "loading" | null>(null);
+
   const validIssues = useMemo(() => {
     return issues.filter(
       (issue) =>
@@ -66,7 +86,7 @@ export default function HomeMap({ issues, onSelectIssue }: HomeMapProps) {
     );
   }, [issues]);
 
-  const center = useMemo(() => {
+  const centroidCenter = useMemo(() => {
     if (validIssues.length > 0) {
       let totalLat = 0;
       let totalLng = 0;
@@ -81,6 +101,60 @@ export default function HomeMap({ issues, onSelectIssue }: HomeMapProps) {
     }
     return { lat: 12.9716, lng: 77.5946 }; // Default center (Bengaluru)
   }, [validIssues]);
+
+  const defaultMapCenter = useMemo(() => {
+    if (userLocation) return userLocation;
+    return centroidCenter;
+  }, [userLocation, centroidCenter]);
+
+  const defaultMapZoom = useMemo(() => {
+    if (userLocation) return 14;
+    return validIssues.length > 0 ? 11 : 12;
+  }, [userLocation, validIssues]);
+
+  const [activeCenter, setActiveCenter] = useState<{ lat: number; lng: number }>(defaultMapCenter);
+  const [activeZoom, setActiveZoom] = useState<number>(defaultMapZoom);
+
+  // Sync state initially when computed defaults change
+  useEffect(() => {
+    setActiveCenter(defaultMapCenter);
+    setActiveZoom(defaultMapZoom);
+  }, [defaultMapCenter, defaultMapZoom]);
+
+  const requestLocation = (isManual = false) => {
+    if (!navigator.geolocation) {
+      setGeoStatus("unavailable");
+      return;
+    }
+    if (isManual) {
+      setGeoStatus("loading");
+    }
+    navigator.geolocation.getCurrentPosition(
+      (position) => {
+        const loc = {
+          lat: position.coords.latitude,
+          lng: position.coords.longitude,
+        };
+        setUserLocation(loc);
+        setGeoStatus("granted");
+        setActiveCenter(loc);
+        setActiveZoom(14);
+      },
+      (error) => {
+        console.warn("Geolocation failed:", error);
+        if (error.code === error.PERMISSION_DENIED) {
+          setGeoStatus("denied");
+        } else {
+          setGeoStatus("unavailable");
+        }
+      },
+      { enableHighAccuracy: false, timeout: 6000, maximumAge: 300000 }
+    );
+  };
+
+  useEffect(() => {
+    requestLocation(false);
+  }, []);
 
   // Exact severity color map matching Civic Dossier tokens
   const getSeverityColor = (severity?: number) => {
@@ -134,10 +208,36 @@ export default function HomeMap({ issues, onSelectIssue }: HomeMapProps) {
 
   return (
     <div id="home-google-map-container" className="w-full h-[250px] rounded-2xl overflow-hidden border border-hairline shadow-sm relative">
+      {/* Non-blocking Geolocation Status Hint Overlay */}
+      {(geoStatus === "denied" || geoStatus === "unavailable" || !userLocation) && (
+        <div className="absolute top-2 left-2 right-12 z-10 bg-ink/90 text-white text-[10px] px-2.5 py-1.5 rounded-lg border border-white/10 font-sans shadow-md backdrop-blur-xs leading-normal pointer-events-none max-w-[260px]">
+          Showing Bengaluru — tap the target button to center on your current position.
+        </div>
+      )}
+
+      {/* Dynamic Location Request Button Overlay */}
+      <button
+        id="use-my-location-btn"
+        onClick={() => requestLocation(true)}
+        className="absolute bottom-2 right-2 z-10 bg-white/95 hover:bg-white text-ink border border-hairline rounded-lg p-2 shadow-md transition-all flex items-center justify-center cursor-pointer"
+        style={{ minWidth: "34px", minHeight: "34px" }}
+        title="Use my location"
+      >
+        <Navigation className={`w-3.5 h-3.5 ${geoStatus === "loading" ? "animate-pulse text-marigold" : "text-ink"}`} />
+      </button>
+
       <APIProvider apiKey={API_KEY} version="weekly">
         <Map
-          defaultCenter={center}
-          defaultZoom={validIssues.length > 0 ? 11 : 5}
+          center={activeCenter}
+          zoom={activeZoom}
+          onCameraChanged={(ev) => {
+            if (ev.detail.center) {
+              setActiveCenter(ev.detail.center);
+            }
+            if (typeof ev.detail.zoom === "number") {
+              setActiveZoom(ev.detail.zoom);
+            }
+          }}
           internalUsageAttributionIds={["gmp_mcp_codeassist_v1_aistudio"]}
           style={{ width: "100%", height: "100%" }}
           options={{
@@ -149,13 +249,14 @@ export default function HomeMap({ issues, onSelectIssue }: HomeMapProps) {
         >
           {validIssues.map((issue) => {
             const color = getSeverityColor(issue.severity);
+            const titleText = `${issue.title || humanizeCategory(issue.category)}${issue.isDemoData ? " (Demo)" : ""}`;
             return (
               <Marker
                 key={issue.id}
                 position={{ lat: issue.lat!, lng: issue.lng! }}
                 onClick={() => onSelectIssue(issue.id)}
                 icon={getSvgPinUrl(color)}
-                title={issue.title || humanizeCategory(issue.category)}
+                title={titleText}
               />
             );
           })}

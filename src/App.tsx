@@ -31,6 +31,9 @@ export default function App() {
   const [errorNotice, setErrorNotice] = useState<string | null>(null);
   const [selectedIssueId, setSelectedIssueId] = useState<string | null>(null);
 
+  // User Geolocation Shared State
+  const [userLocation, setUserLocation] = useState<{ lat: number; lng: number } | null>(null);
+
   // Operator Simulation Persona States
   const [persona, setPersona] = useState<"citizen" | "operator">("citizen");
   const [operatorSelectedIssueId, setOperatorSelectedIssueId] = useState<string | null>(null);
@@ -294,6 +297,8 @@ export default function App() {
               onUpvote={handleUpvote}
               upvoteLoadingId={upvoteLoadingId}
               onSelectIssue={handleSelectIssue}
+              userLocation={userLocation}
+              onUserLocationChange={setUserLocation}
             />
           )}
 
@@ -326,6 +331,7 @@ export default function App() {
             <ReportPage
               onBack={() => handleNavigate("landing")}
               onSubmit={handleReportSubmit}
+              prefilledLocation={userLocation}
             />
           )}
 

@@ -120,8 +120,8 @@ export default function IssueListWithFilter({
                 </div>
                 <div className="flex items-center gap-1.5">
                   {issue.isDemoData && (
-                    <span className="text-[10px] font-mono leading-none font-bold bg-marigold/10 text-marigold border border-marigold/20 px-1.5 py-0.5 rounded uppercase tracking-wider">
-                      Demo
+                    <span className="text-[9px] px-1.5 py-0.5 rounded font-mono font-bold bg-slate-500/10 text-slate-500/80 uppercase tracking-wider">
+                      DEMO
                     </span>
                   )}
                   <span className={`text-xs font-mono font-semibold uppercase tracking-wider border px-2 py-0.5 rounded-full ${getStatusClasses(issue.status)}`}>

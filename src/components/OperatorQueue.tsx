@@ -1,7 +1,7 @@
 import React, { useState } from "react";
 import { IssueReport } from "../types";
 import { ShieldCheck, Eye, RefreshCw, Layers, Database } from "lucide-react";
-import { seedDemoIssuesBengaluru } from "../services/issues";
+import { seedDemoIssuesBengaluru, clearDemoIssues } from "../services/issues";
 import { humanizeCategory } from "../utils/humanize";
 
 interface OperatorQueueProps {
@@ -13,6 +13,7 @@ interface OperatorQueueProps {
 
 export default function OperatorQueue({ issues, onSelectIssue, onRefresh, loading }: OperatorQueueProps) {
   const [seeding, setSeeding] = useState(false);
+  const [clearing, setClearing] = useState(false);
   const [seedError, setSeedError] = useState("");
 
   const handleLoadDemo = async () => {
@@ -25,6 +26,19 @@ export default function OperatorQueue({ issues, onSelectIssue, onRefresh, loadin
       setSeedError(err.message || "Failed to seed.");
     } finally {
       setSeeding(false);
+    }
+  };
+
+  const handleClearDemo = async () => {
+    setClearing(true);
+    setSeedError("");
+    try {
+      await clearDemoIssues();
+      onRefresh();
+    } catch (err: any) {
+      setSeedError(err.message || "Failed to clear demo data.");
+    } finally {
+      setClearing(false);
     }
   };
 
@@ -91,34 +105,54 @@ export default function OperatorQueue({ issues, onSelectIssue, onRefresh, loadin
           </button>
         </div>
 
-        {issues.length < 3 && (
+        {(issues.length < 3 || issues.some(i => i.isDemoData)) && (
           <div className="bg-paper border border-hairline rounded-xl p-3 flex flex-col items-center text-center gap-2 select-none">
             <div className="w-8 h-8 rounded-full bg-white flex items-center justify-center border border-hairline">
               <Database className="w-4 h-4 text-marigold" />
             </div>
             <div>
-              <h4 className="text-[13px] font-semibold text-ink">Demo Data</h4>
+              <h4 className="text-[13px] font-semibold text-ink">Demo Data Control</h4>
               <p className="text-[13px] text-slate mt-0.5 leading-relaxed max-w-xs">
-                Requires sample payload. Seed 7 high-fidelity Bengaluru reports to preview municipal status cycles.
+                Seed 7 high-fidelity Bengaluru reports to preview municipal status cycles, or clear active demo data cleanly.
               </p>
             </div>
             {seedError && <p className="text-xs text-alert font-mono">{seedError}</p>}
-            <button
-              id="load-demo-btn"
-              onClick={handleLoadDemo}
-              disabled={seeding || loading}
-              className="w-full bg-marigold hover:bg-marigold/95 text-ink text-[13px] font-bold px-3 py-1.5 rounded-lg border border-hairline cursor-pointer flex items-center justify-center gap-1.5 transition-all"
-              style={{ minHeight: "30px" }}
-            >
-              {seeding ? (
-                <>
-                  <RefreshCw className="w-3.5 h-3.5 animate-spin" />
-                  <span>Seeding telemetry...</span>
-                </>
-              ) : (
-                <span>Load Bengaluru Demo Data</span>
-              )}
-            </button>
+            
+            <div className="flex gap-2 w-full mt-1">
+              <button
+                id="load-demo-btn"
+                onClick={handleLoadDemo}
+                disabled={seeding || clearing || loading}
+                className="flex-1 bg-marigold hover:bg-marigold/95 text-ink text-[13px] font-bold px-3 py-1.5 rounded-lg border border-hairline cursor-pointer flex items-center justify-center gap-1.5 transition-all"
+                style={{ minHeight: "30px" }}
+              >
+                {seeding ? (
+                  <>
+                    <RefreshCw className="w-3.5 h-3.5 animate-spin" />
+                    <span>Seeding...</span>
+                  </>
+                ) : (
+                  <span>Seed Demo</span>
+                )}
+              </button>
+
+              <button
+                id="clear-demo-btn"
+                onClick={handleClearDemo}
+                disabled={seeding || clearing || loading}
+                className="flex-1 bg-white hover:bg-paper text-slate border border-slate-300 hover:border-slate-500 hover:text-ink text-[13px] font-bold px-3 py-1.5 rounded-lg cursor-pointer flex items-center justify-center gap-1.5 transition-all"
+                style={{ minHeight: "30px" }}
+              >
+                {clearing ? (
+                  <>
+                    <RefreshCw className="w-3.5 h-3.5 animate-spin" />
+                    <span>Clearing...</span>
+                  </>
+                ) : (
+                  <span>Clear Demo</span>
+                )}
+              </button>
+            </div>
           </div>
         )}
 

@@ -13,6 +13,7 @@ import ReportFallbackForm from "./ReportFallbackForm";
 interface ReportPageProps {
   onBack: () => void;
   onSubmit: (report: Partial<IssueReport>) => void;
+  prefilledLocation?: { lat: number; lng: number } | null;
 }
 
 const categoryMap: Record<string, string> = {
@@ -27,10 +28,18 @@ const categoryMap: Record<string, string> = {
 
 const serverCategories = ["pothole", "water_leak", "streetlight", "waste", "drainage", "road_damage", "other"];
 
-export default function ReportPage({ onBack, onSubmit }: ReportPageProps) {
+export default function ReportPage({ onBack, onSubmit, prefilledLocation }: ReportPageProps) {
   const [image, setImage] = useState<string | null>(null);
   const [description, setDescription] = useState("");
-  const [location, setLocation] = useState<LocationData | null>(null);
+  const [location, setLocation] = useState<LocationData | null>(
+    prefilledLocation
+      ? {
+          lat: prefilledLocation.lat,
+          lng: prefilledLocation.lng,
+          addressPlaceholder: `Latitude: ${prefilledLocation.lat.toFixed(4)}, Longitude: ${prefilledLocation.lng.toFixed(4)}`,
+        }
+      : null
+  );
   const [locLoading, setLocLoading] = useState(false);
   const [locError, setLocError] = useState<string | null>(null);
   const [manualAddress, setManualAddress] = useState("");
@@ -60,7 +69,9 @@ export default function ReportPage({ onBack, onSubmit }: ReportPageProps) {
   ];
 
   useEffect(() => {
-    handleFetchLocation();
+    if (!prefilledLocation) {
+      handleFetchLocation();
+    }
     const SpeechRec = (window as any).SpeechRecognition || (window as any).webkitSpeechRecognition;
     if (SpeechRec) {
       setSpeechSupported(true);
@@ -324,6 +335,31 @@ export default function ReportPage({ onBack, onSubmit }: ReportPageProps) {
       {/* Geolocation Live Capture Component */}
       <div className="bg-paper border border-hairline p-4 rounded-xl flex flex-col gap-2.5">
         <label className="text-[9pt] font-mono uppercase text-slate tracking-wider block">Coordinate Telemetry</label>
+        
+        {/* Non-blocking Permission / Geolocation Status Indicator */}
+        <div className="text-[10px] font-semibold leading-normal py-0.5">
+          {locLoading && (
+            <span className="text-marigold flex items-center gap-1 animate-pulse">
+              <Loader2 className="w-3.5 h-3.5 animate-spin" /> 📍 Acquiring coordinates...
+            </span>
+          )}
+          {!locLoading && location && (
+            <span className="text-verify flex items-center gap-1">
+              <CheckCircle2 className="w-3.5 h-3.5 text-verify" /> 📍 Coordinates locked!
+            </span>
+          )}
+          {!locLoading && locError && (
+            <span className="text-alert flex items-center gap-1">
+              ⚠️ Location access denied. Manual input required.
+            </span>
+          )}
+          {!locLoading && !location && !locError && (
+            <span className="text-slate flex items-center gap-1">
+              📍 Coordinates missing. Tap below to acquire.
+            </span>
+          )}
+        </div>
+
         {location ? (
           <div className="flex items-start gap-2 bg-verify/5 text-verify p-2 rounded-lg border border-verify/20 select-none">
             <CheckCircle2 className="w-3.5 h-3.5 text-verify mt-0.5 flex-shrink-0" />
@@ -349,7 +385,7 @@ export default function ReportPage({ onBack, onSubmit }: ReportPageProps) {
             style={{ minHeight: "36px" }}
           >
             {locLoading ? <Loader2 className="w-3.5 h-3.5 animate-spin text-marigold" /> : <MapPin className="w-3.5 h-3.5 text-marigold" />}
-            <span>Detecting Coordinates...</span>
+            <span>Detect Coordinates</span>
           </button>
         )}
         <input

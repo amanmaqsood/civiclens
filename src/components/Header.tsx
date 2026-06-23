@@ -14,7 +14,10 @@ export default function Header({ currentView, onNavigate, persona, onTogglePerso
   const { user, signInWithGoogle, signOutUser, loading } = useFirebase();
 
   return (
-    <header className="sticky top-0 z-40 bg-ink border-b border-white/10 px-4 py-3 flex items-center justify-between shadow-[0_2px_15px_-3px_rgba(0,0,0,0.5)] font-sans">
+    <header 
+      className="sticky top-0 z-40 bg-ink border-b border-white/10 px-4 pb-3 flex items-center justify-between shadow-[0_2px_15px_-3px_rgba(0,0,0,0.5)] font-sans"
+      style={{ paddingTop: "max(env(safe-area-inset-top), 12px)" }}
+    >
       <div className="flex items-center gap-2">
         {currentView !== "landing" && persona === "citizen" && (
           <button

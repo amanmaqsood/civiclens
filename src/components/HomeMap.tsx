@@ -1,6 +1,7 @@
 import React, { useMemo } from "react";
-import { APIProvider, Map, AdvancedMarker } from "@vis.gl/react-google-maps";
+import { APIProvider, Map, Marker } from "@vis.gl/react-google-maps";
 import { IssueReport } from "../types";
+import { humanizeCategory } from "../utils/humanize";
 
 interface HomeMapProps {
   issues: IssueReport[];
@@ -78,7 +79,7 @@ export default function HomeMap({ issues, onSelectIssue }: HomeMapProps) {
         lng: totalLng / validIssues.length,
       };
     }
-    return { lat: 28.6139, lng: 77.2090 }; // Default center (New Delhi)
+    return { lat: 12.9716, lng: 77.5946 }; // Default center (Bengaluru)
   }, [validIssues]);
 
   // Exact severity color map matching Civic Dossier tokens
@@ -88,6 +89,16 @@ export default function HomeMap({ issues, onSelectIssue }: HomeMapProps) {
     if (sev === 3) return "#EE9B2D"; // marigold (#EE9B2D)
     if (sev === 4) return "#F2683B"; // orange (#F2683B)
     return "#E5484D"; // alert (#E5484D)
+  };
+
+  const getSvgPinUrl = (color: string) => {
+    return `data:image/svg+xml;charset=UTF-8,${encodeURIComponent(`
+      <svg xmlns="http://www.w3.org/2000/svg" width="28" height="28" viewBox="0 0 28 28">
+        <circle cx="14" cy="14" r="10" fill="none" stroke="${color}" stroke-width="2" opacity="0.4"/>
+        <circle cx="14" cy="14" r="7" fill="white" stroke="${color}" stroke-width="2"/>
+        <circle cx="14" cy="14" r="3.5" fill="${color}"/>
+      </svg>
+    `)}`;
   };
 
   if (!hasValidKey) {
@@ -127,7 +138,6 @@ export default function HomeMap({ issues, onSelectIssue }: HomeMapProps) {
         <Map
           defaultCenter={center}
           defaultZoom={validIssues.length > 0 ? 11 : 5}
-          mapId="DEMO_MAP_ID"
           internalUsageAttributionIds={["gmp_mcp_codeassist_v1_aistudio"]}
           style={{ width: "100%", height: "100%" }}
           options={{
@@ -140,28 +150,13 @@ export default function HomeMap({ issues, onSelectIssue }: HomeMapProps) {
           {validIssues.map((issue) => {
             const color = getSeverityColor(issue.severity);
             return (
-              <AdvancedMarker
+              <Marker
                 key={issue.id}
                 position={{ lat: issue.lat!, lng: issue.lng! }}
                 onClick={() => onSelectIssue(issue.id)}
-                title={issue.title || issue.category}
-              >
-                {/* Severity-colored aperture lens pin */}
-                <div className="relative flex items-center justify-center w-8 h-8 cursor-pointer select-none">
-                  {/* Rotating focus ring */}
-                  <div 
-                    className="absolute inset-0 rounded-full border-2 animate-pulse opacity-40"
-                    style={{ borderColor: color }} 
-                  />
-                  {/* Concentric aperture white housing */}
-                  <div className="w-[15px] h-[15px] bg-white rounded-full flex items-center justify-center shadow-[0_1.5px_4px_rgba(14,26,43,0.3)]">
-                    <div 
-                      className="w-2.5 h-2.5 rounded-full"
-                      style={{ backgroundColor: color }}
-                    />
-                  </div>
-                </div>
-              </AdvancedMarker>
+                icon={getSvgPinUrl(color)}
+                title={issue.title || humanizeCategory(issue.category)}
+              />
             );
           })}
         </Map>

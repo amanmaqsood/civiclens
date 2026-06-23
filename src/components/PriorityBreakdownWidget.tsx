@@ -2,6 +2,7 @@ import React from "react";
 import { Award } from "lucide-react";
 import { IssueReport } from "../types";
 import { getPriorityBreakdown } from "../services/issues";
+import { humanizeUrgency } from "../utils/humanize";
 
 interface PriorityBreakdownWidgetProps {
   issue: IssueReport;
@@ -81,36 +82,36 @@ export default function PriorityBreakdownWidget({ issue }: PriorityBreakdownWidg
       </div>
 
       {/* Simplified, low density list with sentence-case labels */}
-      <div className="flex flex-col gap-2 text-[11px] border-t border-hairline pt-3">
+      <div className="flex flex-col gap-2 text-[13px] border-t border-hairline pt-3">
         {/* Severity */}
         <div className="flex justify-between items-center text-ink/80">
           <span className="text-slate">Base severity weight</span>
-          <span className="font-mono text-ink">
-            +{breakdown.severityComponent} <span className="text-slate/60 text-[9.5px]">({issue.severity || 1} × 12)</span>
+          <span className="font-mono text-ink text-xs">
+            +{breakdown.severityComponent} <span className="text-slate/60 text-xs">({issue.severity || 1} × 12)</span>
           </span>
         </div>
 
         {/* Urgency */}
         <div className="flex justify-between items-center text-ink/80">
           <span className="text-slate">Urgent dispatch bonus</span>
-          <span className="font-mono text-ink">
-            +{breakdown.urgencyComponent} <span className="text-slate/60 text-[9.5px] capitalize">({issue.urgency || "routine"})</span>
+          <span className="font-mono text-ink text-xs">
+            +{breakdown.urgencyComponent} <span className="text-slate/60 text-xs">({humanizeUrgency(issue.urgency)})</span>
           </span>
         </div>
 
         {/* Age */}
         <div className="flex justify-between items-center text-ink/80">
           <span className="text-slate">Age acceleration rate</span>
-          <span className="font-mono text-ink">
-            +{breakdown.timeComponent.toFixed(1)} <span className="text-slate/60 text-[9.5px]">({breakdown.hoursSinceReported.toFixed(0)}h log)</span>
+          <span className="font-mono text-ink text-xs">
+            +{breakdown.timeComponent.toFixed(1)} <span className="text-slate/60 text-xs">({breakdown.hoursSinceReported.toFixed(0)}h log)</span>
           </span>
         </div>
 
         {/* Confirmations */}
         <div className="flex justify-between items-center text-ink/80">
           <span className="text-slate">Community endorsement</span>
-          <span className="font-mono text-verify font-semibold">
-            +{breakdown.confirmComponent} <span className="text-slate/60 text-[9.5px] font-normal">({issue.confirmCount || 0} votes)</span>
+          <span className="font-mono text-verify font-semibold text-xs">
+            +{breakdown.confirmComponent} <span className="text-slate/60 text-xs font-normal">({issue.confirmCount || 0} votes)</span>
           </span>
         </div>
 

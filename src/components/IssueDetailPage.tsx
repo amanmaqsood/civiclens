@@ -7,6 +7,7 @@ import VerificationPanel from "./VerificationPanel";
 import AgentTraceTimeline from "./AgentTraceTimeline";
 import ResolutionPlanWidget from "./ResolutionPlanWidget";
 import AutoEscalationPanel from "./AutoEscalationPanel";
+import { humanizeCategory, humanizeUrgency } from "../utils/humanize";
 
 interface IssueDetailPageProps {
   issue: IssueReport;
@@ -107,10 +108,10 @@ export default function IssueDetailPage({
             <ArrowLeft className="w-4 h-4 text-ink" />
           </button>
           <div>
-            <span className="text-[9px] font-mono uppercase text-slate tracking-wider block">
-              Incindent Case Ledger
+            <span className="text-xs font-mono uppercase text-slate tracking-wider block">
+              Case Record
             </span>
-            <h2 className="text-[12px] font-mono font-semibold text-ink uppercase tracking-tight">
+            <h2 className="text-xs font-mono font-semibold text-ink uppercase tracking-tight">
               ID: {issue.ticketId}
             </h2>
           </div>
@@ -150,11 +151,11 @@ export default function IssueDetailPage({
               referrerPolicy="no-referrer"
             />
             {/* Category overlays */}
-            <span className="absolute left-3 top-3 bg-ink/75 backdrop-blur-xs text-white text-[9px] font-mono uppercase tracking-wider px-2.5 py-0.5 rounded-full border border-white/10">
-              {issue.category}
+            <span className="absolute left-3 top-3 bg-ink/75 backdrop-blur-xs text-white text-xs font-sans uppercase tracking-wider px-2.5 py-0.5 rounded-full border border-white/10">
+              {humanizeCategory(issue.category)}
             </span>
             {issue.isDemoData && (
-              <span className="absolute right-3 top-3 bg-marigold text-ink text-[9px] uppercase tracking-wider font-semibold px-2 py-0.5 rounded-full border border-white/10 select-none">
+              <span className="absolute right-3 top-3 bg-marigold text-ink text-xs uppercase tracking-wider font-semibold px-2 py-0.5 rounded-full border border-white/10 select-none">
                 Demo
               </span>
             )}
@@ -189,12 +190,12 @@ export default function IssueDetailPage({
           {/* Severity & SLA Widgets */}
           <div className="grid grid-cols-2 gap-2 mt-0.5">
             <div className={`border p-2.5 rounded-xl flex flex-col gap-0.5 ${severityInfo.classes}`}>
-              <span className="text-[8px] font-mono uppercase tracking-wider opacity-75">AI Severity</span>
-              <span className="text-[11px] font-bold">{severityInfo.text}</span>
+              <span className="text-xs font-mono uppercase tracking-wider opacity-75">AI Severity</span>
+              <span className="text-[13px] font-bold">{severityInfo.text}</span>
             </div>
             <div className={`border p-2.5 rounded-xl flex flex-col gap-0.5 ${getUrgencyClasses(issue.urgency)}`}>
-              <span className="text-[8px] font-mono uppercase tracking-wider opacity-75">Triage Standard</span>
-              <span className="text-[11px] font-bold capitalize">{issue.urgency || "routine"}</span>
+              <span className="text-xs font-mono uppercase tracking-wider opacity-75">Urgency</span>
+              <span className="text-[13px] font-bold capitalize">{humanizeUrgency(issue.urgency)}</span>
             </div>
           </div>
         </div>

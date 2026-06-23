@@ -2,6 +2,7 @@ import React, { useState, useMemo } from "react";
 import { ArrowUp, MapPin, Search } from "lucide-react";
 import { IssueReport } from "../types";
 import { motion } from "motion/react";
+import { humanizeCategory } from "../utils/humanize";
 
 interface IssueListWithFilterProps {
   issues: IssueReport[];
@@ -72,7 +73,7 @@ export default function IssueListWithFilter({
             <button
               key={filter}
               onClick={() => setActiveFilter(filter)}
-              className={`text-[9.5px] font-sans font-semibold px-2.5 py-1 rounded-full border transition-all cursor-pointer whitespace-nowrap uppercase tracking-wider ${
+              className={`text-xs font-sans font-semibold px-2.5 py-1 rounded-full border transition-all cursor-pointer whitespace-nowrap uppercase tracking-wider ${
                 isSelected
                   ? "bg-ink border-ink text-paper shadow-2xs"
                   : "bg-white border-hairline text-slate hover:text-ink hover:border-slate/40"
@@ -85,8 +86,8 @@ export default function IssueListWithFilter({
       </div>
 
       {/* Matching Header */}
-      <div className="flex justify-between items-center text-[9px] font-mono font-bold text-slate uppercase tracking-widest px-1">
-        <span>Filtered Ledger</span>
+      <div className="flex justify-between items-center text-xs font-mono font-bold text-slate uppercase tracking-widest px-1">
+        <span>Reports</span>
         <span>{filteredIssues.length} matching</span>
       </div>
 
@@ -94,7 +95,7 @@ export default function IssueListWithFilter({
       <div className="flex flex-col gap-3">
         {filteredIssues.length === 0 ? (
           <div className="bg-white border border-hairline rounded-2xl p-6 text-center shadow-xs">
-            <p className="text-xs font-medium text-slate">No active records match the filter.</p>
+            <p className="text-[13px] font-medium text-slate">No active records match the filter.</p>
           </div>
         ) : (
           filteredIssues.map((issue) => (
@@ -108,22 +109,22 @@ export default function IssueListWithFilter({
               {/* Top Tags Row */}
               <div className="flex items-center justify-between">
                 <div className="flex gap-1.5 items-center">
-                  <span className="text-[9px] bg-paper text-ink font-mono uppercase tracking-wider px-2 py-0.5 rounded-full border border-hairline">
-                    {issue.category}
+                  <span className="text-xs bg-paper text-ink font-mono uppercase tracking-wider px-2 py-0.5 rounded-full border border-hairline">
+                    {humanizeCategory(issue.category)}
                   </span>
                   {issue.priorityScore !== undefined && (
-                    <span className="text-[9px] bg-ink text-marigold font-mono font-semibold px-2 py-0.5 rounded-full border border-white/5 flex items-center gap-0.5 select-none md:scale-100">
+                    <span className="text-xs bg-ink text-marigold font-mono font-semibold px-2 py-0.5 rounded-full border border-white/5 flex items-center gap-0.5 select-none md:scale-100">
                       ★ {issue.priorityScore} pts
                     </span>
                   )}
                 </div>
                 <div className="flex items-center gap-1.5">
                   {issue.isDemoData && (
-                    <span className="text-[8px] font-mono leading-none font-bold bg-marigold/10 text-marigold border border-marigold/20 px-1.5 py-0.5 rounded uppercase tracking-wider">
+                    <span className="text-[10px] font-mono leading-none font-bold bg-marigold/10 text-marigold border border-marigold/20 px-1.5 py-0.5 rounded uppercase tracking-wider">
                       Demo
                     </span>
                   )}
-                  <span className={`text-[9px] font-mono font-semibold uppercase tracking-wider border px-2 py-0.5 rounded-full ${getStatusClasses(issue.status)}`}>
+                  <span className={`text-xs font-mono font-semibold uppercase tracking-wider border px-2 py-0.5 rounded-full ${getStatusClasses(issue.status)}`}>
                     {issue.status}
                   </span>
                 </div>
@@ -145,36 +146,36 @@ export default function IssueListWithFilter({
                   </div>
                 )}
                 <div className="flex-1 min-w-0 pr-1">
-                  <h4 className="text-xs font-semibold text-ink line-clamp-1 leading-snug group-hover:text-marigold transition-colors font-sans">
+                  <h4 className="text-sm font-semibold text-ink line-clamp-1 leading-snug group-hover:text-marigold transition-colors font-sans">
                     {issue.title || "Geotagged Civic Incident"}
                   </h4>
-                  <p className="text-[10.5px] text-slate line-clamp-2 leading-relaxed mt-0.5 font-sans">
+                  <p className="text-[13px] text-slate line-clamp-2 leading-relaxed mt-0.5 font-sans font-normal">
                     {issue.summary || issue.description}
                   </p>
                   <div className="flex items-center gap-1 mt-1 text-slate font-sans">
                     <MapPin className="w-3 h-3 text-marigold" />
-                    <span className="text-[9.5px] truncate font-medium">{issue.locationName || "Reported Location"}</span>
+                    <span className="text-xs truncate font-medium">{issue.locationName || "Reported Location"}</span>
                   </div>
                 </div>
               </div>
 
               {/* Card Footer row */}
               <div className="border-t border-hairline/80 pt-2.5 flex items-center justify-between mt-0.5">
-                <span className="text-[9px] font-mono text-slate uppercase tracking-tight">
+                <span className="text-xs font-mono text-slate uppercase tracking-tight">
                   {issue.ticketId}
                 </span>
 
                 <div className="flex items-center gap-1">
                   <button
                     onClick={() => onSelectIssue(issue.id)}
-                    className="text-[10px] font-sans font-semibold text-slate hover:text-ink px-2.5 py-1.5 rounded-lg cursor-pointer"
+                    className="text-xs font-sans font-semibold text-slate hover:text-ink px-2.5 py-1.5 rounded-lg cursor-pointer"
                   >
                     Details
                   </button>
                   <button
                     disabled={upvoteLoadingId === issue.id}
                     onClick={() => onUpvote(issue.id)}
-                    className="flex items-center gap-1 bg-paper hover:bg-marigold hover:text-ink px-3 py-1.5 rounded-xl text-[10px] font-sans font-bold text-ink border border-hairline transition-colors cursor-pointer"
+                    className="flex items-center gap-1 bg-paper hover:bg-marigold hover:text-ink px-3 py-1.5 rounded-xl text-xs font-sans font-bold text-ink border border-hairline transition-colors cursor-pointer"
                     style={{ minHeight: "34px" }}
                   >
                     <ArrowUp className="w-3 h-3" />

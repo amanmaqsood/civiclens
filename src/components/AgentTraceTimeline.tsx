@@ -1,5 +1,5 @@
 import React from "react";
-import { ArrowRight, Sparkles } from "lucide-react";
+import { Sparkles } from "lucide-react";
 import { AgentTraceEntry } from "../types";
 import { motion } from "motion/react";
 
@@ -16,10 +16,32 @@ export default function AgentTraceTimeline({ trace = [] }: AgentTraceTimelinePro
     { step: "Draft Action Packet", label: "Draft Resolution Case Packet" }
   ];
 
+  // For issues genuinely missing a trace, show a clean single-line empty state
+  if (!trace || trace.length === 0) {
+    return (
+      <div 
+        id="agent-trace-section" 
+        className="bg-white border border-hairline rounded-2xl p-5 flex flex-col gap-3.5 shadow-sm font-sans"
+      >
+        <div className="flex items-center gap-2 border-b border-hairline pb-3">
+          <div className="w-5 h-5 rounded-full bg-ink/5 border border-hairline flex items-center justify-center">
+            <Sparkles className="w-3 h-3 text-marigold" />
+          </div>
+          <span className="font-display text-sm font-bold tracking-tight text-ink uppercase">
+            Agent Trace
+          </span>
+        </div>
+        <p className="text-[13px] text-slate leading-relaxed">
+          Agent trace will appear after the live agent run.
+        </p>
+      </div>
+    );
+  }
+
   return (
     <div 
       id="agent-trace-section" 
-      className="bg-white border border-hairline rounded-2xl p-5 flex flex-col gap-4 shadow-[0_4px_20px_-4px_rgba(14,26,43,0.06)] font-sans"
+      className="bg-white border border-hairline rounded-2xl p-5 flex flex-col gap-4 shadow-sm font-sans"
     >
       {/* Dossier Header */}
       <div className="flex items-center justify-between border-b border-hairline pb-3">
@@ -27,13 +49,10 @@ export default function AgentTraceTimeline({ trace = [] }: AgentTraceTimelinePro
           <div className="w-5 h-5 rounded-full bg-ink/5 border border-hairline flex items-center justify-center">
             <Sparkles className="w-3 h-3 text-marigold" />
           </div>
-          <span className="font-display text-xs font-bold tracking-tight text-ink uppercase">
-            Agent Audit Ledger
+          <span className="font-display text-sm font-bold tracking-tight text-ink uppercase">
+            Agent Trace
           </span>
         </div>
-        <span className="font-mono text-[9px] uppercase tracking-wider text-slate bg-paper px-2 py-0.5 rounded-full border border-hairline">
-          Live Sovereign Trace
-        </span>
       </div>
 
       {/* Case Dossier Timeline */}
@@ -58,7 +77,7 @@ export default function AgentTraceTimeline({ trace = [] }: AgentTraceTimelinePro
             <div 
               id={`trace-step-${st.step.toLowerCase().replace(/\s+/g, '-')}`} 
               key={idx} 
-              className="relative flex flex-col gap-1 text-[11px]"
+              className="relative flex flex-col gap-1"
             >
               {/* Concentric focus-ring icon that scales-in when complete */}
               <div className="absolute -left-[24.5px] top-0.5 z-10 flex items-center justify-center">
@@ -82,49 +101,52 @@ export default function AgentTraceTimeline({ trace = [] }: AgentTraceTimelinePro
                 )}
               </div>
 
-              {/* Timestamp + Tool Tag Row */}
-              <div className="flex items-center justify-between text-[10px]">
-                <div className="flex items-center gap-1.5 text-slate font-mono">
+              {/* Timestamp + Status Row */}
+              <div className="flex items-center justify-between text-xs font-mono text-slate">
+                <div className="flex items-center gap-1.5">
                   {displayTimestamp ? (
-                    <span className="bg-paper border border-hairline px-1 rounded text-[9.5px]">
+                    <span className="bg-paper border border-hairline px-1 rounded text-xs">
                       {displayTimestamp}
                     </span>
                   ) : (
-                    <span className="text-[9px] text-slate/40">— : — : —</span>
+                    <span className="text-xs text-slate/40">— : — : —</span>
                   )}
 
                   {!isPending && entry?.tool && (
-                    <span className="text-[9px] uppercase tracking-tight bg-ink/5 text-ink/70 px-1 rounded border border-hairline font-mono truncate max-w-[150px]">
+                    <span className="text-xs uppercase tracking-tight bg-ink/5 text-ink/70 px-1 rounded border border-hairline font-mono truncate max-w-[150px]">
                       {entry.tool.split("(")[0].trim().replace("/api/", "")}
                     </span>
                   )}
                 </div>
 
                 {isDone && (
-                  <span className="font-mono text-[9px] font-semibold text-verify lowercase">
-                    [active_ledger]
+                  <span className="inline-flex items-center gap-1.5 font-sans font-medium text-xs text-slate">
+                    <span className="w-1.5 h-1.5 rounded-full bg-verify font-bold" />
+                    Done
                   </span>
                 )}
                 {isSkipped && (
-                  <span className="font-mono text-[9px] font-semibold text-slate lowercase">
-                    [skipped]
+                  <span className="inline-flex items-center gap-1.5 font-sans font-medium text-xs text-slate">
+                    <span className="w-1.5 h-1.5 rounded-full bg-slate font-bold" />
+                    Skipped
                   </span>
                 )}
                 {isPending && (
-                  <span className="font-mono text-[9px] font-semibold text-slate/40 lowercase animate-pulse">
-                    [awaiting]
+                  <span className="inline-flex items-center gap-1.5 font-sans font-medium text-xs text-slate">
+                    <span className="w-1.5 h-1.5 rounded-full bg-slate/30 animate-pulse font-bold" />
+                    Pending
                   </span>
                 )}
               </div>
 
               {/* Step Title inside dossier context */}
-              <div className="font-sans font-semibold text-ink text-[11.5px] mt-0.5">
+              <div className="font-sans font-semibold text-ink text-sm mt-0.5">
                 {st.label}
               </div>
 
               {/* Highlighted one-line rationale note */}
               {!isPending && entry && (
-                <div className="text-[10px] text-slate leading-relaxed border-l-2 border-hairline pl-2 mt-0.5 italic">
+                <div className="text-[13px] text-slate leading-relaxed border-l border-hairline pl-2 mt-1 italic font-normal">
                   {entry.rationale}
                 </div>
               )}

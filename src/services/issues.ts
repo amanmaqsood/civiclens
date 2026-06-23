@@ -1024,6 +1024,45 @@ export async function seedDemoIssuesBengaluru(): Promise<boolean> {
 
     initialReport.priorityScore = calculatePriorityScore(initialReport);
 
+    const baseMs = Date.parse(timestamp);
+    const blrAgentTrace: AgentTraceEntry[] = [
+      {
+        step: "Perceive",
+        tool: "Gemini Vision Integrity Inspector",
+        status: "done",
+        rationale: `Detected ${t.category.replace("_", " ")} from community snapshot. Triage priority marked as ${t.severity}/5.`,
+        ts: new Date(baseMs + 8 * 1000).toISOString()
+      },
+      {
+        step: "Locate",
+        tool: "GPS Geo-locator",
+        status: "done",
+        rationale: `Geolocational reference locked to ${t.locationName} (${t.lat.toFixed(4)}, ${t.lng.toFixed(4)}).`,
+        ts: new Date(baseMs + 24 * 1000).toISOString()
+      },
+      {
+        step: "Deduplicate",
+        tool: "Deduplication Graph Search",
+        status: "done",
+        rationale: `Scanned vicinity coordinates for duplicates. Marked as a new distinct report.`,
+        ts: new Date(baseMs + 45 * 1000).toISOString()
+      },
+      {
+        step: "Find Authority",
+        tool: "Indian Grounded Authority Lookup",
+        status: "done",
+        rationale: `Routed municipal complaint ownership directly to Bruhat Bengaluru Mahanagara Palike (BBMP) ward officers.`,
+        ts: new Date(baseMs + 65 * 1000).toISOString()
+      },
+      {
+        step: "Draft Action Packet",
+        tool: "Draft Resolution Case Packet",
+        status: "done",
+        rationale: "Compiled local evidence packet and legal escalation brief for rapid grievance response.",
+        ts: new Date(baseMs + 120 * 1000).toISOString()
+      }
+    ];
+
     const docRef = doc(db, COLLECTION_NAME, issueId);
     await setDoc(docRef, initialReport);
 
@@ -1035,6 +1074,7 @@ export async function seedDemoIssuesBengaluru(): Promise<boolean> {
       confirmCount: t.confirmCount,
       urgency: t.urgency,
       isDemoData: true,
+      agentTrace: blrAgentTrace,
     };
 
     const finalState = { ...initialReport, ...demoUpdates };

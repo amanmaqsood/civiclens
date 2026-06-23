@@ -26,16 +26,16 @@ export default function LandingPage({
         <div className="absolute -right-12 -bottom-12 w-40 h-40 rounded-full bg-marigold/10 blur-2xl" />
         
         <div className="relative z-10 flex flex-col gap-3">
-          <span className="self-start text-[8px] font-mono lg:text-[9px] font-bold uppercase tracking-widest bg-marigold text-ink px-2.5 py-0.5 rounded-full select-none">
+          <span className="self-start text-[10px] font-mono lg:text-xs font-bold uppercase tracking-widest bg-marigold text-ink px-2.5 py-0.5 rounded-full select-none">
             OFFICIAL AUDIT LEDGER
           </span>
-          <h2 className="text-xl font-display font-black tracking-tight leading-tight text-white">
+          <h2 className="text-xl font-display font-black tracking-tight leading-tight text-white animate-fade-in">
             Flag local hazard.<br />Witness live resolution.
           </h2>
           <button
             id="report-issue-btn"
             onClick={() => onNavigate("report")}
-            className="mt-1 w-full flex items-center justify-center gap-2 bg-marigold hover:bg-marigold/95 font-bold text-ink text-xs py-3 px-5 rounded-xl transition duration-150 active:scale-[0.98] cursor-pointer font-sans"
+            className="mt-1 w-full flex items-center justify-center gap-2 bg-marigold hover:bg-marigold/95 font-bold text-ink text-sm py-3 px-5 rounded-xl transition duration-150 active:scale-[0.98] cursor-pointer font-sans"
             style={{ minHeight: "44px" }}
             aria-label="Report a new civic issue"
           >
@@ -47,8 +47,8 @@ export default function LandingPage({
 
       {/* Google Interactive Map Section */}
       <div className="flex flex-col gap-2">
-        <h3 className="text-[10px] font-display font-bold text-ink uppercase tracking-wider px-1">
-          Active Incident Map
+        <h3 className="text-xs font-display font-bold text-ink uppercase tracking-wider px-1">
+          Live map
         </h3>
         <HomeMap issues={issues} onSelectIssue={onSelectIssue} />
       </div>
@@ -63,24 +63,24 @@ export default function LandingPage({
 
       {/* Progress & Live Network Stats */}
       <div className="bg-white border border-hairline p-4 rounded-2xl flex flex-col gap-3 shadow-xs">
-        <h3 className="text-[10px] font-display font-bold text-ink uppercase tracking-wider flex items-center gap-1.5">
+        <h3 className="text-xs font-display font-bold text-ink uppercase tracking-wider flex items-center gap-1.5">
           <TrendingUp className="w-3.5 h-3.5 text-marigold" />
           Live Network Stats
         </h3>
 
         <div className="grid grid-cols-3 gap-1.5 text-center">
           <div className="p-2.5 bg-paper rounded-xl border border-hairline">
-            <p className="text-[8px] font-mono uppercase tracking-wider text-slate">Reported</p>
+            <p className="text-[10px] font-mono uppercase tracking-wider text-slate">Reported</p>
             <p id="stats-total-reported" className="text-sm font-display font-black text-marigold">{issues.length}</p>
           </div>
           <div className="p-2.5 bg-paper rounded-xl border border-hairline">
-            <p className="text-[8px] font-mono uppercase tracking-wider text-slate">Executing</p>
+            <p className="text-[10px] font-mono uppercase tracking-wider text-slate">Executing</p>
             <p id="stats-in-progress" className="text-sm font-display font-black text-[#3B82F6]">
               {issues.filter(i => i.status === "In Progress" || i.status === "Verified").length}
             </p>
           </div>
           <div className="p-2.5 bg-paper rounded-xl border border-hairline">
-            <p className="text-[8px] font-mono uppercase tracking-wider text-slate">Resolved</p>
+            <p className="text-[10px] font-mono uppercase tracking-wider text-slate">Resolved</p>
             <p id="stats-resolved" className="text-sm font-display font-black text-verify">
               {issues.filter(i => i.status === "Resolved").length}
             </p>
@@ -89,7 +89,7 @@ export default function LandingPage({
 
         <div className="flex items-center gap-2 bg-[#E9F7F5] border border-verify/10 p-2.5 rounded-xl">
           <CheckCircle2 className="w-3.5 h-3.5 text-verify flex-shrink-0" />
-          <p className="text-[10px] text-slate leading-snug font-medium">
+          <p className="text-xs text-slate leading-snug font-medium">
             Recent: Bengaluru road hazard resolved in 24 hrs.
           </p>
         </div>
@@ -98,7 +98,7 @@ export default function LandingPage({
       {/* Footer Decoration */}
       <div className="flex items-center justify-center gap-1.5 py-1 text-center">
         <Users className="w-3.5 h-3.5 text-slate/50" />
-        <span className="text-[9px] text-slate/60 font-mono tracking-widest uppercase">
+        <span className="text-[10px] text-slate/60 font-mono tracking-widest uppercase">
           Digital India Citizen Initiative
         </span>
       </div>

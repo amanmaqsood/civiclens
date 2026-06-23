@@ -97,7 +97,7 @@ export default function OperatorQueue({ issues, onSelectIssue, onRefresh, loadin
               <Database className="w-4 h-4 text-marigold" />
             </div>
             <div>
-              <h4 className="text-[13px] font-semibold text-ink">Sovereign Demo Seed</h4>
+              <h4 className="text-[13px] font-semibold text-ink">Demo Data</h4>
               <p className="text-[13px] text-slate mt-0.5 leading-relaxed max-w-xs">
                 Requires sample payload. Seed 7 high-fidelity Bengaluru reports to preview municipal status cycles.
               </p>

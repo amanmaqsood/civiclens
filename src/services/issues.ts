@@ -992,7 +992,7 @@ export async function seedDemoIssuesBengaluru(): Promise<boolean> {
   for (const t of templates) {
     const issueId = doc(collection(db, COLLECTION_NAME)).id;
     const ticketId = `#BLR-${Math.floor(10000 + Math.random() * 90000)}`;
-    const timestamp = new Date(Date.now() - (1 + Math.random() * 5) * 24 * 3600 * 1000).toISOString();
+    const timestamp = new Date(Date.now() - (2 + Math.random() * 4) * 24 * 3600 * 1000).toISOString();
 
     const initialReport: IssueReport = {
       id: issueId,
@@ -1004,7 +1004,7 @@ export async function seedDemoIssuesBengaluru(): Promise<boolean> {
       category: t.category,
       description: t.description,
       status: "Submitted",
-      citizenUpvotes: 0,
+      citizenUpvotes: t.confirmCount || 0, // start with real upvotes matching confirm count
       userId,
       timestamp,
       title: t.title,
@@ -1025,6 +1025,11 @@ export async function seedDemoIssuesBengaluru(): Promise<boolean> {
     initialReport.priorityScore = calculatePriorityScore(initialReport);
 
     const baseMs = Date.parse(timestamp);
+    const nowMs = Date.now();
+    const capTimestamp = (targetMs: number) => {
+      const capped = Math.min(targetMs, nowMs - 60 * 1000);
+      return new Date(capped).toISOString();
+    };
 
     // Dynamic rationales tailored using issue's category, title, severity, and location
     const categoryLabel = t.category.replace(/_/g, " ");
@@ -1042,35 +1047,35 @@ export async function seedDemoIssuesBengaluru(): Promise<boolean> {
         tool: "geminiVision.analyzeImage",
         status: "done",
         rationale: rationales.perceive,
-        ts: new Date(baseMs - 5 * 60 * 1000).toISOString()
+        ts: capTimestamp(baseMs + 10 * 1000)
       },
       {
         step: "Locate",
         tool: "geocode.reverseLookup",
         status: "done",
         rationale: rationales.locate,
-        ts: new Date(baseMs - 4 * 60 * 1000).toISOString()
+        ts: capTimestamp(baseMs + 20 * 1000)
       },
       {
         step: "Deduplicate",
         tool: "graph.findDuplicateCandidates",
         status: "done",
         rationale: rationales.deduplicate,
-        ts: new Date(baseMs - 3 * 60 * 1000).toISOString()
+        ts: capTimestamp(baseMs + 30 * 1000)
       },
       {
         step: "Find Authority",
         tool: "googleSearch.findAuthority",
         status: "done",
         rationale: rationales.findAuthority,
-        ts: new Date(baseMs - 2 * 60 * 1000).toISOString()
+        ts: capTimestamp(baseMs + 40 * 1000)
       },
       {
         step: "Draft Action Packet",
         tool: "drafting.createActionPacket",
         status: "done",
         rationale: rationales.draftActionPacket,
-        ts: new Date(baseMs - 1 * 60 * 1000).toISOString()
+        ts: capTimestamp(baseMs + 50 * 1000)
       }
     ];
 
@@ -1105,13 +1110,13 @@ export async function seedDemoIssuesBengaluru(): Promise<boolean> {
         actorType: "citizen" as const,
         eventType: "created",
         message: `Report submitted for "${t.title}".`,
-        timestamp: new Date(baseMs - 5 * 60 * 1000).toISOString()
+        timestamp: capTimestamp(baseMs)
       },
       {
         actorType: "ai" as const,
         eventType: "triage",
         message: `AI triage completed: assigned severity ${t.severity}/5 and urgency level as ${t.urgency}.`,
-        timestamp: new Date(baseMs - 4 * 60 * 1000).toISOString()
+        timestamp: capTimestamp(baseMs + 2 * 60 * 1000)
       }
     ];
 
@@ -1121,14 +1126,14 @@ export async function seedDemoIssuesBengaluru(): Promise<boolean> {
           actorType: "citizen" as const,
           eventType: "verification",
           message: `Community verification: ${t.confirmCount} confirmations registered by citizen accounts.`,
-          timestamp: new Date(baseMs - 2 * 60 * 60 * 1000).toISOString()
+          timestamp: capTimestamp(baseMs + 3 * 60 * 60 * 1000)
         });
       }
       activitiesToSeed.push({
         actorType: "operator" as const,
         eventType: "status_changed",
         message: "Status advanced to Verified following automated review.",
-        timestamp: new Date(baseMs).toISOString()
+        timestamp: capTimestamp(baseMs + 28 * 60 * 60 * 1000)
       });
     } else if (t.status === "In Progress") {
       if (t.confirmCount && t.confirmCount > 0) {
@@ -1136,14 +1141,14 @@ export async function seedDemoIssuesBengaluru(): Promise<boolean> {
           actorType: "citizen" as const,
           eventType: "verification",
           message: `Community verification: ${t.confirmCount} confirmations registered by citizen accounts.`,
-          timestamp: new Date(baseMs - 4 * 60 * 60 * 1000).toISOString()
+          timestamp: capTimestamp(baseMs + 3 * 60 * 60 * 1000)
         });
       }
       activitiesToSeed.push({
         actorType: "operator" as const,
         eventType: "status_changed",
         message: "Status advanced to In Progress. Work order dispatched to local ward engineers.",
-        timestamp: new Date(baseMs).toISOString()
+        timestamp: capTimestamp(baseMs + 6 * 60 * 60 * 1000)
       });
     } else if (t.status === "Resolved") {
       if (t.confirmCount && t.confirmCount > 0) {
@@ -1151,20 +1156,20 @@ export async function seedDemoIssuesBengaluru(): Promise<boolean> {
           actorType: "citizen" as const,
           eventType: "verification",
           message: `Community verification: ${t.confirmCount} confirmations registered by citizen accounts.`,
-          timestamp: new Date(baseMs - 20 * 60 * 60 * 1000).toISOString()
+          timestamp: capTimestamp(baseMs + 3 * 60 * 60 * 1000)
         });
       }
       activitiesToSeed.push({
         actorType: "operator" as const,
         eventType: "status_changed",
         message: "Status advanced to In Progress. Contractors dispatched to location.",
-        timestamp: new Date(baseMs - 12 * 60 * 60 * 1000).toISOString()
+        timestamp: capTimestamp(baseMs + 6 * 60 * 60 * 1000)
       });
       activitiesToSeed.push({
         actorType: "operator" as const,
         eventType: "status_changed",
         message: "Resolution certified: visual proof of closure verified and approved.",
-        timestamp: new Date(baseMs).toISOString()
+        timestamp: capTimestamp(baseMs + 28 * 60 * 60 * 1000)
       });
     } else {
       // Submitted status
@@ -1172,7 +1177,7 @@ export async function seedDemoIssuesBengaluru(): Promise<boolean> {
         actorType: "operator" as const,
         eventType: "status_changed",
         message: "Report successfully published to active ledger.",
-        timestamp: new Date(baseMs).toISOString()
+        timestamp: capTimestamp(baseMs + 5 * 1000)
       });
     }
 

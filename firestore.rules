@@ -15,7 +15,9 @@ service cloud.firestore {
       allow create: if isSignedIn() && isValidId(issueId)
         && request.resource.data.userId == request.auth.uid
         && request.resource.data.status == 'Submitted'
-        && request.resource.data.citizenUpvotes == 0
+        && request.resource.data.citizenUpvotes is int
+        && request.resource.data.citizenUpvotes >= 0
+        && request.resource.data.citizenUpvotes <= 1000
         && request.resource.data.reportCount == 1
         && request.resource.data.keys().size() <= 35;
       allow update: if isSignedIn()

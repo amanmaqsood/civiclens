@@ -420,8 +420,12 @@ export default function IssueDetailPage({
             {activities.map((act) => (
               <div key={act.id} className="relative flex flex-col gap-0.5">
                 <div className="absolute -left-[19px] top-1.5 w-1.5 h-1.5 rounded-full bg-slate border border-white" />
-                <span className="text-[8px] font-mono text-slate uppercase tracking-wider">
-                  {act.actorType === "operator" ? "👨‍✈️ Sim Auditor" : "👤 Citizen Base"}
+                <span className="text-[10px] font-mono font-bold text-slate uppercase tracking-wider">
+                  {{
+                    operator: "🏛️ Operator",
+                    ai: "🤖 CivicLens Agent",
+                    citizen: "👤 Citizen",
+                  }[act.actorType] || "👤 Citizen"}
                 </span>
                 <p className="text-[11px] text-ink leading-relaxed font-sans font-medium">
                   {act.message}

@@ -68,7 +68,7 @@ export default function AutoEscalationPanel({ issue, onUpdated }: AutoEscalation
       {escalation ? (
         <div className="flex flex-col gap-3.5">
           <div className="bg-paper border border-hairline p-3 rounded-xl text-[10px] text-slate font-medium leading-relaxed">
-            Case escalated to Sovereign State Office on <span className="text-ink font-semibold">{new Date(escalation.escalatedAt).toLocaleDateString()}</span>. Compiled appeal packets are prepared below:
+            Case escalated to the State Grievance Authority on <span className="text-ink font-semibold">{new Date(escalation.escalatedAt).toLocaleDateString()}</span>. Compiled appeal packets are prepared below:
           </div>
 
           {/* Escalation Letter */}

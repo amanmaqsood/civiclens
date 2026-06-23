@@ -181,7 +181,7 @@ export default function ResolutionPlanWidget({ issue, onRefresh, lang = "en" }: 
               <span className="text-[8px] font-mono uppercase tracking-wider text-slate">Grounding reference links</span>
               <div className="flex flex-wrap gap-1.5">
                 {plan.groundingSources.map((src, i) => {
-                  let domain = "Sovereign Portal";
+                  let domain = "Government Portal";
                   try {
                     domain = new URL(src).hostname.replace("www.", "");
                   } catch(e) {}

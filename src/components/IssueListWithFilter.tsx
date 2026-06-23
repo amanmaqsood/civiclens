@@ -114,7 +114,7 @@ export default function IssueListWithFilter({
                   </span>
                   {issue.priorityScore !== undefined && (
                     <span className="text-xs bg-ink text-marigold font-mono font-semibold px-2 py-0.5 rounded-full border border-white/5 flex items-center gap-0.5 select-none md:scale-100">
-                      ★ {issue.priorityScore} pts
+                      ★ {Math.round(issue.priorityScore)} pts
                     </span>
                   )}
                 </div>
@@ -180,7 +180,7 @@ export default function IssueListWithFilter({
                   >
                     <ArrowUp className="w-3 h-3" />
                     <span>
-                      {upvoteLoadingId === issue.id ? "..." : `${issue.citizenUpvotes} Upvote`}
+                      {upvoteLoadingId === issue.id ? "..." : `${issue.citizenUpvotes} ${issue.citizenUpvotes === 1 ? "Upvote" : "Upvotes"}`}
                     </span>
                   </button>
                 </div>

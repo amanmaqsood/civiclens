@@ -27,7 +27,7 @@ export default function LandingPage({
         
         <div className="relative z-10 flex flex-col gap-3">
           <span className="self-start text-[10px] font-mono lg:text-xs font-bold uppercase tracking-widest bg-marigold text-ink px-2.5 py-0.5 rounded-full select-none">
-            OFFICIAL AUDIT LEDGER
+            LIVE CIVIC TRACKER
           </span>
           <h2 className="text-xl font-display font-black tracking-tight leading-tight text-white animate-fade-in">
             Flag local hazard.<br />Witness live resolution.

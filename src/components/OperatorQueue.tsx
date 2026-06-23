@@ -143,7 +143,7 @@ export default function OperatorQueue({ issues, onSelectIssue, onRefresh, loadin
                   <div className="flex items-center gap-1">
                     <span className="text-xs font-mono text-slate">PRIORITY:</span>
                     <span className="font-mono text-xs font-bold text-ink bg-white border border-hairline px-2 py-0.5 rounded">
-                      {issue.priorityScore || 0}
+                      {Math.round(issue.priorityScore || 0)}
                     </span>
                   </div>
                 </div>

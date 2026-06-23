@@ -1025,41 +1025,52 @@ export async function seedDemoIssuesBengaluru(): Promise<boolean> {
     initialReport.priorityScore = calculatePriorityScore(initialReport);
 
     const baseMs = Date.parse(timestamp);
+
+    // Dynamic rationales tailored using issue's category, title, severity, and location
+    const categoryLabel = t.category.replace(/_/g, " ");
+    const rationales = {
+      perceive: `Classified as ${categoryLabel} at severity ${t.severity}/5; detected "${t.title}" from user photograph.`,
+      locate: `Geographical reference verified at "${t.locationName}" (${t.lat.toFixed(4)} N, ${t.lng.toFixed(4)} E).`,
+      deduplicate: `Scanned spatial proximity grid around ${t.locationName} and confirmed as a unique incident report.`,
+      findAuthority: `Identified and routed report to Bruhat Bengaluru Mahanagara Palike (BBMP) ward officers.`,
+      draftActionPacket: `Generated official complaint summary for "${t.title}" and compiled for rapid contractor dispatch.`
+    };
+
     const blrAgentTrace: AgentTraceEntry[] = [
       {
         step: "Perceive",
-        tool: "Gemini Vision Integrity Inspector",
+        tool: "geminiVision.analyzeImage",
         status: "done",
-        rationale: `Detected ${t.category.replace("_", " ")} from community snapshot. Triage priority marked as ${t.severity}/5.`,
-        ts: new Date(baseMs + 8 * 1000).toISOString()
+        rationale: rationales.perceive,
+        ts: new Date(baseMs - 5 * 60 * 1000).toISOString()
       },
       {
         step: "Locate",
-        tool: "GPS Geo-locator",
+        tool: "geocode.reverseLookup",
         status: "done",
-        rationale: `Geolocational reference locked to ${t.locationName} (${t.lat.toFixed(4)}, ${t.lng.toFixed(4)}).`,
-        ts: new Date(baseMs + 24 * 1000).toISOString()
+        rationale: rationales.locate,
+        ts: new Date(baseMs - 4 * 60 * 1000).toISOString()
       },
       {
         step: "Deduplicate",
-        tool: "Deduplication Graph Search",
+        tool: "graph.findDuplicateCandidates",
         status: "done",
-        rationale: `Scanned vicinity coordinates for duplicates. Marked as a new distinct report.`,
-        ts: new Date(baseMs + 45 * 1000).toISOString()
+        rationale: rationales.deduplicate,
+        ts: new Date(baseMs - 3 * 60 * 1000).toISOString()
       },
       {
         step: "Find Authority",
-        tool: "Indian Grounded Authority Lookup",
+        tool: "googleSearch.findAuthority",
         status: "done",
-        rationale: `Routed municipal complaint ownership directly to Bruhat Bengaluru Mahanagara Palike (BBMP) ward officers.`,
-        ts: new Date(baseMs + 65 * 1000).toISOString()
+        rationale: rationales.findAuthority,
+        ts: new Date(baseMs - 2 * 60 * 1000).toISOString()
       },
       {
         step: "Draft Action Packet",
-        tool: "Draft Resolution Case Packet",
+        tool: "drafting.createActionPacket",
         status: "done",
-        rationale: "Compiled local evidence packet and legal escalation brief for rapid grievance response.",
-        ts: new Date(baseMs + 120 * 1000).toISOString()
+        rationale: rationales.draftActionPacket,
+        ts: new Date(baseMs - 1 * 60 * 1000).toISOString()
       }
     ];
 
@@ -1081,6 +1092,94 @@ export async function seedDemoIssuesBengaluru(): Promise<boolean> {
     demoUpdates.priorityScore = calculatePriorityScore(finalState);
 
     await updateDoc(docRef, demoUpdates);
+
+    // Seeding highly realistic activity history to subcollection
+    const activityCollectionRef = collection(db, COLLECTION_NAME, issueId, "activity");
+    const activitiesToSeed: {
+      actorType: "citizen" | "ai" | "operator";
+      eventType: string;
+      message: string;
+      timestamp: string;
+    }[] = [
+      {
+        actorType: "citizen" as const,
+        eventType: "created",
+        message: `Report submitted for "${t.title}".`,
+        timestamp: new Date(baseMs - 5 * 60 * 1000).toISOString()
+      },
+      {
+        actorType: "ai" as const,
+        eventType: "triage",
+        message: `AI triage completed: assigned severity ${t.severity}/5 and urgency level as ${t.urgency}.`,
+        timestamp: new Date(baseMs - 4 * 60 * 1000).toISOString()
+      }
+    ];
+
+    if (t.status === "Verified") {
+      if (t.confirmCount && t.confirmCount > 0) {
+        activitiesToSeed.push({
+          actorType: "citizen" as const,
+          eventType: "verification",
+          message: `Community verification: ${t.confirmCount} confirmations registered by citizen accounts.`,
+          timestamp: new Date(baseMs - 2 * 60 * 60 * 1000).toISOString()
+        });
+      }
+      activitiesToSeed.push({
+        actorType: "operator" as const,
+        eventType: "status_changed",
+        message: "Status advanced to Verified following automated review.",
+        timestamp: new Date(baseMs).toISOString()
+      });
+    } else if (t.status === "In Progress") {
+      if (t.confirmCount && t.confirmCount > 0) {
+        activitiesToSeed.push({
+          actorType: "citizen" as const,
+          eventType: "verification",
+          message: `Community verification: ${t.confirmCount} confirmations registered by citizen accounts.`,
+          timestamp: new Date(baseMs - 4 * 60 * 60 * 1000).toISOString()
+        });
+      }
+      activitiesToSeed.push({
+        actorType: "operator" as const,
+        eventType: "status_changed",
+        message: "Status advanced to In Progress. Work order dispatched to local ward engineers.",
+        timestamp: new Date(baseMs).toISOString()
+      });
+    } else if (t.status === "Resolved") {
+      if (t.confirmCount && t.confirmCount > 0) {
+        activitiesToSeed.push({
+          actorType: "citizen" as const,
+          eventType: "verification",
+          message: `Community verification: ${t.confirmCount} confirmations registered by citizen accounts.`,
+          timestamp: new Date(baseMs - 20 * 60 * 60 * 1000).toISOString()
+        });
+      }
+      activitiesToSeed.push({
+        actorType: "operator" as const,
+        eventType: "status_changed",
+        message: "Status advanced to In Progress. Contractors dispatched to location.",
+        timestamp: new Date(baseMs - 12 * 60 * 60 * 1000).toISOString()
+      });
+      activitiesToSeed.push({
+        actorType: "operator" as const,
+        eventType: "status_changed",
+        message: "Resolution certified: visual proof of closure verified and approved.",
+        timestamp: new Date(baseMs).toISOString()
+      });
+    } else {
+      // Submitted status
+      activitiesToSeed.push({
+        actorType: "operator" as const,
+        eventType: "status_changed",
+        message: "Report successfully published to active ledger.",
+        timestamp: new Date(baseMs).toISOString()
+      });
+    }
+
+    for (const act of activitiesToSeed) {
+      const actDocRef = doc(activityCollectionRef);
+      await setDoc(actDocRef, act);
+    }
   }
 
   return true;

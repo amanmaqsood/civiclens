@@ -41,8 +41,8 @@ export default function Header({ currentView, onNavigate, persona, onTogglePerso
             <h1 className="text-base font-display font-black tracking-tight text-white flex items-center gap-0.5">
               Civic<span className="text-marigold">Lens</span>
             </h1>
-            <p className="text-[8px] font-mono font-medium text-slate/80 uppercase tracking-widest leading-none">
-              IND • {persona === "citizen" ? "Citizen Ledger" : "Simulated Auditor Portal"}
+            <p className="text-[10px] font-mono font-medium text-slate/80 uppercase tracking-widest leading-none">
+              {persona === "citizen" ? "India · Citizen Reports" : "India · Operator Portal"}
             </p>
           </div>
         </div>

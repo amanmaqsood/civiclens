@@ -28,11 +28,11 @@ export default function PriorityBreakdownWidget({ issue }: PriorityBreakdownWidg
         <div className="flex items-center gap-2">
           <Award className="w-4 h-4 text-marigold" />
           <span className="font-display text-xs font-bold uppercase tracking-tight text-ink">
-            Priority Score Gauge
+            PRIORITY SCORE
           </span>
         </div>
         <span className="font-mono text-[9px] uppercase text-slate bg-paper px-2 py-0.5 rounded-full border border-hairline">
-          Deterministic Math
+          AUTO-CALCULATED
         </span>
       </div>
 
@@ -62,7 +62,7 @@ export default function PriorityBreakdownWidget({ issue }: PriorityBreakdownWidg
           </svg>
           <div className="absolute inset-0 flex flex-col items-center justify-center select-none">
             <span className="font-display font-[800] text-xl text-ink leading-none">
-              {breakdown.score}
+              {Math.round(breakdown.score)}
             </span>
             <span className="font-mono text-[7px] text-slate uppercase tracking-wider mt-0.5">
               points
@@ -73,7 +73,7 @@ export default function PriorityBreakdownWidget({ issue }: PriorityBreakdownWidg
         {/* Short, sentence-case summary context */}
         <div className="flex-1 flex flex-col gap-1.5 text-xs">
           <p className="font-sans font-semibold text-ink text-[11.5px] leading-tight">
-            Consolidated Case Priority
+            Case Priority Score
           </p>
           <p className="text-slate text-[10.5px] leading-snug">
             Calculated autonomously from citizen feedback, proximity deduplication, and regulatory urgency.
@@ -135,7 +135,7 @@ export default function PriorityBreakdownWidget({ issue }: PriorityBreakdownWidg
       {/* Formula visual footer */}
       <div className="bg-paper p-2.5 rounded-xl border border-hairline mt-1">
         <span className="text-[8px] text-slate font-bold block mb-0.5 uppercase tracking-wider font-mono">
-          Formula Base Configuration
+          SCORING FORMULA
         </span>
         <code className="text-[9px] text-slate font-mono block overflow-x-auto whitespace-nowrap">
           Score = (Sev × 12) + Urg_Bonus + min(Age/12, 10) + min(Conf × 3, 15) + (Reps × 4) - (Disp × 5)

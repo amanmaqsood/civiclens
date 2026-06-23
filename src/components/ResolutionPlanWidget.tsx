@@ -79,7 +79,7 @@ export default function ResolutionPlanWidget({ issue, onRefresh, lang = "en" }: 
           </div>
           <div className="flex flex-col gap-1">
             <h4 className="text-xs font-display font-bold uppercase tracking-wider text-ink">
-              Resolution SLA Planner
+              RESOLUTION PLAN
             </h4>
             <p className="text-[10.5px] text-slate max-w-xs leading-relaxed">
               Identify responsible agencies, typical SLA resolution thresholds, and structure official petitions using web-grounded research.
@@ -100,7 +100,7 @@ export default function ResolutionPlanWidget({ issue, onRefresh, lang = "en" }: 
             ) : (
               <>
                 <Sparkles className="w-3.5 h-3.5" />
-                <span>Formulate Compliance SLA Plan</span>
+                <span>Generate Resolution Plan</span>
               </>
             )}
           </button>

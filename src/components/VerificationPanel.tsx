@@ -62,7 +62,7 @@ export default function VerificationPanel({ issue, onRefresh }: VerificationPane
   const statusNextLabel = {
     "Submitted": "Verify Report Quality",
     "Verified": "SLA In-Progress Action",
-    "In Progress": "Conclude Dossier Case"
+    "In Progress": "Mark as Resolved"
   }[issue.status] || null;
 
   return (
@@ -70,7 +70,7 @@ export default function VerificationPanel({ issue, onRefresh }: VerificationPane
       {/* 1. Community Verification Section */}
       <div className="flex flex-col gap-3">
         <div className="flex items-center justify-between">
-          <span className="text-[9pt] font-mono uppercase text-slate">Fact verification ledger</span>
+          <span className="text-[9pt] font-mono uppercase text-slate">COMMUNITY VERIFICATION</span>
           <span className="text-[9px] font-mono font-semibold bg-paper text-ink px-2 py-0.5 rounded border border-hairline capitalize">
             {issue.verificationStatus || "unverified"}
           </span>
@@ -108,7 +108,7 @@ export default function VerificationPanel({ issue, onRefresh }: VerificationPane
               style={{ minHeight: "36px" }}
             >
               <ThumbsUp className="w-3.5 h-3.5 text-verify" />
-              <span>Confirm Fact</span>
+              <span>Confirm</span>
             </button>
             <button
               onClick={() => handleVote("dispute")}
@@ -117,7 +117,7 @@ export default function VerificationPanel({ issue, onRefresh }: VerificationPane
               style={{ minHeight: "36px" }}
             >
               <ThumbsDown className="w-3.5 h-3.5 text-alert" />
-              <span>Dispute Fact</span>
+              <span>Dispute</span>
             </button>
           </div>
         )}
@@ -137,7 +137,7 @@ export default function VerificationPanel({ issue, onRefresh }: VerificationPane
             style={{ minHeight: "36px" }}
           >
             {statusLoading ? <RefreshCw className="w-3.5 h-3.5 animate-spin text-slate" /> : <CheckCircle className="w-3.5 h-3.5 text-verify" />}
-            <span>{statusLoading ? "Processing Dossier..." : statusNextLabel}</span>
+            <span>{statusLoading ? "Processing..." : statusNextLabel}</span>
           </button>
         </div>
       )}

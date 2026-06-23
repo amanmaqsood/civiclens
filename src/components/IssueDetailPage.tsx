@@ -109,7 +109,7 @@ export default function IssueDetailPage({
           </button>
           <div>
             <span className="text-xs font-mono uppercase text-slate tracking-wider block">
-              Case Record
+              REPORT
             </span>
             <h2 className="text-xs font-mono font-semibold text-ink uppercase tracking-tight">
               ID: {issue.ticketId}
@@ -176,7 +176,7 @@ export default function IssueDetailPage({
             </h1>
             {issue.confidence !== undefined && (
               <span className="text-[9px] font-mono bg-paper text-ink font-semibold px-2 py-0.5 rounded border border-hairline flex-shrink-0">
-                {(issue.confidence * 100).toFixed(0)}% Match
+                AI Confidence {(issue.confidence * 100).toFixed(0)}%
               </span>
             )}
           </div>
@@ -208,7 +208,7 @@ export default function IssueDetailPage({
       <div className="bg-white border border-hairline rounded-2xl p-4 flex flex-col gap-3 shadow-[0_4px_16px_-4px_rgba(14,26,43,0.05)]">
         <h3 className="text-xs font-display font-bold text-ink uppercase tracking-wider flex items-center gap-1.5 border-b border-hairline pb-2.5">
           <ShieldAlert className="w-4 h-4 text-alert" />
-          Tactical Risk Diagnostics
+          RISK ASSESSMENT
         </h3>
 
         <div className="flex flex-col gap-3 text-xs text-ink/80">
@@ -329,8 +329,8 @@ export default function IssueDetailPage({
       {/* Community voice backer details */}
       <div className="bg-white border border-hairline rounded-2xl p-4 flex items-center justify-between shadow-[0_4px_16px_-4px_rgba(14,26,43,0.05)]">
         <div className="flex flex-col">
-          <span className="text-[9pt] font-mono uppercase text-slate">Public endorsement</span>
-          <span className="text-[11.5px] font-semibold text-ink mt-0.5">{issue.citizenUpvotes} citizens backed this case</span>
+          <span className="text-[9pt] font-mono uppercase text-slate">COMMUNITY SUPPORT</span>
+          <span className="text-[11.5px] font-semibold text-ink mt-0.5">{issue.citizenUpvotes} {issue.citizenUpvotes === 1 ? "citizen" : "citizens"} backed this case</span>
         </div>
         <button
           type="button"
@@ -340,7 +340,7 @@ export default function IssueDetailPage({
           style={{ minHeight: "36px" }}
         >
           <ArrowUp className="w-3.5 h-3.5" />
-          <span>{upvoteLoadingId === issue.id ? "..." : "Back Report"}</span>
+          <span>{upvoteLoadingId === issue.id ? "..." : "Support this report"}</span>
         </button>
       </div>
 
@@ -361,7 +361,7 @@ export default function IssueDetailPage({
       {/* Compact Interactive Status progress bar */}
       <div className="bg-white border border-hairline rounded-2xl p-4 flex flex-col gap-4 shadow-[0_4px_16px_-4px_rgba(14,26,43,0.05)]">
         <h3 className="text-xs font-display font-bold text-ink uppercase tracking-wider border-b border-hairline pb-2.5">
-          Resolution Phase
+          PROGRESS
         </h3>
         <div className="relative flex justify-between items-center px-1">
           {/* Timeline background rule */}
@@ -404,7 +404,7 @@ export default function IssueDetailPage({
       <div className="bg-white border border-hairline rounded-2xl p-4 flex flex-col gap-3.5 shadow-[0_4px_16px_-4px_rgba(14,26,43,0.05)]">
         <h3 className="text-xs font-display font-bold text-ink uppercase tracking-tight flex items-center gap-1.5 border-b border-hairline pb-2.5">
           <Clock className="w-3.5 h-3.5 text-slate" />
-          Audit Ledger History
+          ACTIVITY HISTORY
         </h3>
 
         {loadingAct ? (
@@ -413,7 +413,7 @@ export default function IssueDetailPage({
           </div>
         ) : activities.length === 0 ? (
           <p className="text-[10px] text-slate/60 text-center font-medium py-2">
-            No audit actions logged in dossier ledger.
+            No activity yet.
           </p>
         ) : (
           <div className="flex flex-col gap-4 pl-3.5 border-l border-hairline relative">

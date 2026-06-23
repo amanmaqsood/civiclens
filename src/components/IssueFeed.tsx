@@ -92,7 +92,7 @@ export default function IssueFeed({ issues, onUpvote, upvoteLoadingId }: IssueFe
               >
                 <ArrowUp className="w-3.5 h-3.5" />
                 <span>
-                  {upvoteLoadingId === issue.id ? "..." : `${issue.citizenUpvotes} Supports`}
+                  {upvoteLoadingId === issue.id ? "..." : `${issue.citizenUpvotes} ${issue.citizenUpvotes === 1 ? "Support" : "Supports"}`}
                 </span>
               </button>
             </div>

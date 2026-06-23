@@ -36,45 +36,46 @@ export default function IssueListWithFilter({
     });
   }, [issues, activeFilter, searchTerm]);
 
-  const getStatusColor = (status: string) => {
+  // Exact Status color tokens matching specification
+  const getStatusClasses = (status: string) => {
     switch (status) {
       case "Verified":
-        return "bg-indigo-50 border-indigo-100 text-indigo-700";
+        return "bg-marigold/10 border-marigold/25 text-marigold";
       case "In Progress":
-        return "bg-amber-50 border-amber-100 text-amber-700";
+        return "bg-[#3B82F6]/10 border-[#3B82F6]/25 text-[#3B82F6]";
       case "Resolved":
-        return "bg-emerald-50 border-emerald-100 text-emerald-700";
-      default:
-        return "bg-slate-50 border-slate-100 text-slate-600";
+        return "bg-verify/10 border-verify/25 text-verify";
+      default: // Submitted
+        return "bg-slate/10 border-slate/25 text-slate";
     }
   };
 
   return (
     <div id="issue-list-with-filter" className="flex flex-col gap-4 font-sans">
-      {/* Search Bar */}
+      {/* Search Input */}
       <div className="relative w-full">
-        <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-400" />
+        <Search className="absolute left-3.5 top-1/2 -translate-y-1/2 w-3.5 h-3.5 text-slate" />
         <input
           type="text"
-          placeholder="Search issues by category, title, description..."
+          placeholder="Search registered incidents..."
           value={searchTerm}
           onChange={(e) => setSearchTerm(e.target.value)}
-          className="w-full text-xs pl-9 pr-4 py-2.5 rounded-xl border border-slate-200 outline-none focus:border-[#4F46E5] bg-white text-slate-700 transition-colors"
+          className="w-full text-xs pl-9 pr-4 py-2.5 rounded-xl border border-hairline outline-none focus:border-marigold focus:ring-1 focus:ring-marigold bg-white text-ink transition-colors font-sans shadow-2xs placeholder:text-slate/60"
         />
       </div>
 
-      {/* Filter Chips */}
-      <div className="flex gap-1.5 overflow-x-auto pb-1 scrollbar-none no-scrollbar">
+      {/* Filter Segmented Row */}
+      <div className="flex gap-1.5 overflow-x-auto pb-1 scrollbar-none no-scrollbar select-none">
         {filters.map((filter) => {
           const isSelected = activeFilter === filter;
           return (
             <button
               key={filter}
               onClick={() => setActiveFilter(filter)}
-              className={`text-[10px] sm:text-xs font-bold px-3 py-1.5 rounded-full border transition-all cursor-pointer whitespace-nowrap ${
+              className={`text-[9.5px] font-sans font-semibold px-2.5 py-1 rounded-full border transition-all cursor-pointer whitespace-nowrap uppercase tracking-wider ${
                 isSelected
-                  ? "bg-slate-900 border-slate-900 text-white shadow-3xs"
-                  : "bg-white border-slate-200 text-slate-500 hover:text-slate-700 hover:border-slate-300"
+                  ? "bg-ink border-ink text-paper shadow-2xs"
+                  : "bg-white border-hairline text-slate hover:text-ink hover:border-slate/40"
               }`}
             >
               {filter}
@@ -83,58 +84,58 @@ export default function IssueListWithFilter({
         })}
       </div>
 
-      {/* Counter */}
-      <div className="flex justify-between items-center text-[10px] font-bold text-slate-400 uppercase tracking-widest px-1">
-        <span>Filtered Feed</span>
+      {/* Matching Header */}
+      <div className="flex justify-between items-center text-[9px] font-mono font-bold text-slate uppercase tracking-widest px-1">
+        <span>Filtered Ledger</span>
         <span>{filteredIssues.length} matching</span>
       </div>
 
-      {/* Scrollable grid list */}
+      {/* Responsive List items */}
       <div className="flex flex-col gap-3">
         {filteredIssues.length === 0 ? (
-          <div className="bg-white border border-slate-150 rounded-2xl p-6 text-center shadow-3xs">
-            <p className="text-xs font-bold text-slate-500">No active reports match this filter.</p>
+          <div className="bg-white border border-hairline rounded-2xl p-6 text-center shadow-xs">
+            <p className="text-xs font-medium text-slate">No active records match the filter.</p>
           </div>
         ) : (
           filteredIssues.map((issue) => (
             <motion.div
-              initial={{ opacity: 0, y: 10 }}
+              initial={{ opacity: 0, y: 8 }}
               animate={{ opacity: 1, y: 0 }}
-              transition={{ duration: 0.3 }}
+              transition={{ duration: 0.2 }}
               key={issue.id}
-              className="bg-white border border-slate-150 hover:border-slate-300 rounded-2xl p-4 shadow-3xs flex flex-col gap-3 relative transition-all"
+              className="bg-white border border-hairline rounded-2xl p-4 shadow-[0_3px_12px_-3px_rgba(14,26,43,0.04)] flex flex-col gap-3 relative transition-all hover:shadow-xs hover:border-slate/30"
             >
-              {/* Header tags */}
+              {/* Top Tags Row */}
               <div className="flex items-center justify-between">
                 <div className="flex gap-1.5 items-center">
-                  <span className="text-[9px] bg-slate-100 text-slate-700 font-extrabold px-2 py-0.5 rounded-full">
+                  <span className="text-[9px] bg-paper text-ink font-mono uppercase tracking-wider px-2 py-0.5 rounded-full border border-hairline">
                     {issue.category}
                   </span>
                   {issue.priorityScore !== undefined && (
-                    <span className="text-[9px] bg-slate-900 text-amber-300 font-extrabold px-2 py-0.5 rounded-full border border-slate-800 flex items-center gap-0.5">
-                      ★ {issue.priorityScore} Pts
+                    <span className="text-[9px] bg-ink text-marigold font-mono font-semibold px-2 py-0.5 rounded-full border border-white/5 flex items-center gap-0.5 select-none md:scale-100">
+                      ★ {issue.priorityScore} pts
                     </span>
                   )}
                 </div>
                 <div className="flex items-center gap-1.5">
                   {issue.isDemoData && (
-                    <span className="text-[9px] font-extrabold bg-amber-500/10 text-amber-600 border border-amber-500/20 px-2 py-0.5 rounded-full uppercase tracking-wider">
+                    <span className="text-[8px] font-mono leading-none font-bold bg-marigold/10 text-marigold border border-marigold/20 px-1.5 py-0.5 rounded uppercase tracking-wider">
                       Demo
                     </span>
                   )}
-                  <span className={`text-[9px] font-extrabold border px-2 py-0.5 rounded-full ${getStatusColor(issue.status)}`}>
+                  <span className={`text-[9px] font-mono font-semibold uppercase tracking-wider border px-2 py-0.5 rounded-full ${getStatusClasses(issue.status)}`}>
                     {issue.status}
                   </span>
                 </div>
               </div>
 
-              {/* Dynamic summary and image */}
+              {/* Dynamic summary click area */}
               <div
                 onClick={() => onSelectIssue(issue.id)}
                 className="flex gap-3 cursor-pointer group"
               >
                 {issue.image && (
-                  <div className="w-16 h-16 rounded-xl overflow-hidden bg-slate-100 flex-shrink-0 border border-slate-100/50">
+                  <div className="w-14 h-14 rounded-xl overflow-hidden bg-paper flex-shrink-0 border border-hairline select-none">
                     <img
                       src={issue.image}
                       alt={issue.category}
@@ -144,37 +145,37 @@ export default function IssueListWithFilter({
                   </div>
                 )}
                 <div className="flex-1 min-w-0 pr-1">
-                  <h4 className="text-xs font-bold text-slate-800 line-clamp-1 leading-snug group-hover:text-[#4F46E5] transition-colors">
+                  <h4 className="text-xs font-semibold text-ink line-clamp-1 leading-snug group-hover:text-marigold transition-colors font-sans">
                     {issue.title || "Geotagged Civic Incident"}
                   </h4>
-                  <p className="text-[11px] text-slate-500 line-clamp-2 leading-relaxed mt-0.5">
+                  <p className="text-[10.5px] text-slate line-clamp-2 leading-relaxed mt-0.5 font-sans">
                     {issue.summary || issue.description}
                   </p>
-                  <div className="flex items-center gap-1 mt-1 text-slate-400">
-                    <MapPin className="w-3 h-3 text-[#4F46E5]" />
-                    <span className="text-[10px] truncate font-medium">{issue.locationName || "Reported Sector"}</span>
+                  <div className="flex items-center gap-1 mt-1 text-slate font-sans">
+                    <MapPin className="w-3 h-3 text-marigold" />
+                    <span className="text-[9.5px] truncate font-medium">{issue.locationName || "Reported Location"}</span>
                   </div>
                 </div>
               </div>
 
-              {/* Footer actions */}
-              <div className="border-t border-slate-50 pt-2.5 flex items-center justify-between mt-1">
-                <span className="text-[9px] font-mono font-bold text-slate-400">
+              {/* Card Footer row */}
+              <div className="border-t border-hairline/80 pt-2.5 flex items-center justify-between mt-0.5">
+                <span className="text-[9px] font-mono text-slate uppercase tracking-tight">
                   {issue.ticketId}
                 </span>
 
-                <div className="flex items-center gap-1.5">
+                <div className="flex items-center gap-1">
                   <button
                     onClick={() => onSelectIssue(issue.id)}
-                    className="text-[10px] font-bold text-slate-500 hover:text-slate-800 px-2 py-1.5 rounded-lg cursor-pointer"
+                    className="text-[10px] font-sans font-semibold text-slate hover:text-ink px-2.5 py-1.5 rounded-lg cursor-pointer"
                   >
-                    View Analysis
+                    Details
                   </button>
                   <button
                     disabled={upvoteLoadingId === issue.id}
                     onClick={() => onUpvote(issue.id)}
-                    className="flex items-center gap-1.5 bg-indigo-50 hover:bg-[#4F46E5] hover:text-white px-3 py-1.5 rounded-xl text-[10px] font-bold text-[#4F46E5] transition-all cursor-pointer"
-                    style={{ minHeight: "36px" }}
+                    className="flex items-center gap-1 bg-paper hover:bg-marigold hover:text-ink px-3 py-1.5 rounded-xl text-[10px] font-sans font-bold text-ink border border-hairline transition-colors cursor-pointer"
+                    style={{ minHeight: "34px" }}
                   >
                     <ArrowUp className="w-3 h-3" />
                     <span>

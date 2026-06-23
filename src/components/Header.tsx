@@ -14,35 +14,35 @@ export default function Header({ currentView, onNavigate, persona, onTogglePerso
   const { user, signInWithGoogle, signOutUser, loading } = useFirebase();
 
   return (
-    <header className="sticky top-0 z-40 bg-white border-b border-slate-100 px-4 py-3 flex items-center justify-between shadow-xs">
+    <header className="sticky top-0 z-40 bg-ink border-b border-white/10 px-4 py-3 flex items-center justify-between shadow-[0_2px_15px_-3px_rgba(0,0,0,0.5)] font-sans">
       <div className="flex items-center gap-2">
         {currentView !== "landing" && persona === "citizen" && (
           <button
             id="back-button"
             onClick={() => onNavigate("landing")}
-            className="flex items-center justify-center p-2 rounded-full hover:bg-slate-100 transition-colors cursor-pointer mr-1"
-            style={{ minWidth: "44px", minHeight: "44px" }}
+            className="flex items-center justify-center p-2 rounded-full hover:bg-white/10 transition-colors cursor-pointer mr-0.5"
+            style={{ minWidth: "36px", minHeight: "36px" }}
             aria-label="Go back to landing page"
           >
-            <ArrowLeft className="w-5 h-5 text-slate-700" />
+            <ArrowLeft className="w-4 h-4 text-paper" />
             <span className="sr-only">Back</span>
           </button>
         )}
         
         <div className="flex items-center gap-2">
-          {/* Subtle civic symbol: Tricolor pillar in vertical slice */}
-          <div className="flex flex-col w-1.5 h-7 rounded-full overflow-hidden" aria-hidden="true">
-            <div className="bg-[#F59E0B] flex-1" /> {/* Saffron */}
+          {/* Subtle elegant civic indicator */}
+          <div className="flex flex-col w-1 h-6 rounded-full overflow-hidden" aria-hidden="true">
+            <div className="bg-[#EE9B2D] flex-1" />
             <div className="bg-white flex-1" />
-            <div className="bg-emerald-600 flex-1" /> {/* Green */}
+            <div className="bg-[#0FB5A6] flex-1" />
           </div>
           
           <div>
-            <h1 className="text-lg font-sans font-bold tracking-tight text-slate-900 flex items-center gap-0.5">
-              Civic<span className="text-[#4F46E5]">Lens</span>
+            <h1 className="text-base font-display font-black tracking-tight text-white flex items-center gap-0.5">
+              Civic<span className="text-marigold">Lens</span>
             </h1>
-            <p className="text-[9px] font-sans font-medium text-slate-500 uppercase tracking-wider leading-none">
-              India • {persona === "citizen" ? "Citizen Hub" : "Simulated Agency View"}
+            <p className="text-[8px] font-mono font-medium text-slate/80 uppercase tracking-widest leading-none">
+              IND • {persona === "citizen" ? "Citizen Ledger" : "Simulated Auditor Portal"}
             </p>
           </div>
         </div>
@@ -50,18 +50,26 @@ export default function Header({ currentView, onNavigate, persona, onTogglePerso
 
       <div className="flex items-center gap-2">
         {/* Switch segmented pill */}
-        <div className="flex bg-slate-100 p-0.5 rounded-lg border border-slate-200 text-[10px] font-sans font-bold select-none">
+        <div className="flex bg-white/5 p-0.5 rounded-lg border border-white/10 text-[9.5px] font-sans font-bold select-none">
           <button
             id="persona-citizen-pill"
             onClick={() => onTogglePersona("citizen")}
-            className={`px-2 py-1 rounded-md cursor-pointer transition-all ${persona === "citizen" ? "bg-white text-indigo-600 shadow-3xs" : "text-slate-500 hover:text-slate-800"}`}
+            className={`px-2 py-1 rounded-md cursor-pointer transition-all ${
+              persona === "citizen" 
+                ? "bg-marigold text-ink shadow-sm" 
+                : "text-slate hover:text-white"
+            }`}
           >
             Citizen
           </button>
           <button
             id="persona-operator-pill"
             onClick={() => onTogglePersona("operator")}
-            className={`px-2 py-1 rounded-md cursor-pointer transition-all ${persona === "operator" ? "bg-white text-indigo-600 shadow-3xs" : "text-slate-500 hover:text-slate-800"}`}
+            className={`px-2 py-1 rounded-md cursor-pointer transition-all ${
+              persona === "operator" 
+                ? "bg-marigold text-ink shadow-sm" 
+                : "text-slate hover:text-white"
+            }`}
           >
             Operator
           </button>
@@ -71,23 +79,23 @@ export default function Header({ currentView, onNavigate, persona, onTogglePerso
           <button
             id="header-dashboard-button"
             onClick={() => onNavigate("dashboard")}
-            className={`px-2.5 py-1.5 rounded-lg border flex items-center gap-1 my-0.5 transition-all cursor-pointer ${
+            className={`px-2.5 py-1 rounded-lg border flex items-center gap-1 transition-all cursor-pointer ${
               currentView === "dashboard"
-                ? "bg-indigo-50 text-[#4F46E5] border-indigo-100/80"
-                : "text-slate-600 border-transparent hover:bg-slate-100"
+                ? "bg-marigold/10 text-marigold border-marigold/40"
+                : "text-paper border-transparent hover:bg-white/10"
             }`}
             title="City Impact Dashboard"
           >
             <BarChart3 className="w-3.5 h-3.5" />
-            <span className="text-[10px] font-sans font-bold">Dashboard</span>
+            <span className="text-[10px] font-sans font-bold">Stats</span>
           </button>
         )}
 
         {loading ? (
-          <div className="w-8 h-8 rounded-full bg-slate-100 animate-pulse" />
+          <div className="w-6 h-6 rounded-full bg-white/10 animate-pulse" />
         ) : (
           <div className="flex items-center">
-            <UserCircle className="w-7 h-7 text-[#4F46E5]" />
+            <UserCircle className="w-6 h-6 text-marigold" />
           </div>
         )}
       </div>

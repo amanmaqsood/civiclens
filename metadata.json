@@ -1,0 +1,10 @@
+{
+  "name": "CivicLens",
+  "description": "Civic issue reporting and resolution platform for India",
+  "requestFramePermissions": [
+    "geolocation"
+  ],
+  "majorCapabilities": [
+    "MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"
+  ]
+}

@@ -20,7 +20,7 @@ export default function ImpactDashboard({ issues, onBack }: ImpactDashboardProps
         const diffDays = (Date.now() - Date.parse(curr.timestamp)) / (1000 * 60 * 60 * 24);
         return acc + Math.min(sla, Math.max(0.5, Math.round(diffDays * 10) / 10));
       }, 0) / resolvedIssues.length).toFixed(1)
-    : "2.3";
+    : "—";
 
   // Total duplicates consolidated
   const totalDuplicates = issues.reduce((acc, curr) => {
@@ -55,7 +55,7 @@ export default function ImpactDashboard({ issues, onBack }: ImpactDashboardProps
           <ArrowLeft className="w-4 h-4 text-ink" />
         </button>
         <div>
-          <span className="text-[9px] font-mono uppercase text-slate tracking-wider block">Official Metrics Log</span>
+          <span className="text-[9px] font-mono uppercase text-slate tracking-wider block">Prototype impact dashboard</span>
           <h2 className="text-xs font-display font-bold uppercase tracking-wider text-ink">Incident Impact Ledger</h2>
         </div>
       </div>
@@ -83,10 +83,10 @@ export default function ImpactDashboard({ issues, onBack }: ImpactDashboardProps
         <div className="bg-white p-3.5 rounded-2xl border border-hairline flex flex-col gap-1 shadow-[0_2px_8px_-2px_rgba(14,26,43,0.04)]">
           <div className="flex items-center gap-1 text-slate">
             <Clock className="w-3.5 h-3.5 text-slate shrink-0" />
-            <span className="text-[9px] font-mono uppercase tracking-tight">Mean Repair SLA</span>
+            <span className="text-[9px] font-mono uppercase tracking-tight">Est. resolution time</span>
           </div>
-          <span className="text-xl font-mono font-bold text-ink leading-tight mt-0.5">{avgResTime}d</span>
-          <span className="text-[9.5px] text-slate font-medium leading-none">Against statutory limit</span>
+          <span className="text-xl font-mono font-bold text-ink leading-tight mt-0.5">{avgResTime === "—" ? "—" : `${avgResTime}d`}</span>
+          <span className="text-[9.5px] text-slate font-medium leading-none">estimated · not official</span>
         </div>
 
         <div className="bg-white p-3.5 rounded-2xl border border-hairline flex flex-col gap-1 shadow-[0_2px_8px_-2px_rgba(14,26,43,0.04)]">

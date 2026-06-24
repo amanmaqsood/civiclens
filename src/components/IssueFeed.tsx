@@ -1,6 +1,7 @@
 import React from "react";
 import { ArrowUp, MapPin, Clock, MessageSquare } from "lucide-react";
 import { IssueReport } from "../types";
+import { humanizeCategory } from "../utils/humanize";
 
 interface IssueFeedProps {
   issues: IssueReport[];
@@ -50,7 +51,7 @@ export default function IssueFeed({ issues, onUpvote, upvoteLoadingId }: IssueFe
             <div className="flex items-center justify-between gap-2">
               <div className="flex items-center gap-1.5">
                 <span className="text-[10px] bg-slate-100 text-slate-700 font-bold px-2 py-0.5 rounded-full">
-                  {issue.category}
+                  {humanizeCategory(issue.category)}
                 </span>
                 {issue.isDemoData && (
                   <span className="text-[9px] px-1.5 py-0.5 rounded font-mono font-bold bg-slate-500/10 text-slate-500/80">
@@ -69,7 +70,7 @@ export default function IssueFeed({ issues, onUpvote, upvoteLoadingId }: IssueFe
                 <div className="w-16 h-16 rounded-xl overflow-hidden bg-slate-100 flex-shrink-0 border border-slate-100">
                   <img 
                     src={issue.image} 
-                    alt={`Civic incident category: ${issue.category.replace(/_/g, " ")}`} 
+                    alt={`Civic incident category: ${humanizeCategory(issue.category)}`} 
                     width={64} 
                     height={64} 
                     loading="lazy" 

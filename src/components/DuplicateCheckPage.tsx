@@ -1,6 +1,7 @@
 import React from "react";
 import { AlertCircle, Plus, FileSpreadsheet, ShieldCheck, ArrowRightLeft } from "lucide-react";
 import { IssueReport } from "../types";
+import { humanizeCategory } from "../utils/humanize";
 
 interface DuplicateCheckPageProps {
   newReport: Partial<IssueReport>;
@@ -48,7 +49,7 @@ export default function DuplicateCheckPage({
           <h2 className="text-sm font-black uppercase tracking-wider">Possible Duplicate Detected</h2>
         </div>
         <p className="text-xs text-slate-600 leading-relaxed font-medium">
-          An active <strong>{candidate.category}</strong> report was discovered just <strong>{distance.toFixed(0)}m</strong> away. 
+          An active <strong>{humanizeCategory(candidate.category)}</strong> report was discovered just <strong>{distance.toFixed(0)}m</strong> away. 
           To prevent duplicate tickets, you can combine yours into the existing case as a co-supporting signal.
         </p>
       </div>

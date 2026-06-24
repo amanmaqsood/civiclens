@@ -72,10 +72,10 @@ export default function ReportPage({ onBack, onSubmit, prefilledLocation, prefil
 
   const stages = [
     { label: "Evidence Optimization", detail: "Compressing proof photo client-side..." },
-    { label: "Municipal Gateway Link", detail: "Routing evidence securely to Citizen Hub..." },
+    { label: "Uploading evidence", detail: "Uploading evidence to Citizen Hub..." },
     { label: "Multimodal AI Diagnosis", detail: "Running visual diagnostic scans..." },
-    { label: "Structural Threat Calibration", detail: "Determining gravity risk indexes..." },
-    { label: "Security Schema Lock", detail: "Enforcing digital signatures..." }
+    { label: "Assessing severity", detail: "Assessing issue severity..." },
+    { label: "Validating AI response", detail: "Validating AI response..." }
   ];
 
   useEffect(() => {
@@ -198,7 +198,7 @@ export default function ReportPage({ onBack, onSubmit, prefilledLocation, prefil
       lat: location?.lat,
       lng: location?.lng,
       locationName: manualAddress || location?.addressPlaceholder || "Current Location",
-      category: categoryMap[aiResult.category] || "Others",
+      category: serverCategories.includes(aiResult.category?.toLowerCase() || "") ? aiResult.category?.toLowerCase() : "other",
       description: aiResult.summary || description || "No description provided",
       title: aiResult.title,
       summary: aiResult.summary,
@@ -223,7 +223,8 @@ export default function ReportPage({ onBack, onSubmit, prefilledLocation, prefil
   const handleFallbackSubmit = (e: React.FormEvent) => {
     e.preventDefault();
     if (!image) return;
-    const manualCat = (e.currentTarget.querySelector("select") as HTMLSelectElement)?.value || "Others";
+    const rawManualCat = (e.currentTarget.querySelector("select") as HTMLSelectElement)?.value || "other";
+    const manualCat = serverCategories.includes(rawManualCat) ? rawManualCat : "other";
     const manualDesc = (e.currentTarget.querySelector("textarea") as HTMLTextAreaElement)?.value || "";
     const manualSev = Number((e.currentTarget.querySelector("input[type='range']") as any)?.value || 3);
 
@@ -365,7 +366,7 @@ export default function ReportPage({ onBack, onSubmit, prefilledLocation, prefil
 
       {/* Geolocation Live Capture Component */}
       <div className="bg-paper border border-hairline p-4 rounded-xl flex flex-col gap-2.5">
-        <label className="text-[9pt] font-mono uppercase text-slate tracking-wider block">Coordinate Telemetry</label>
+        <label className="text-[9pt] font-mono uppercase text-slate tracking-wider block">Location</label>
         
         {/* Non-blocking Permission / Geolocation Status Indicator */}
         <div className="text-[10px] font-semibold leading-normal py-0.5">

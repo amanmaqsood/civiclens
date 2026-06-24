@@ -98,7 +98,7 @@ If confidence is low (under 0.6) or ambiguity exists, ask a targeted clarificati
       const startTime = Date.now();
       // Main Gemini Content Generation
       const mainResult = await generateContentWithRetry(ai, {
-        model: "gemini-2.5-flash",
+        model: "gemini-3.5-flash",
         contents: [imagePart, { text: promptText }],
         config: {
           responseMimeType: "application/json",
@@ -209,7 +209,7 @@ ${responseText}
 Respond ONLY with the corrected, valid JSON object.`;
 
           const repairResult = await generateContentWithRetry(ai, {
-            model: "gemini-2.5-flash",
+            model: "gemini-3.5-flash",
             contents: repairPrompt,
             config: {
               responseMimeType: "application/json",
@@ -299,7 +299,7 @@ Output STRICT, VALID JSON conforming exactly to the response schema.`;
 
       const startTime = Date.now();
       const result = await generateContentWithRetry(ai, {
-        model: "gemini-2.5-flash",
+        model: "gemini-3.5-flash",
         contents: promptText,
         config: {
           responseMimeType: "application/json",
@@ -416,7 +416,7 @@ Output ONLY valid JSON and nothing else.`;
 
       const startTime = Date.now();
       const result = await generateContentWithRetry(ai, {
-        model: "gemini-2.5-flash",
+        model: "gemini-3.5-flash",
         contents: promptText,
         config: {
           tools: [{ googleSearch: {} }],
@@ -488,20 +488,26 @@ Output ONLY valid JSON and nothing else.`;
     try {
       const contentsList: any[] = [];
 
-      // 1. Process beforeImageUrl
-      if (beforeImageUrl && beforeImageUrl.startsWith("http")) {
+      // 1. Process beforeImageUrl (with SSRF protection checking host safety)
+      if (beforeImageUrl && /^https:\/\/firebasestorage\.googleapis\.com\//.test(beforeImageUrl)) {
         try {
-          const fetchRes = await fetch(beforeImageUrl);
+          const fetchRes = await fetch(beforeImageUrl, {
+            signal: AbortSignal.timeout(8000),
+          });
           if (fetchRes.ok) {
-            const buffer = await fetchRes.arrayBuffer();
-            const base64 = Buffer.from(buffer).toString("base64");
-            const contentType = fetchRes.headers.get("content-type") || "image/jpeg";
-            contentsList.push({
-              inlineData: {
-                mimeType: contentType,
-                data: base64,
-              },
-            });
+            const contentType = fetchRes.headers.get("content-type") || "";
+            if (contentType.startsWith("image/")) {
+              const buffer = await fetchRes.arrayBuffer();
+              const base64 = Buffer.from(buffer).toString("base64");
+              contentsList.push({
+                inlineData: {
+                  mimeType: contentType,
+                  data: base64,
+                },
+              });
+            } else {
+              console.warn("SSRF protection: ignored non-image content type:", contentType);
+            }
           }
         } catch (fetchErr) {
           console.warn("Failed to fetch beforeImageUrl to base64, proceeding without it:", fetchErr);
@@ -538,7 +544,7 @@ Return a STRICT JSON response adhering precisely to this schema. Do not include 
 
       const startTime = Date.now();
       const result = await generateContentWithRetry(ai, {
-        model: "gemini-2.5-flash",
+        model: "gemini-3.5-flash",
         contents: contentsList,
         config: {
           responseMimeType: "application/json",
@@ -630,7 +636,7 @@ Return a STRICT JSON response adhering precisely to this schema:
 
       const startTime = Date.now();
       const result = await generateContentWithRetry(ai, {
-        model: "gemini-2.5-flash",
+        model: "gemini-3.5-flash",
         contents: promptText,
         config: {
           responseMimeType: "application/json",
@@ -697,7 +703,7 @@ Output STRICT, VALID JSON conforming exactly to this schema:
 Output ONLY valid JSON and nothing else.`;
 
       const result = await generateContentWithRetry(ai, {
-        model: "gemini-2.5-flash",
+        model: "gemini-3.5-flash",
         contents: promptText,
         config: {
           responseMimeType: "application/json",

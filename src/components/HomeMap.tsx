@@ -12,7 +12,7 @@ interface HomeMapProps {
 }
 
 const API_KEY =
-  process.env.GOOGLE_MAPS_PLATFORM_KEY ||
+  (typeof process !== "undefined" ? process.env?.GOOGLE_MAPS_PLATFORM_KEY : undefined) ||
   (import.meta as any).env?.VITE_GOOGLE_MAPS_PLATFORM_KEY ||
   (globalThis as any).GOOGLE_MAPS_PLATFORM_KEY ||
   "";

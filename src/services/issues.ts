@@ -52,11 +52,12 @@ export function calculatePriorityScore(issue: {
 
   const timeComponent = Math.min(hoursSinceReported / 12, 10);
   const confirmComponent = Math.min(confirmCount * 3, 15);
-  const reportComponent = reportCount * 4;
+  const reportComponent = Math.min(reportCount * 4, 15);
   const disputeComponent = disputeCount * 5;
 
   const score = severity * 12 + urgencyBonus + timeComponent + confirmComponent + reportComponent - disputeComponent;
-  return Math.round(score * 10) / 10; // Round to 1 decimal place
+  const clampedScore = Math.max(0, Math.min(100, score));
+  return Math.round(clampedScore * 10) / 10; // Round to 1 decimal place
 }
 
 export function isDuplicateCandidate(
@@ -139,10 +140,11 @@ export function getPriorityBreakdown(issue: {
 
   const timeComponent = Math.min(hoursSinceReported / 12, 10);
   const confirmComponent = Math.min(confirmCount * 3, 15);
-  const reportComponent = reportCount * 4;
+  const reportComponent = Math.min(reportCount * 4, 15);
   const disputeComponent = disputeCount * 5;
 
-  const score = Math.round((severityComponent + urgencyComponent + timeComponent + confirmComponent + reportComponent - disputeComponent) * 10) / 10;
+  const scoreRaw = severityComponent + urgencyComponent + timeComponent + confirmComponent + reportComponent - disputeComponent;
+  const score = Math.round(Math.max(0, Math.min(100, scoreRaw)) * 10) / 10;
 
   return {
     score,
@@ -202,6 +204,8 @@ export async function fetchRecentIssues(): Promise<IssueReport[]> {
         verificationStatus: data.verificationStatus || "unverified",
         agentTrace: data.agentTrace || [],
         resolutionPlan: data.resolutionPlan || undefined,
+        closureAssessment: data.closureAssessment || undefined,
+        escalation: data.escalation || undefined,
         isDemoData: data.isDemoData || false,
       };
 
@@ -418,6 +422,8 @@ export async function findDuplicateCandidates(
           reportCount: data.reportCount || 1,
           agentTrace: data.agentTrace || [],
           resolutionPlan: data.resolutionPlan || undefined,
+          closureAssessment: data.closureAssessment || undefined,
+          escalation: data.escalation || undefined,
           isDemoData: data.isDemoData || false,
         },
         distance,

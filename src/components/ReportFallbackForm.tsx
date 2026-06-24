@@ -42,7 +42,7 @@ export default function ReportFallbackForm({
           style={{ minHeight: "40px" }}
         >
           {serverCategories.map((sc) => (
-            <option key={sc} value={categoryMap[sc] || sc}>
+            <option key={sc} value={sc}>
               {categoryMap[sc] || sc}
             </option>
           ))}

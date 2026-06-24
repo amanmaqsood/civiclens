@@ -69,7 +69,7 @@ export default function IssueFeed({ issues, onUpvote, upvoteLoadingId }: IssueFe
                 <div className="w-16 h-16 rounded-xl overflow-hidden bg-slate-100 flex-shrink-0 border border-slate-100">
                   <img 
                     src={issue.image} 
-                    alt={issue.category} 
+                    alt={`Civic incident category: ${issue.category.replace(/_/g, " ")}`} 
                     width={64} 
                     height={64} 
                     loading="lazy" 

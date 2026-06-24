@@ -56,8 +56,9 @@ export default function ReportAiEditForm({
 
       {/* Title */}
       <div className="flex flex-col gap-1">
-        <label className="text-[9pt] font-mono uppercase text-slate tracking-wider block">Incident Heading</label>
+        <label htmlFor="ai-title" className="text-[9pt] font-mono uppercase text-slate tracking-wider block">Incident Heading</label>
         <input
+          id="ai-title"
           type="text"
           value={aiResult.title || ""}
           onChange={(e) => setAiResult({ ...aiResult, title: e.target.value })}
@@ -68,8 +69,9 @@ export default function ReportAiEditForm({
 
       {/* Description Summary */}
       <div className="flex flex-col gap-1">
-        <label className="text-[9pt] font-mono uppercase text-slate tracking-wider block">Diagnostic Summary</label>
+        <label htmlFor="ai-summary" className="text-[9pt] font-mono uppercase text-slate tracking-wider block">Diagnostic Summary</label>
         <textarea
+          id="ai-summary"
           value={aiResult.summary || ""}
           onChange={(e) => setAiResult({ ...aiResult, summary: e.target.value })}
           className="w-full text-xs border border-hairline bg-white p-2.5 rounded-xl focus:outline-none focus:border-marigold min-h-[65px] font-sans leading-relaxed"
@@ -79,8 +81,9 @@ export default function ReportAiEditForm({
       {/* Category and Urgency dropdowns */}
       <div className="grid grid-cols-2 gap-3 text-xs">
         <div className="flex flex-col gap-1">
-          <label className="text-[8.5pt] font-mono uppercase text-slate tracking-wider block">Category</label>
+          <label htmlFor="ai-category" className="text-[8.5pt] font-mono uppercase text-slate tracking-wider block">Category</label>
           <select
+            id="ai-category"
             value={aiResult.category || "other"}
             onChange={(e) => setAiResult({ ...aiResult, category: e.target.value })}
             className="w-full text-xs border border-hairline bg-white py-2 px-2.5 rounded-xl font-semibold text-ink"
@@ -95,8 +98,9 @@ export default function ReportAiEditForm({
         </div>
 
         <div className="flex flex-col gap-1">
-          <label className="text-[8.5pt] font-mono uppercase text-slate tracking-wider block">Urgency</label>
+          <label htmlFor="ai-urgency" className="text-[8.5pt] font-mono uppercase text-slate tracking-wider block">Urgency</label>
           <select
+            id="ai-urgency"
             value={aiResult.urgency || "routine"}
             onChange={(e) => setAiResult({ ...aiResult, urgency: e.target.value })}
             className="w-full text-xs border border-hairline bg-white py-2 px-2.5 rounded-xl font-semibold uppercase text-ink"
@@ -112,18 +116,23 @@ export default function ReportAiEditForm({
       {/* Severity slider */}
       <div className="flex flex-col gap-1.5 bg-paper border border-hairline p-3 rounded-xl">
         <div className="flex items-center justify-between text-[9px] font-mono">
-          <span className="text-slate uppercase">AI Severity Rating</span>
+          <label htmlFor="ai-severity" className="text-slate uppercase cursor-pointer">AI Severity Rating</label>
           <span className="px-2 py-0.5 bg-white border border-hairline text-ink rounded font-bold">
             {aiResult.severity} / 5
           </span>
         </div>
         <input
+          id="ai-severity"
           type="range"
           min="1"
           max="5"
           value={aiResult.severity || 3}
           onChange={(e) => setAiResult({ ...aiResult, severity: Number(e.target.value) })}
           className="w-full h-1 bg-hairline rounded-lg appearance-none cursor-pointer accent-marigold mt-1"
+          aria-label="Severity rating from 1 (minor) to 5 (extreme hazard)"
+          aria-valuemin={1}
+          aria-valuemax={5}
+          aria-valuenow={aiResult.severity || 3}
         />
       </div>
 

@@ -18,6 +18,8 @@ export default function ReportFallbackForm({
   description,
   onSubmit,
 }: ReportFallbackFormProps) {
+  const [severity, setSeverity] = React.useState(3);
+
   return (
     <form onSubmit={onSubmit} className="flex flex-col gap-4 px-4 py-4 font-sans pb-12 text-ink">
       <div className="bg-alert/5 border border-alert/20 p-4 rounded-xl flex flex-col gap-2">
@@ -32,8 +34,9 @@ export default function ReportFallbackForm({
 
       {/* Categories */}
       <div className="flex flex-col gap-1.5">
-        <label className="text-[9pt] font-mono uppercase text-slate tracking-wider block">Grievance category</label>
+        <label htmlFor="fallback-category" className="text-[9pt] font-mono uppercase text-slate tracking-wider block">Grievance category</label>
         <select
+          id="fallback-category"
           name="category"
           className="w-full text-xs border border-hairline bg-white px-2.5 py-2.5 rounded-xl font-semibold text-ink"
           style={{ minHeight: "40px" }}
@@ -48,14 +51,25 @@ export default function ReportFallbackForm({
 
       {/* Severity Rating scale */}
       <div className="flex flex-col gap-1.5 bg-paper border border-hairline p-3 rounded-xl">
-        <label className="text-[9pt] font-mono uppercase text-slate tracking-wider block">Severity Rating scale</label>
+        <div className="flex items-center justify-between text-[9px] font-mono">
+          <label htmlFor="fallback-severity" className="text-slate uppercase tracking-wider block cursor-pointer">Severity Rating scale</label>
+          <span className="px-2 py-0.5 bg-white border border-hairline text-ink rounded font-bold">
+            {severity} / 5
+          </span>
+        </div>
         <input
+          id="fallback-severity"
           type="range"
           name="severity"
           min="1"
           max="5"
-          defaultValue="3"
+          value={severity}
+          onChange={(e) => setSeverity(Number(e.target.value))}
           className="w-full h-1 bg-hairline rounded-lg appearance-none cursor-pointer accent-marigold mt-1.5 animate-none"
+          aria-label="Severity rating from 1 (minor) to 5 (emergency)"
+          aria-valuemin={1}
+          aria-valuemax={5}
+          aria-valuenow={severity}
         />
         <div className="flex justify-between text-[8px] font-mono text-slate uppercase mt-1">
           <span>Minor (1)</span>
@@ -65,7 +79,7 @@ export default function ReportFallbackForm({
 
       {/* Address */}
       <div className="flex flex-col gap-1.5">
-        <label className="text-[9pt] font-mono uppercase text-slate tracking-wider block">Identified location reference</label>
+        <span className="text-[9pt] font-mono uppercase text-slate tracking-wider block">Identified location reference</span>
         <div className="bg-paper border border-hairline p-2 rounded-xl text-[10.5px] font-medium leading-normal text-ink select-all">
           {manualAddress || addressPlaceholder || "Georeferenced Point Secured"}
         </div>
@@ -73,8 +87,9 @@ export default function ReportFallbackForm({
 
       {/* Descriptions */}
       <div className="flex flex-col gap-1.5">
-        <label className="text-[9pt] font-mono uppercase text-slate tracking-wider block">Municipal complaint description</label>
+        <label htmlFor="fallback-description" className="text-[9pt] font-mono uppercase text-slate tracking-wider block">Municipal complaint description</label>
         <textarea
+          id="fallback-description"
           name="description"
           required
           defaultValue={description}

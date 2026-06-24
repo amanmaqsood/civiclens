@@ -29,6 +29,7 @@ export default function App() {
   const [latestReport, setLatestReport] = useState<Partial<IssueReport> | null>(null);
   const [issues, setIssues] = useState<IssueReport[]>([]);
   const [issuesLoading, setIssuesLoading] = useState(true);
+  const [loadError, setLoadError] = useState(false);
   const [upvoteLoadingId, setUpvoteLoadingId] = useState<string | null>(null);
   const [errorNotice, setErrorNotice] = useState<string | null>(null);
   const [selectedIssueId, setSelectedIssueId] = useState<string | null>(null);
@@ -53,11 +54,13 @@ export default function App() {
   // Load issues from Firestore
   const loadIssues = async () => {
     setIssuesLoading(true);
+    setLoadError(false);
     try {
       const data = await fetchRecentIssues();
       setIssues(data);
     } catch (err) {
       console.error("Failed to load issues:", err);
+      setLoadError(true);
     } finally {
       setIssuesLoading(false);
     }
@@ -562,6 +565,12 @@ export default function App() {
 
   return (
     <MobileFrame>
+      <a 
+        href="#main-content" 
+        className="sr-only focus:not-sr-only focus:absolute focus:top-3 focus:left-3 focus:z-50 focus:bg-marigold focus:text-ink focus:px-4 focus:py-2 focus:rounded-lg focus:font-bold focus:shadow-md focus:outline-none"
+      >
+        Skip to main content
+      </a>
       <Header 
         currentView={currentView} 
         onNavigate={handleNavigate} 
@@ -576,7 +585,11 @@ export default function App() {
 
       {/* Global Toast Error Notice */}
       {errorNotice && (
-        <div className="mx-4 mt-3 bg-rose-50 border border-rose-100 text-rose-800 p-3 rounded-xl flex flex-col gap-2 shadow-xs transition-all">
+        <div 
+          role="status" 
+          aria-live="polite" 
+          className="mx-4 mt-3 bg-rose-50 border border-rose-100 text-rose-800 p-3 rounded-xl flex flex-col gap-2 shadow-xs transition-all"
+        >
           <div className="flex items-start gap-2">
             <AlertCircle className="w-5 h-5 text-rose-600 mt-0.5 flex-shrink-0" />
             <div className="text-xs font-semibold leading-relaxed">
@@ -587,139 +600,163 @@ export default function App() {
       )}
 
       {/* View Router */}
-      {persona === "operator" ? (
-        operatorSelectedIssueId ? (
-          (() => {
-            const selectedIssue = issues.find((issue) => issue.id === operatorSelectedIssueId);
-            if (!selectedIssue) {
-              return (
-                <div className="p-4 text-center text-xs font-semibold text-slate-500 font-sans">
-                  Issue report not found.
-                  <button onClick={() => setOperatorSelectedIssueId(null)} className="block mt-2 underline mx-auto text-[#4F46E5] font-bold">
-                    Back to Queue
-                  </button>
-                </div>
-              );
-            }
-            return (
-              <OperatorDetailView
-                issue={selectedIssue}
-                onBack={() => setOperatorSelectedIssueId(null)}
-                onRefresh={loadIssues}
-              />
-            );
-          })()
-        ) : (
-          <OperatorQueue
-            issues={issues}
-            onSelectIssue={(id) => setOperatorSelectedIssueId(id)}
-            onRefresh={loadIssues}
-            loading={issuesLoading}
-          />
-        )
-      ) : (
-        <>
-          {currentView === "landing" && (
-            <LandingPage
-              onNavigate={handleNavigate}
-              issues={issues}
-              onUpvote={handleUpvote}
-              upvoteLoadingId={upvoteLoadingId}
-              onSelectIssue={handleSelectIssue}
-              userLocation={userLocation}
-              onUserLocationChange={setUserLocation}
-            />
-          )}
-
-          {currentView === "detail" && selectedIssueId && (
+      <main id="main-content" className="flex flex-col flex-1 overflow-y-auto">
+        {loadError ? (
+          <div className="flex-1 flex flex-col justify-center items-center p-6 text-center font-sans">
+            <div className="bg-white border border-alert/20 p-6 rounded-2xl max-w-sm shadow-xs flex flex-col items-center gap-4">
+              <div className="w-12 h-12 rounded-full bg-alert/10 flex items-center justify-center">
+                <AlertCircle className="w-6 h-6 text-alert" />
+              </div>
+              <div>
+                <h3 className="text-sm font-bold text-ink">Unable to fetch registered incidents</h3>
+                <p className="text-[11px] text-slate mt-1 leading-relaxed">
+                  Our secure connection to the Inspectorate is temporarily congested or your network is slow.
+                </p>
+              </div>
+              <button
+                type="button"
+                onClick={loadIssues}
+                className="w-full bg-marigold hover:bg-marigold/90 text-ink font-bold text-xs py-2 px-4 rounded-xl shadow-xs cursor-pointer min-h-[36px]"
+              >
+                Retry Connection
+              </button>
+            </div>
+          </div>
+        ) : persona === "operator" ? (
+          operatorSelectedIssueId ? (
             (() => {
-              const selectedIssue = issues.find((issue) => issue.id === selectedIssueId);
+              const selectedIssue = issues.find((issue) => issue.id === operatorSelectedIssueId);
               if (!selectedIssue) {
                 return (
-                  <div className="p-4 text-center text-xs font-semibold text-slate-500">
-                    Issue report not found. Please navigate back manually.
-                    <button onClick={() => setCurrentView("landing")} className="block mt-2 underline mx-auto text-[#4F46E5] font-sans">
-                      Back to Hub
+                  <div className="p-4 text-center text-xs font-semibold text-slate-500 font-sans">
+                    Issue report not found.
+                    <button onClick={() => setOperatorSelectedIssueId(null)} className="block mt-2 underline mx-auto text-[#4F46E5] font-bold">
+                      Back to Queue
                     </button>
                   </div>
                 );
               }
               return (
-                <IssueDetailPage
+                <OperatorDetailView
                   issue={selectedIssue}
-                  onBack={() => setCurrentView("landing")}
-                  onUpvote={handleUpvote}
-                  upvoteLoadingId={upvoteLoadingId}
+                  onBack={() => setOperatorSelectedIssueId(null)}
                   onRefresh={loadIssues}
                 />
               );
             })()
-          )}
-
-          {currentView === "report" && (
-            <ReportPage
-              onBack={() => handleNavigate("landing")}
-              onSubmit={handleReportSubmit}
-              prefilledLocation={userLocation}
-            />
-          )}
-
-          {currentView === "success" && (
-            <SuccessPage
-              report={latestReport}
-              onNavigate={handleNavigate}
-              isMerged={dedupConfirmedMerged}
-            />
-          )}
-
-          {currentView === "duplicate" && pendingReportData && duplicateCandidate && (
-            <DuplicateCheckPage
-              newReport={pendingReportData}
-              candidate={duplicateCandidate}
-              distance={duplicateDistance}
-              reasons={duplicateReasons}
-              similarity={duplicateSimilarity}
-              onMerge={handleMergeDuplicate}
-              onCreateNew={handleCreateStandaloneAnyway}
-              onCancel={() => {
-                setPendingReportData(null);
-                setDuplicateCandidate(null);
-                setCurrentView("report");
-              }}
-              isProcessing={isDeduplicating}
-            />
-          )}
-
-          {currentView === "dashboard" && (
-            <ImpactDashboard
+          ) : (
+            <OperatorQueue
               issues={issues}
-              onBack={() => setCurrentView("landing")}
+              onSelectIssue={(id) => setOperatorSelectedIssueId(id)}
+              onRefresh={loadIssues}
+              loading={issuesLoading}
             />
-          )}
+          )
+        ) : (
+          <>
+            {currentView === "landing" && (
+              <LandingPage
+                onNavigate={handleNavigate}
+                issues={issues}
+                onUpvote={handleUpvote}
+                upvoteLoadingId={upvoteLoadingId}
+                onSelectIssue={handleSelectIssue}
+                userLocation={userLocation}
+                onUserLocationChange={setUserLocation}
+                loading={issuesLoading}
+              />
+            )}
 
-          {currentView === "submitting" && (
-            <div className="flex flex-col gap-6 p-4 min-h-[75vh] justify-center items-center font-sans">
-              <div className="w-full bg-white border border-hairline rounded-3xl p-5 shadow-md flex flex-col gap-5">
-                <div className="flex flex-col items-center text-center gap-2 border-b border-hairline pb-4">
-                  <div className="relative">
-                    <div className="absolute inset-0 rounded-full bg-marigold/10 animate-ping" />
-                    <div className="relative w-12 h-12 rounded-full bg-marigold/10 flex items-center justify-center border border-marigold/20">
-                      <Loader2 className="w-6 h-6 text-marigold animate-spin" />
+            {currentView === "detail" && selectedIssueId && (
+              (() => {
+                const selectedIssue = issues.find((issue) => issue.id === selectedIssueId);
+                if (!selectedIssue) {
+                  return (
+                    <div className="p-4 text-center text-xs font-semibold text-slate-500">
+                      Issue report not found. Please navigate back manually.
+                      <button onClick={() => setCurrentView("landing")} className="block mt-2 underline mx-auto text-[#4F46E5] font-sans">
+                        Back to Hub
+                      </button>
                     </div>
+                  );
+                }
+                return (
+                  <IssueDetailPage
+                    issue={selectedIssue}
+                    onBack={() => setCurrentView("landing")}
+                    onUpvote={handleUpvote}
+                    upvoteLoadingId={upvoteLoadingId}
+                    onRefresh={loadIssues}
+                  />
+                );
+              })()
+            )}
+
+            {currentView === "report" && (
+              <ReportPage
+                onBack={() => handleNavigate("landing")}
+                onSubmit={handleReportSubmit}
+                prefilledLocation={userLocation}
+              />
+            )}
+
+            {currentView === "success" && (
+              <SuccessPage
+                report={latestReport}
+                onNavigate={handleNavigate}
+                isMerged={dedupConfirmedMerged}
+              />
+            )}
+
+            {currentView === "duplicate" && pendingReportData && duplicateCandidate && (
+              <DuplicateCheckPage
+                newReport={pendingReportData}
+                candidate={duplicateCandidate}
+                distance={duplicateDistance}
+                reasons={duplicateReasons}
+                similarity={duplicateSimilarity}
+                onMerge={handleMergeDuplicate}
+                onCreateNew={handleCreateStandaloneAnyway}
+                onCancel={() => {
+                  setPendingReportData(null);
+                  setDuplicateCandidate(null);
+                  setCurrentView("report");
+                }}
+                isProcessing={isDeduplicating}
+              />
+            )}
+
+            {currentView === "dashboard" && (
+              <ImpactDashboard
+                issues={issues}
+                onBack={() => setCurrentView("landing")}
+              />
+            )}
+
+            {currentView === "submitting" && (
+              <div className="flex flex-col gap-6 p-4 min-h-[75vh] justify-center items-center font-sans">
+                <div className="w-full bg-white border border-hairline rounded-3xl p-5 shadow-md flex flex-col gap-5">
+                  <div className="flex flex-col items-center text-center gap-2 border-b border-hairline pb-4">
+                    <div className="relative">
+                      <div className="absolute inset-0 rounded-full bg-marigold/10 animate-ping" />
+                      <div className="relative w-12 h-12 rounded-full bg-marigold/10 flex items-center justify-center border border-marigold/20">
+                        <Loader2 className="w-6 h-6 text-marigold animate-spin" />
+                      </div>
+                    </div>
+                    <h2 className="text-base font-bold text-ink font-display mt-2">Agent Running Autonomously...</h2>
+                    <p className="text-[11px] text-slate max-w-xs leading-normal font-medium">
+                      Verifying, geocoding, checking duplication integrity, scoring, and routing your complaint.
+                    </p>
                   </div>
-                  <h2 className="text-base font-bold text-ink font-display mt-2">Agent Running Autonomously...</h2>
-                  <p className="text-[11px] text-slate max-w-xs leading-normal font-medium">
-                    Verifying, geocoding, checking duplication integrity, scoring, and routing your complaint.
-                  </p>
-                </div>
-                <div className="max-h-[50vh] overflow-y-auto pr-1">
-                  <AgentTraceTimeline trace={liveTrace} />
+                  <div className="max-h-[50vh] overflow-y-auto pr-1">
+                    <AgentTraceTimeline trace={liveTrace} />
+                  </div>
                 </div>
               </div>
-            </div>
-          )}
-        </>
-      )}
+            )}
+          </>
+        )}
+      </main>
 
       {/* Deduplication Integrity scanner loading overlay */}
       {isDeduplicating && (

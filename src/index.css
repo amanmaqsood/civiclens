@@ -39,3 +39,9 @@ body {
   }
 }
 
+/* Visible focus style globally for accessibility */
+*:focus-visible {
+  outline: 2px solid var(--color-marigold);
+  outline-offset: 2px;
+}
+

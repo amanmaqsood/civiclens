@@ -9,6 +9,8 @@ interface IssueListWithFilterProps {
   onSelectIssue: (id: string) => void;
   onUpvote: (id: string) => Promise<void>;
   upvoteLoadingId: string | null;
+  loading?: boolean;
+  onNavigateToReport?: () => void;
 }
 
 type StatusFilter = "All" | "Submitted" | "Verified" | "In Progress" | "Resolved";
@@ -18,6 +20,8 @@ export default function IssueListWithFilter({
   onSelectIssue,
   onUpvote,
   upvoteLoadingId,
+  loading = false,
+  onNavigateToReport,
 }: IssueListWithFilterProps) {
   const [activeFilter, setActiveFilter] = useState<StatusFilter>("All");
   const [searchTerm, setSearchTerm] = useState("");
@@ -93,9 +97,39 @@ export default function IssueListWithFilter({
 
       {/* Responsive List items */}
       <div className="flex flex-col gap-3">
-        {filteredIssues.length === 0 ? (
-          <div className="bg-white border border-hairline rounded-2xl p-6 text-center shadow-xs">
+        {loading ? (
+          /* Loading skeletons */
+          [1, 2, 3].map((i) => (
+            <div key={i} className="bg-white border border-hairline rounded-2xl p-4 flex flex-col gap-3 animate-pulse shadow-2xs">
+              <div className="flex justify-between items-center">
+                <div className="h-4 bg-slate-200 rounded w-24" />
+                <div className="h-5 bg-slate-200 rounded-full w-16" />
+              </div>
+              <div className="flex gap-3">
+                <div className="w-14 h-14 bg-slate-200 rounded-xl shrink-0" />
+                <div className="flex-1 min-w-0">
+                  <div className="h-4 bg-slate-200 rounded w-3/4 mb-2" />
+                  <div className="h-3 bg-slate-200 rounded w-1/2" />
+                </div>
+              </div>
+              <div className="border-t border-hairline/65 pt-2.5 flex justify-between items-center">
+                <div className="h-3 bg-slate-200 rounded w-12" />
+                <div className="h-7 bg-slate-200 rounded-xl w-24" />
+              </div>
+            </div>
+          ))
+        ) : filteredIssues.length === 0 ? (
+          <div className="bg-white border border-hairline rounded-2xl p-6 text-center shadow-xs flex flex-col items-center gap-3">
             <p className="text-[13px] font-medium text-slate">No active records match the filter.</p>
+            {onNavigateToReport && (
+              <button
+                type="button"
+                onClick={onNavigateToReport}
+                className="text-xs bg-marigold text-ink font-bold px-4 py-2 rounded-xl hover:bg-marigold/90 cursor-pointer shadow-3xs"
+              >
+                File a New Report
+              </button>
+            )}
           </div>
         ) : (
           filteredIssues.map((issue) => (
@@ -131,15 +165,17 @@ export default function IssueListWithFilter({
               </div>
 
               {/* Dynamic summary click area */}
-              <div
+              <button
+                type="button"
                 onClick={() => onSelectIssue(issue.id)}
-                className="flex gap-3 cursor-pointer group"
+                className="flex gap-3 cursor-pointer group text-left w-full focus:outline-none"
+                aria-label={`View details of ticket ${issue.ticketId}`}
               >
                 {issue.image && (
                   <div className="w-14 h-14 rounded-xl overflow-hidden bg-paper flex-shrink-0 border border-hairline select-none">
                     <img
                       src={issue.image}
-                      alt={issue.category}
+                      alt={`Civic incident category: ${issue.category.replace(/_/g, " ")}`}
                       width={56}
                       height={56}
                       loading="lazy"
@@ -160,7 +196,7 @@ export default function IssueListWithFilter({
                     <span className="text-xs truncate font-medium">{issue.locationName || "Reported Location"}</span>
                   </div>
                 </div>
-              </div>
+              </button>
 
               {/* Card Footer row */}
               <div className="border-t border-hairline/80 pt-2.5 flex items-center justify-between mt-0.5">

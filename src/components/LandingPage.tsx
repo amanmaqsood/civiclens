@@ -12,6 +12,7 @@ interface LandingPageProps {
   onSelectIssue: (id: string) => void;
   userLocation: { lat: number; lng: number } | null;
   onUserLocationChange: (loc: { lat: number; lng: number } | null) => void;
+  loading?: boolean;
 }
 
 export default function LandingPage({
@@ -22,6 +23,7 @@ export default function LandingPage({
   onSelectIssue,
   userLocation,
   onUserLocationChange,
+  loading = false,
 }: LandingPageProps) {
   const [showDemoBanner, setShowDemoBanner] = useState(true);
   const hasDemoData = issues.some(i => i.isDemoData);
@@ -91,6 +93,8 @@ export default function LandingPage({
         onSelectIssue={onSelectIssue}
         onUpvote={onUpvote}
         upvoteLoadingId={upvoteLoadingId}
+        loading={loading}
+        onNavigateToReport={() => onNavigate("report")}
       />
 
       {/* Progress & Live Network Stats */}

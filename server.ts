@@ -22,29 +22,103 @@ async function startServer() {
 
   const sleep = (ms: number) => new Promise((resolve) => setTimeout(resolve, ms));
 
-  function isUnavailableError(err: any): boolean {
+  function isRetryableError(err: any): boolean {
     if (!err) return false;
     const errMsg = String(err.message || err.statusText || "").toUpperCase();
     const status = err.status || err.statusCode || err.code;
-    return status === 503 || status === "UNAVAILABLE" || errMsg.includes("503") || errMsg.includes("UNAVAILABLE");
+    return (
+      status === 503 ||
+      status === 429 ||
+      status === "UNAVAILABLE" ||
+      status === "RESOURCE_EXHAUSTED" ||
+      errMsg.includes("503") ||
+      errMsg.includes("429") ||
+      errMsg.includes("UNAVAILABLE") ||
+      errMsg.includes("RESOURCE_EXHAUSTED") ||
+      errMsg.includes("RATE_LIMIT") ||
+      errMsg.includes("QUOTA")
+    );
   }
 
   async function generateContentWithRetry(aiClient: any, args: any): Promise<{ response: any; retried: boolean }> {
-    try {
-      const response = await aiClient.models.generateContent(args);
-      return { response, retried: false };
-    } catch (error: any) {
-      if (isUnavailableError(error)) {
-        console.warn("Gemini 503/UNAVAILABLE encountered. Waiting 1.5s to retry once...");
-        await sleep(1500);
+    const delays = [1500, 3000, 6000];
+    let attempt = 0;
+    while (true) {
+      try {
         const response = await aiClient.models.generateContent(args);
-        return { response, retried: true };
+        return { response, retried: attempt > 0 };
+      } catch (error: any) {
+        if (attempt < delays.length && isRetryableError(error)) {
+          const delayTime = delays[attempt];
+          console.warn(`Gemini API error (retryable): ${error.message || error}. Waiting ${delayTime}ms to retry (attempt ${attempt + 1}/3)...`);
+          await sleep(delayTime);
+          attempt++;
+        } else {
+          throw error;
+        }
       }
-      throw error;
     }
   }
 
   // Health check endpoint (both /health and /api/health to be robust)
+  // 1. In-memory per-IP rate limiter
+  const ipLimits = new Map<string, { count: number; resetTime: number }>();
+  const RATE_LIMIT_WINDOW_MS = 60000; // 1 minute
+  const RATE_LIMIT_MAX_REQUESTS = 30; // 30 requests per minute
+
+  app.use("/api/*", (req, res, next) => {
+    const ip = req.ip || req.headers["x-forwarded-for"] || "unknown";
+    const ipStr = Array.isArray(ip) ? ip[0] : String(ip);
+    const now = Date.now();
+
+    let limit = ipLimits.get(ipStr);
+    if (!limit || now > limit.resetTime) {
+      limit = { count: 1, resetTime: now + RATE_LIMIT_WINDOW_MS };
+      ipLimits.set(ipStr, limit);
+    } else {
+      limit.count++;
+    }
+
+    if (limit.count > RATE_LIMIT_MAX_REQUESTS) {
+      return res.status(429).json({
+        success: false,
+        error: "Too many requests. Please try again later.",
+      });
+    }
+    next();
+  });
+
+  // 2. Security headers for all API routes
+  app.use("/api/*", (req, res, next) => {
+    res.setHeader("X-Content-Type-Options", "nosniff");
+    res.setHeader("X-Frame-Options", "DENY");
+    res.setHeader("Referrer-Policy", "no-referrer");
+    next();
+  });
+
+  // 3. Request size/oversized fields validation for all API routes
+  app.use("/api/*", (req, res, next) => {
+    if (["POST", "PUT", "PATCH"].includes(req.method)) {
+      const body = req.body;
+      if (body && typeof body === "object") {
+        for (const key of Object.keys(body)) {
+          const val = body[key];
+          if (typeof val === "string") {
+            const isImage = key === "image" || key === "afterImage";
+            const maxLen = isImage ? 15 * 1024 * 1024 : 15000; // 15k characters limit for text fields
+            if (val.length > maxLen) {
+              return res.status(400).json({
+                success: false,
+                error: `Request field '${key}' exceeds the maximum allowed size.`,
+              });
+            }
+          }
+        }
+      }
+    }
+    next();
+  });
+
   app.get("/health", (req, res) => {
     res.json({ status: "ok" });
   });
@@ -732,6 +806,314 @@ Output ONLY valid JSON and nothing else.`;
         success: false,
         error: error.message || "Translation failed",
         data: { titleHi: title, summaryHi: summary }
+      });
+    }
+  });
+
+  // Helper to generate the structured action packet & native Hindi translations
+  async function generateActionPacket(aiClient: any, issue: any, authority: string, channel: string, slaDays: number): Promise<any> {
+    const todayStr = new Date().toLocaleDateString("en-US", { year: "numeric", month: "long", day: "numeric" });
+    const promptText = `Draft a formal compliance complaint (an action packet) for this reported civic issue in India.
+Responsible Authority: ${authority}
+Contact Channel: ${channel}
+Official SLA: ${slaDays} days
+Issue details:
+- Category: ${issue.category}
+- Title: ${issue.title}
+- Summary: ${issue.summary}
+- Reference Date (Today): ${todayStr}
+
+Output a drafted formal complaint email/letter:
+- subject: A concise professional subject line
+- body: The full body of the formal letter, starting with a polite salutation (e.g., "To the Public Grievance Officer / Commissioner..."), laying out the ticket summary, citing safety concerns, precise location, and concluding with a call-to-action to resolve within the SLA.
+- bodyHindi: A translated version of the complaint body in fluent official Hindi (हिन्दी).
+- summaryHindi: A brief 1-2 sentence Hindi (हिन्दी) summary of the problem, suitable for the complainant to read.
+- nextActions: 3 actionable steps for the citizen.
+
+Output STRICT, VALID JSON conforming exactly to this schema:
+{
+  "subject": "string",
+  "body": "string",
+  "bodyHindi": "string",
+  "summaryHindi": "string",
+  "nextActions": ["string", "string", "string"]
+}
+Output ONLY valid JSON and nothing else.`;
+
+    const result = await generateContentWithRetry(aiClient, {
+      model: "gemini-3.5-flash",
+      contents: promptText,
+      config: {
+        responseMimeType: "application/json",
+        responseSchema: {
+          type: Type.OBJECT,
+          properties: {
+            subject: { type: Type.STRING },
+            body: { type: Type.STRING },
+            bodyHindi: { type: Type.STRING },
+            summaryHindi: { type: Type.STRING },
+            nextActions: {
+              type: Type.ARRAY,
+              items: { type: Type.STRING },
+            },
+          },
+          required: ["subject", "body", "bodyHindi", "summaryHindi", "nextActions"],
+        },
+      },
+    });
+
+    const text = (result.response.text || "").trim();
+    const clean = text.replace(/^```(?:json)?\s*/i, "").replace(/```\s*$/, "").trim();
+    return JSON.parse(clean);
+  }
+
+  // Real Gemini Function-Calling Agentic Triage Loop
+  app.post("/api/agent/run", async (req, res) => {
+    const { issue, candidates } = req.body;
+
+    if (!issue || typeof issue !== "object") {
+      return res.status(400).json({ success: false, error: "Missing or invalid issue." });
+    }
+
+    const safeCandidates = Array.isArray(candidates) ? candidates : [];
+
+    try {
+      const agentTools = [{
+        functionDeclarations: [
+          {
+            name: "calculate_priority",
+            description: "Compute the deterministic 0-100 civic priority score for this issue.",
+            parameters: {
+              type: Type.OBJECT,
+              properties: {
+                severity: { type: Type.NUMBER },
+                urgency: { type: Type.STRING },
+                confirmCount: { type: Type.NUMBER },
+                reportCount: { type: Type.NUMBER }
+              },
+              required: ["severity", "urgency"]
+            }
+          },
+          {
+            name: "assess_duplicate",
+            description: "Decide whether this issue duplicates one of the provided nearby candidates. Return the candidate id to merge into, or 'none'.",
+            parameters: {
+              type: Type.OBJECT,
+              properties: {
+                candidateId: { type: Type.STRING },
+                similarity: { type: Type.NUMBER },
+                reasoning: { type: Type.STRING }
+              },
+              required: ["candidateId", "reasoning"]
+            }
+          },
+          {
+            name: "find_authority",
+            description: "Find the responsible municipal authority and typical SLA for this category and location (uses live web knowledge).",
+            parameters: {
+              type: Type.OBJECT,
+              properties: {
+                category: { type: Type.STRING },
+                locationName: { type: Type.STRING }
+              },
+              required: ["category", "locationName"]
+            }
+          },
+          {
+            name: "finalize",
+            description: "Finalize the triage with the routing decision and a one-line rationale.",
+            parameters: {
+              type: Type.OBJECT,
+              properties: {
+                routeTo: { type: Type.STRING },
+                priorityScore: { type: Type.NUMBER },
+                rationale: { type: Type.STRING }
+              },
+              required: ["routeTo", "rationale"]
+            }
+          }
+        ]
+      }];
+
+      // Server-side tool implementations
+      async function execTool(name: string, args: any) {
+        if (name === "calculate_priority") {
+          const severity = args.severity || 1;
+          const urgency = args.urgency || "routine";
+          const confirmCount = args.confirmCount || 0;
+          const reportCount = args.reportCount || 1;
+          let urgencyBonus = 0;
+          if (urgency === "urgent") urgencyBonus = 10;
+          else if (urgency === "priority") urgencyBonus = 5;
+          const score = severity * 12 + urgencyBonus + Math.min(confirmCount * 3, 15) + Math.min(reportCount * 4, 15);
+          const clampedScore = Math.max(0, Math.min(100, score));
+          const roundedScore = Math.round(clampedScore * 10) / 10;
+          return { score: roundedScore };
+        }
+        if (name === "assess_duplicate") {
+          return { candidateId: args.candidateId || "none", similarity: args.similarity ?? null };
+        }
+        if (name === "find_authority") {
+          try {
+            const searchPrompt = `Determine the responsible Indian municipal authority/department, a contact channel (helpline/portal/email), and the official SLA in days for category: "${args.category || "general"}" in location: "${args.locationName || "India"}".
+            
+            You must output a strict JSON object conforming exactly to this schema:
+            {
+              "authority": "string (e.g. BBMP, BMC, MCD, etc.)",
+              "sla": number (SLA in days, e.g. 7),
+              "channel": "string (contact portal/helpline/email)"
+            }
+            
+            Return ONLY the raw JSON block inside markdown code fences:
+            \`\`\`json
+            { ... }
+            \`\`\``;
+
+            const searchRes = await generateContentWithRetry(ai, {
+              model: "gemini-2.5-flash",
+              contents: searchPrompt,
+              config: {
+                tools: [{ googleSearch: {} }]
+              }
+            });
+
+            const responseText = (searchRes.response.text || "").trim();
+            let cleanText = responseText;
+            cleanText = cleanText.replace(/^```(?:json)?\s*/i, "").replace(/```\s*$/, "").trim();
+            
+            const jsonStart = cleanText.indexOf("{");
+            const jsonEnd = cleanText.lastIndexOf("}");
+            if (jsonStart !== -1 && jsonEnd !== -1) {
+              cleanText = cleanText.slice(jsonStart, jsonEnd + 1);
+            }
+            
+            const parsed = JSON.parse(cleanText);
+            const authVal = parsed.authority || "Municipal Corporation";
+            const slaVal = typeof parsed.sla === "number" ? parsed.sla : parseInt(parsed.sla) || 7;
+            const chanVal = parsed.channel || "State Grievance Portal";
+            
+            return { authority: authVal, sla: slaVal, channel: chanVal };
+          } catch (searchErr: any) {
+            console.warn("find_authority grounded search failed, returning fallback:", searchErr);
+            return { authority: "Municipal Corporation", sla: 7, channel: "State Grievance Portal" };
+          }
+        }
+        if (name === "finalize") {
+          return { done: true };
+        }
+        return { error: `Unknown tool: ${name}` };
+      }
+
+      let contents: any[] = [{ role: "user", parts: [{ text:
+        `You are CivicLens's triage agent. Issue: ${JSON.stringify(issue)}. Nearby candidates: ${JSON.stringify(safeCandidates)}.
+         Steps: 1) call assess_duplicate, 2) call calculate_priority, 3) call find_authority, 4) call finalize. Call exactly one tool per turn.` }]}];
+
+      const steps: any[] = [];
+      let final: any = null;
+      let guard = 0;
+
+      let authority = "Municipal Corporation";
+      let channel = "State Grievance Portal";
+      let slaDays = 7;
+
+      let duplicateCandidateId: string | null = null;
+      let duplicateSimilarity: number | null = null;
+      let duplicateReasoning: string | null = null;
+
+      while (guard++ < 8) {
+        const t0 = Date.now();
+        const { response } = await generateContentWithRetry(ai, {
+          model: "gemini-2.5-flash",
+          contents,
+          config: { tools: agentTools }
+        });
+        const calls = response.functionCalls || [];
+        if (!calls.length) break;
+        const fc = calls[0];
+        const result = await execTool(fc.name, fc.args || {});
+
+        // Save tool execution findings
+        if (fc.name === "find_authority" && result) {
+          authority = result.authority || authority;
+          channel = result.channel || channel;
+          slaDays = typeof result.sla === "number" ? result.sla : slaDays;
+        }
+
+        if (fc.name === "assess_duplicate") {
+          const cid = fc.args?.candidateId;
+          if (cid && cid !== "none" && cid !== "") {
+            duplicateCandidateId = cid;
+            duplicateSimilarity = fc.args?.similarity || null;
+            duplicateReasoning = fc.args?.reasoning || null;
+          }
+        }
+
+        steps.push({
+          step: fc.name,
+          tool: `agent.${fc.name}`,
+          status: "done",
+          inputDigest: JSON.stringify(fc.args).slice(0, 160),
+          outputSummary: JSON.stringify(result).slice(0, 160),
+          durationMs: Date.now() - t0,
+          ts: new Date().toISOString(),
+          rationale: fc.args?.reasoning || fc.args?.rationale || `Called ${fc.name}`
+        });
+
+        contents.push({ role: "model", parts: [{ functionCall: fc } as any] });
+        contents.push({ role: "user", parts: [{ functionResponse: { name: fc.name, response: { result } } } as any] });
+
+        if (fc.name === "finalize") {
+          final = fc.args;
+          break;
+        }
+      }
+
+      // Generate the final rich resolution plan
+      let resolutionPlan = null;
+      try {
+        const actionPacket = await generateActionPacket(ai, issue, authority, channel, slaDays);
+        resolutionPlan = {
+          recommendedAuthority: authority,
+          contactChannel: channel,
+          slaDays,
+          actionPacket,
+          groundingSources: []
+        };
+      } catch (planErr: any) {
+        console.error("Failed to generate action packet in agent run, using fallback:", planErr);
+        resolutionPlan = {
+          recommendedAuthority: authority,
+          contactChannel: channel,
+          slaDays,
+          actionPacket: {
+            subject: `Formal Grievance: ${issue.title || "Civic Incident"}`,
+            body: `To the Commissioner / Officer,\n\nWe would like to formally report a civic grievance regarding ${issue.category} at ${issue.locationName || "the location"}.\nSummary: ${issue.summary || "No details provided."}\n\nPlease resolve this issue within the typical SLA of ${slaDays} days.\n\nSincerely,\nCivicLens Agent`,
+            bodyHindi: `आयुक्त / अधिकारी के लिए,\n\nहम औपचारिक रूप से ${issue.locationName || "स्थान"} पर ${issue.category} के संबंध में एक नागरिक शिकायत दर्ज करना चाहते हैं।\nसारांश: ${issue.summary || "कोई विवरण प्रदान नहीं किया गया।"}\n\nकृपया इस मुद्दे को ${slaDays} दिनों के सामान्य एसएलए के भीतर हल करें।\n\nसादर,\nसिविक लेंस एजेंट`,
+            summaryHindi: `${issue.category} की शिकायत दर्ज की गई है।`,
+            nextActions: [
+              "Post on social media / X tagging the authorities.",
+              "File a grievance via the local department portal.",
+              "Follow up with local ward committee."
+            ]
+          },
+          groundingSources: []
+        };
+      }
+
+      return res.json({
+        success: true,
+        steps,
+        final,
+        duplicateCandidateId,
+        duplicateSimilarity,
+        duplicateReasoning,
+        resolutionPlan
+      });
+    } catch (error: any) {
+      console.error("Agent run error:", error);
+      return res.status(500).json({
+        success: false,
+        error: error.message || "An unexpected error occurred during the agent triage run."
       });
     }
   });

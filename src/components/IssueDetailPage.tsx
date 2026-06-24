@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from "react";
 import { ArrowLeft, ArrowUp, MapPin, ShieldAlert, Clock, RefreshCw, Sparkles } from "lucide-react";
 import { IssueReport, IssueActivity } from "../types";
-import { fetchIssueActivities } from "../services/issues";
+import { fetchIssueActivities, updateIssueAgentTraceAndPlan, findDuplicateCandidates } from "../services/issues";
 import { useLanguage } from "../context/LanguageContext";
 import PriorityBreakdownWidget from "./PriorityBreakdownWidget";
 import VerificationPanel from "./VerificationPanel";
@@ -73,6 +73,109 @@ export default function IssueDetailPage({
   
   const { language: lang, setLanguage: setLang, t } = useLanguage();
   const [translating, setTranslating] = useState(false);
+
+  const [triageRunning, setTriageRunning] = useState(false);
+  const [triageError, setTriageError] = useState<string | null>(null);
+  const [liveTraceSteps, setLiveTraceSteps] = useState<any[]>([]);
+
+  const handleRunTriage = async () => {
+    setTriageRunning(true);
+    setTriageError(null);
+    setLiveTraceSteps([]);
+
+    try {
+      const localCandidates = await findDuplicateCandidates(issue);
+
+      const agentRunResponse = await fetch("/api/agent/run", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          issue: {
+            category: issue.category || "other",
+            severity: issue.severity || 3,
+            urgency: issue.urgency || "routine",
+            title: issue.title || "Civic Incident",
+            summary: issue.summary || issue.description || "No description",
+            locationName: issue.locationName || "Default Civic Landmark",
+            confirmCount: issue.citizenUpvotes || 0,
+            reportCount: 1,
+          },
+          candidates: localCandidates.map(c => ({
+            id: c.issue.id,
+            title: c.issue.title,
+            category: c.issue.category,
+            locationName: c.issue.locationName,
+            distanceM: c.distance || 0,
+          })),
+        }),
+      });
+
+      if (!agentRunResponse.ok) {
+        const errText = await agentRunResponse.text().catch(() => "Unknown error");
+        throw new Error(errText || "Failed to call AI Triage Agent.");
+      }
+
+      const agentResult = await agentRunResponse.json();
+      if (!agentResult.success) {
+        throw new Error(agentResult.error || "Server-side agent triage returned unsuccessful.");
+      }
+
+      const baseSteps = (issue.agentTrace || []).filter(
+        (step: any) => step.step === "Perceive" || step.step === "Locate" || step.step === "Deduplicate"
+      );
+      if (baseSteps.length === 0) {
+        baseSteps.push({
+          step: "Perceive",
+          tool: "Manual form input: the citizen entered issue category, title, and description manually.",
+          status: "done",
+          ts: new Date().toISOString(),
+          rationale: "Initial visual/text input registered."
+        }, {
+          step: "Locate",
+          tool: "GPS Geo-locator (Navigator API)",
+          status: "done",
+          ts: new Date().toISOString(),
+          rationale: `Located at ${issue.locationName || "specified landmark"}`
+        });
+      }
+
+      let currentTrace = [...baseSteps];
+      for (const step of agentResult.steps) {
+        currentTrace = [...currentTrace, step];
+        setLiveTraceSteps(currentTrace);
+        await new Promise(resolve => setTimeout(resolve, 800));
+      }
+
+      let finalPriorityScore = agentResult.final?.priorityScore;
+      if (!finalPriorityScore) {
+        const scoreStep = agentResult.steps.find((s: any) => s.step === "calculate_priority" || s.step === "Prioritize");
+        if (scoreStep) {
+          try {
+            const parsedScore = JSON.parse(scoreStep.outputSummary);
+            finalPriorityScore = parsedScore.score || parsedScore.priorityScore;
+          } catch (e) {
+            const match = String(scoreStep.outputSummary).match(/score"?:\s*([0-9.]+)/i);
+            if (match) finalPriorityScore = parseFloat(match[1]);
+          }
+        }
+      }
+
+      await updateIssueAgentTraceAndPlan(
+        issue.id,
+        currentTrace,
+        agentResult.resolutionPlan || null,
+        finalPriorityScore !== undefined ? finalPriorityScore : undefined
+      );
+
+      onRefresh();
+
+    } catch (err: any) {
+      console.error("AI Triage error:", err);
+      setTriageError(err.message || "An unexpected error occurred during AI triage. Please try again.");
+    } finally {
+      setTriageRunning(false);
+    }
+  };
 
   useEffect(() => {
     if (lang === "hi" && (!issue.titleHi || !issue.summaryHi) && !translating) {
@@ -234,8 +337,61 @@ export default function IssueDetailPage({
         </div>
       </div>
 
+      {/* AI Triage Agent Control Panel */}
+      <div className="bg-white border border-hairline rounded-2xl p-4 flex flex-col gap-3 shadow-[0_4px_16px_-4px_rgba(14,26,43,0.05)]">
+        <div className="flex items-center justify-between border-b border-hairline pb-2.5">
+          <h3 className="text-xs font-display font-bold text-ink uppercase tracking-wider flex items-center gap-1.5">
+            <Sparkles className="w-4 h-4 text-marigold" />
+            AI Triage Agent
+          </h3>
+          {issue.agentTrace && issue.agentTrace.length > 0 && (
+            <span className="text-[9px] font-mono bg-verify/10 text-verify px-2 py-0.5 rounded border border-verify/20">
+              Triaged
+            </span>
+          )}
+        </div>
+
+        <p className="text-xs text-slate leading-relaxed">
+          Run the full server-side agentic function-calling triage loop. The agent will calculate deterministic priority, detect duplicates in the neighborhood, consult live municipal records to locate the responsible authority, and draft official complaint packets with translations.
+        </p>
+
+        {/* Error message */}
+        {triageError && (
+          <div className="bg-alert/5 border border-alert/20 rounded-xl p-3 text-xs text-alert flex flex-col gap-2">
+            <span className="font-semibold">Triage Execution Failed:</span>
+            <span>{triageError}</span>
+            <button
+              onClick={handleRunTriage}
+              className="text-left underline font-bold cursor-pointer hover:opacity-85 text-alert"
+            >
+              Retry Triage Loop
+            </button>
+          </div>
+        )}
+
+        {/* Action Button */}
+        {!triageRunning && (
+          <button
+            onClick={handleRunTriage}
+            className="flex items-center justify-center gap-2 bg-ink text-paper hover:bg-ink/90 px-4 py-2.5 rounded-xl text-xs font-bold transition-all cursor-pointer shadow-xs"
+          >
+            <Sparkles className="w-3.5 h-3.5 text-marigold animate-pulse" />
+            <span>
+              {issue.agentTrace && issue.agentTrace.length > 0 ? "Re-run AI Triage Agent" : "Run AI Triage Agent"}
+            </span>
+          </button>
+        )}
+
+        {triageRunning && (
+          <div className="flex items-center justify-center gap-2 py-2 bg-paper rounded-xl border border-hairline">
+            <RefreshCw className="w-4 h-4 animate-spin text-marigold" />
+            <span className="text-xs font-mono text-slate uppercase tracking-wider">Executing AI Agent...</span>
+          </div>
+        )}
+      </div>
+
       {/* vertical timeline audit trace */}
-      <AgentTraceTimeline trace={issue.agentTrace} />
+      <AgentTraceTimeline trace={triageRunning ? liveTraceSteps : issue.agentTrace} />
 
       {/* Visual risk diagnosis */}
       <div className="bg-white border border-hairline rounded-2xl p-4 flex flex-col gap-3 shadow-[0_4px_16px_-4px_rgba(14,26,43,0.05)]">

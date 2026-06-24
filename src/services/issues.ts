@@ -746,6 +746,29 @@ export async function updateIssueResolutionPlan(
   }
 }
 
+// Overwrite/update agent trace, plan, and priority score
+export async function updateIssueAgentTraceAndPlan(
+  issueId: string,
+  agentTrace: AgentTraceEntry[],
+  resolutionPlan?: any,
+  priorityScore?: number
+): Promise<void> {
+  const docRef = doc(db, COLLECTION_NAME, issueId);
+  try {
+    const updateData: any = { agentTrace };
+    if (resolutionPlan) {
+      updateData.resolutionPlan = resolutionPlan;
+    }
+    if (priorityScore !== undefined) {
+      updateData.priorityScore = priorityScore;
+    }
+    await updateDoc(docRef, updateData);
+  } catch (err) {
+    handleFirestoreError(err, OperationType.UPDATE, `${COLLECTION_NAME}/${issueId}`);
+    throw err;
+  }
+}
+
 // Record subcollection activity log
 export async function recordIssueActivity(
   issueId: string,

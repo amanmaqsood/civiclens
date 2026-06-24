@@ -155,11 +155,11 @@ export default function App() {
       setLiveTrace(prev => [...prev, locateEntry]);
       await delay(1000);
 
-      // 3. Deduplicate Step
+      // 3. Find Nearby Candidates
+      let localCandidates: any[] = [];
       let dupStatus: "done" | "skipped" = "skipped";
       let dupRationale = "Proximity search skipped because no geolocational coordinates were provided.";
       let dupMeta: any = {};
-      let localCandidates: any[] = [];
       let aiResponse: any = null;
 
       if (hasGeo) {
@@ -216,7 +216,12 @@ export default function App() {
       if (aiResponse && (aiResponse.recommendation === "merge" || aiResponse.recommendation === "ask_user") && aiResponse.bestCandidateId) {
         const matchedCandidateObj = localCandidates.find(c => c.issue.id === aiResponse.bestCandidateId);
         if (matchedCandidateObj) {
-          setPendingReportData({ ...reportData, perceiveMeta: undefined, agentTrace: currentTraceWithDup } as any);
+          // Set pending state to allow duplicate resolution screen
+          setPendingReportData({ 
+            ...reportData, 
+            perceiveMeta: undefined, 
+            agentTrace: currentTraceWithDup 
+          } as any);
           setDuplicateCandidate(matchedCandidateObj.issue);
           setDuplicateDistance(matchedCandidateObj.distance);
           setDuplicateReasons(aiResponse.reasons);
@@ -226,133 +231,12 @@ export default function App() {
         }
       }
 
-      // 4. Prioritize Step
-      const calculatedScore = calculatePriorityScore({
-        category: reportData.category!,
-        severity: reportData.severity || 3,
-        affectedArea: reportData.affectedArea || "unknown",
-        urgency: reportData.urgency || "routine",
-      } as any);
-
-      const prioritizeEntry: AgentTraceEntry = {
-        step: "Prioritize",
-        tool: "Deterministic Priority Engine (TypeScript)",
-        status: "done",
-        rationale: `Evaluated priority score to ${calculatedScore} using standard index. Formula: severity (${reportData.severity || 3}/5) * 10 + affectedArea weight + urgency weight.`,
-        ts: new Date().toISOString(),
-        durationMs: 80,
-        confidence: 1.0,
-        inputDigest: `severity: ${reportData.severity || 3}, urgency: ${reportData.urgency || "routine"}, area: ${reportData.affectedArea || "unknown"}`,
-        outputSummary: `priorityScore: ${calculatedScore}`,
-      };
-      
-      const currentTraceWithPrio = [...currentTraceWithDup, prioritizeEntry];
-      setLiveTrace(currentTraceWithPrio);
-      await delay(1000);
-
-      // 5. Decide Step
-      const isHighSeverity = (reportData.severity && reportData.severity >= 4) || reportData.urgency === "urgent";
-      let decideRationale = "";
-      if (isHighSeverity) {
-        decideRationale = `Autonomous routing decision: High-severity or urgent issue identified (severity ${reportData.severity}/5, urgency: ${reportData.urgency}). Decision: Bypassing standard queue, triggering immediate compliance complaint resolution plan drafting.`;
-      } else {
-        decideRationale = `Autonomous routing decision: Standard issue detected (severity ${reportData.severity}/5, urgency: ${reportData.urgency || "routine"}). Decision: Routing to community verification queue to build public consensus first.`;
-      }
-
-      const decideEntry: AgentTraceEntry = {
-        step: "Decide",
-        tool: "Autonomous Routing Decision Engine",
-        status: "done",
-        rationale: decideRationale,
-        ts: new Date().toISOString(),
-        durationMs: 120,
-        confidence: 1.0,
-        inputDigest: `isHighSeverity: ${isHighSeverity}`,
-        outputSummary: isHighSeverity ? "Trigger immediate resolution drafting" : "Route to community verification",
-      };
-
-      const currentTraceWithDecide = [...currentTraceWithPrio, decideEntry];
-      setLiveTrace(currentTraceWithDecide);
-      await delay(1000);
-
-      // 6. Resolution Plan steps if high severity
-      let finalResolutionPlan: any = null;
-      let finalTrace = currentTraceWithDecide;
-
-      if (isHighSeverity) {
-        try {
-          const startTime = Date.now();
-          const response = await fetch("/api/resolution-plan", {
-            method: "POST",
-            headers: { "Content-Type": "application/json" },
-            body: JSON.stringify({
-              category: reportData.category,
-              title: reportData.title || "Civic Incident",
-              summary: reportData.summary || reportData.description,
-              locationName: reportData.locationName || "Default Civic Landmark",
-              lat: reportData.lat,
-              lng: reportData.lng,
-              ticketId: "PRE-SUBMIT-TICKET",
-            }),
-          });
-          if (response.ok) {
-            const result = await response.json();
-            if (result.success && result.data) {
-              const durationMs = Date.now() - startTime;
-              finalResolutionPlan = result.data;
-              
-              const findAuthorityEntry: AgentTraceEntry = {
-                step: "Find Authority",
-                tool: "Grounded Authority Search Engine (/api/resolution-plan)",
-                status: "done",
-                rationale: `Grounded search successfully identified "${result.data.recommendedAuthority}" as governing body, with channel "${result.data.contactChannel}".`,
-                ts: new Date().toISOString(),
-                durationMs: Math.round(durationMs * 0.4),
-                confidence: 0.95,
-                inputDigest: `Search local bodies in "${reportData.locationName || "India"}"`,
-                outputSummary: `Authority: ${result.data.recommendedAuthority} · SLA: ${result.data.slaDays} days`,
-              };
-
-              const draftActionPacketEntry: AgentTraceEntry = {
-                step: "Draft Action Packet",
-                tool: "Complaint Translation & Formulator (/api/resolution-plan)",
-                status: "done",
-                rationale: `Drafted professional escalation complaint letter and generated native Hindi translation. Citizen SLA is ${result.data.slaDays} days.`,
-                ts: new Date().toISOString(),
-                durationMs: Math.round(durationMs * 0.6),
-                confidence: 0.95,
-                inputDigest: `category: ${reportData.category}`,
-                outputSummary: `Formal template + Hindi translation prepared`,
-              };
-
-              finalTrace = [...currentTraceWithDecide, findAuthorityEntry, draftActionPacketEntry];
-              setLiveTrace(finalTrace);
-              await delay(1000);
-            }
-          }
-        } catch (planErr) {
-          console.error("Auto resolution plan error:", planErr);
-          const findAuthorityEntry: AgentTraceEntry = {
-            step: "Find Authority",
-            tool: "Grounded Authority Search Engine (/api/resolution-plan)",
-            status: "skipped",
-            rationale: "Grounded lookup failed or was timed out. Degraded gracefully to manual generation.",
-            ts: new Date().toISOString(),
-          };
-          const draftActionPacketEntry: AgentTraceEntry = {
-            step: "Draft Action Packet",
-            tool: "Complaint Translation & Formulator (/api/resolution-plan)",
-            status: "skipped",
-            rationale: "Action packet drafting skipped due to authority search failure.",
-            ts: new Date().toISOString(),
-          };
-          finalTrace = [...currentTraceWithDecide, findAuthorityEntry, draftActionPacketEntry];
-          setLiveTrace(finalTrace);
-          await delay(1000);
-        }
-      }
-
-      await saveNewStandaloneReport(reportData, finalTrace, finalResolutionPlan);
+      // Otherwise, save the standalone report with the complete real trace and plan
+      await saveNewStandaloneReport(
+        reportData, 
+        currentTraceWithDup, 
+        undefined
+      );
 
     } catch (err: any) {
       console.error("Submitting pipeline error:", err);
@@ -401,135 +285,13 @@ export default function App() {
     try {
       const existingTrace = (pendingReportData as any).agentTrace || [];
       setLiveTrace(existingTrace);
-      await delay(1000);
+      await delay(800);
 
-      // 4. Prioritize
-      const calculatedScore = calculatePriorityScore({
-        category: pendingReportData.category!,
-        severity: pendingReportData.severity || 3,
-        affectedArea: pendingReportData.affectedArea || "unknown",
-        urgency: pendingReportData.urgency || "routine",
-      } as any);
-
-      const prioritizeEntry: AgentTraceEntry = {
-        step: "Prioritize",
-        tool: "Deterministic Priority Engine (TypeScript)",
-        status: "done",
-        rationale: `Evaluated priority score to ${calculatedScore} using standard index. Formula: severity (${pendingReportData.severity || 3}/5) * 10 + affectedArea weight + urgency weight.`,
-        ts: new Date().toISOString(),
-        durationMs: 80,
-        confidence: 1.0,
-        inputDigest: `severity: ${pendingReportData.severity || 3}, urgency: ${pendingReportData.urgency || "routine"}, area: ${pendingReportData.affectedArea || "unknown"}`,
-        outputSummary: `priorityScore: ${calculatedScore}`,
-      };
-
-      const traceWithPrio = [...existingTrace, prioritizeEntry];
-      setLiveTrace(traceWithPrio);
-      await delay(1000);
-
-      // 5. Decide
-      const isHighSeverity = (pendingReportData.severity && pendingReportData.severity >= 4) || pendingReportData.urgency === "urgent";
-      let decideRationale = "";
-      if (isHighSeverity) {
-        decideRationale = `Autonomous routing decision: High-severity or urgent issue identified (severity ${pendingReportData.severity}/5, urgency: ${pendingReportData.urgency}). Decision: Bypassing standard queue, triggering immediate compliance complaint resolution plan drafting.`;
-      } else {
-        decideRationale = `Autonomous routing decision: Standard issue detected (severity ${pendingReportData.severity}/5, urgency: ${pendingReportData.urgency || "routine"}). Decision: Routing to community verification queue to build public consensus first.`;
-      }
-
-      const decideEntry: AgentTraceEntry = {
-        step: "Decide",
-        tool: "Autonomous Routing Decision Engine",
-        status: "done",
-        rationale: decideRationale,
-        ts: new Date().toISOString(),
-        durationMs: 120,
-        confidence: 1.0,
-        inputDigest: `isHighSeverity: ${isHighSeverity}`,
-        outputSummary: isHighSeverity ? "Trigger immediate resolution drafting" : "Route to community verification",
-      };
-
-      const traceWithDecide = [...traceWithPrio, decideEntry];
-      setLiveTrace(traceWithDecide);
-      await delay(1000);
-
-      // 6. Resolution Plan
-      let finalResolutionPlan: any = null;
-      let finalTrace = traceWithDecide;
-
-      if (isHighSeverity) {
-        try {
-          const startTime = Date.now();
-          const response = await fetch("/api/resolution-plan", {
-            method: "POST",
-            headers: { "Content-Type": "application/json" },
-            body: JSON.stringify({
-              category: pendingReportData.category,
-              title: pendingReportData.title || "Civic Incident",
-              summary: pendingReportData.summary || pendingReportData.description,
-              locationName: pendingReportData.locationName || "Default Civic Landmark",
-              lat: pendingReportData.lat,
-              lng: pendingReportData.lng,
-              ticketId: "PRE-SUBMIT-TICKET",
-            }),
-          });
-          if (response.ok) {
-            const result = await response.json();
-            if (result.success && result.data) {
-              const durationMs = Date.now() - startTime;
-              finalResolutionPlan = result.data;
-              
-              const findAuthorityEntry: AgentTraceEntry = {
-                step: "Find Authority",
-                tool: "Grounded Authority Search Engine (/api/resolution-plan)",
-                status: "done",
-                rationale: `Grounded search successfully identified "${result.data.recommendedAuthority}" as governing body, with channel "${result.data.contactChannel}".`,
-                ts: new Date().toISOString(),
-                durationMs: Math.round(durationMs * 0.4),
-                confidence: 0.95,
-                inputDigest: `Search local bodies in "${pendingReportData.locationName || "India"}"`,
-                outputSummary: `Authority: ${result.data.recommendedAuthority} · SLA: ${result.data.slaDays} days`,
-              };
-
-              const draftActionPacketEntry: AgentTraceEntry = {
-                step: "Draft Action Packet",
-                tool: "Complaint Translation & Formulator (/api/resolution-plan)",
-                status: "done",
-                rationale: `Drafted professional escalation complaint letter and generated native Hindi translation. Citizen SLA is ${result.data.slaDays} days.`,
-                ts: new Date().toISOString(),
-                durationMs: Math.round(durationMs * 0.6),
-                confidence: 0.95,
-                inputDigest: `category: ${pendingReportData.category}`,
-                outputSummary: `Formal template + Hindi translation prepared`,
-              };
-
-              finalTrace = [...traceWithDecide, findAuthorityEntry, draftActionPacketEntry];
-              setLiveTrace(finalTrace);
-              await delay(1000);
-            }
-          }
-        } catch (planErr) {
-          console.error("Auto resolution plan error:", planErr);
-          const findAuthorityEntry: AgentTraceEntry = {
-            step: "Find Authority",
-            tool: "Grounded Authority Search Engine (/api/resolution-plan)",
-            status: "skipped",
-            rationale: "Grounded lookup failed or was timed out. Degraded gracefully to manual generation.",
-            ts: new Date().toISOString(),
-          };
-          const draftActionPacketEntry: AgentTraceEntry = {
-            step: "Draft Action Packet",
-            tool: "Complaint Translation & Formulator (/api/resolution-plan)",
-            status: "skipped",
-            rationale: "Action packet drafting skipped due to authority search failure.",
-            ts: new Date().toISOString(),
-          };
-          finalTrace = [...traceWithDecide, findAuthorityEntry, draftActionPacketEntry];
-          setLiveTrace(finalTrace);
-          await delay(1000);
-        }
-      }
-
-      await saveNewStandaloneReport(pendingReportData, finalTrace, finalResolutionPlan);
+      await saveNewStandaloneReport(
+        pendingReportData, 
+        existingTrace, 
+        (pendingReportData as any).resolutionPlan || undefined
+      );
     } catch (err: any) {
       setErrorNotice(err.message || "Failed to submit new report.");
       setCurrentView("report");

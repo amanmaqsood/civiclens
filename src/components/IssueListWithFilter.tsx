@@ -3,6 +3,7 @@ import { ArrowUp, MapPin, Search } from "lucide-react";
 import { IssueReport } from "../types";
 import { motion } from "motion/react";
 import { humanizeCategory } from "../utils/humanize";
+import { useLanguage } from "../context/LanguageContext";
 
 interface IssueListWithFilterProps {
   issues: IssueReport[];
@@ -23,6 +24,7 @@ export default function IssueListWithFilter({
   loading = false,
   onNavigateToReport,
 }: IssueListWithFilterProps) {
+  const { language, t } = useLanguage();
   const [activeFilter, setActiveFilter] = useState<StatusFilter>("All");
   const [searchTerm, setSearchTerm] = useState("");
 
@@ -186,10 +188,14 @@ export default function IssueListWithFilter({
                 )}
                 <div className="flex-1 min-w-0 pr-1">
                   <h4 className="text-sm font-semibold text-ink line-clamp-1 leading-snug group-hover:text-marigold transition-colors font-sans">
-                    {issue.title || "Geotagged Civic Incident"}
+                    {language === "hi"
+                      ? (issue.titleHi || issue.title || "Geotagged Civic Incident")
+                      : (issue.title || "Geotagged Civic Incident")}
                   </h4>
                   <p className="text-[13px] text-slate line-clamp-2 leading-relaxed mt-0.5 font-sans font-normal">
-                    {issue.summary || issue.description}
+                    {language === "hi"
+                      ? (issue.summaryHi || issue.summary || issue.description)
+                      : (issue.summary || issue.description)}
                   </p>
                   <div className="flex items-center gap-1 mt-1 text-slate font-sans">
                     <MapPin className="w-3 h-3 text-marigold" />
@@ -209,7 +215,7 @@ export default function IssueListWithFilter({
                     onClick={() => onSelectIssue(issue.id)}
                     className="text-xs font-sans font-semibold text-slate hover:text-ink px-2.5 py-1.5 rounded-lg cursor-pointer"
                   >
-                    Details
+                    {t("card.details")}
                   </button>
                   <button
                     disabled={upvoteLoadingId === issue.id}
@@ -219,7 +225,15 @@ export default function IssueListWithFilter({
                   >
                     <ArrowUp className="w-3 h-3" />
                     <span>
-                      {upvoteLoadingId === issue.id ? "..." : `${issue.citizenUpvotes} ${issue.citizenUpvotes === 1 ? "Upvote" : "Upvotes"}`}
+                      {upvoteLoadingId === issue.id 
+                        ? "..." 
+                        : `${issue.citizenUpvotes} ${
+                            language === "hi" 
+                              ? "समर्थन" 
+                              : issue.citizenUpvotes === 1 
+                                ? "Upvote" 
+                                : "Upvotes"
+                          }`}
                     </span>
                   </button>
                 </div>

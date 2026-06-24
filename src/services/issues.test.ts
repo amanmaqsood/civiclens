@@ -3,7 +3,8 @@ import {
   getDistance, 
   calculatePriorityScore, 
   isDuplicateCandidate, 
-  isValidStatusTransition 
+  isValidStatusTransition,
+  getPriorityBreakdown
 } from "./issues";
 import { IssueReport } from "../types";
 
@@ -179,6 +180,45 @@ describe("CivicLens - Unit Tests", () => {
       
       // Manual override -> true
       expect(isValidStatusTransition("In Progress", "Resolved", false, true)).toBe(true);
+    });
+  });
+
+  describe("getPriorityBreakdown", () => {
+    it("should correctly compile the components for urgent priority issues with disputes", () => {
+      const timestamp = new Date().toISOString();
+      const breakdown = getPriorityBreakdown({
+        severity: 4,
+        urgency: "urgent",
+        timestamp,
+        confirmCount: 5, // 5 * 3 = 15 (at cap)
+        disputeCount: 1, // 1 * 5 = 5 deduction
+        reportCount: 2, // 2 * 4 = 8
+      });
+
+      expect(breakdown.severityComponent).toBe(48);
+      expect(breakdown.urgencyComponent).toBe(10);
+      expect(breakdown.confirmComponent).toBe(15);
+      expect(breakdown.disputeComponent).toBe(5);
+      expect(breakdown.reportComponent).toBe(8);
+      expect(breakdown.score).toBe(48 + 10 + 0 + 15 + 8 - 5); // age time is ~0
+    });
+
+    it("should map priority urgency bonus to 5 points", () => {
+      const breakdown = getPriorityBreakdown({
+        severity: 2,
+        urgency: "priority",
+        timestamp: new Date().toISOString(),
+      });
+      expect(breakdown.urgencyComponent).toBe(5);
+    });
+
+    it("should map routine urgency bonus to 0 points", () => {
+      const breakdown = getPriorityBreakdown({
+        severity: 2,
+        urgency: "routine",
+        timestamp: new Date().toISOString(),
+      });
+      expect(breakdown.urgencyComponent).toBe(0);
     });
   });
 });

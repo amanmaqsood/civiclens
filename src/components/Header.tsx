@@ -2,6 +2,7 @@ import React from "react";
 import { ArrowLeft, UserCircle, BarChart3 } from "lucide-react";
 import { ActiveView } from "../types";
 import { useFirebase } from "../context/FirebaseContext";
+import { useLanguage } from "../context/LanguageContext";
 
 interface HeaderProps {
   currentView: ActiveView;
@@ -12,6 +13,7 @@ interface HeaderProps {
 
 export default function Header({ currentView, onNavigate, persona, onTogglePersona }: HeaderProps) {
   const { user, signInWithGoogle, signOutUser, loading } = useFirebase();
+  const { language, setLanguage } = useLanguage();
 
   return (
     <header 
@@ -52,6 +54,32 @@ export default function Header({ currentView, onNavigate, persona, onTogglePerso
       </div>
 
       <div className="flex items-center gap-2">
+        {/* Language selector segmented pill */}
+        <div className="flex bg-white/5 p-0.5 rounded-lg border border-white/10 text-[9.5px] font-sans font-bold select-none">
+          <button
+            id="lang-en-btn"
+            onClick={() => setLanguage("en")}
+            className={`px-2 py-1 rounded-md cursor-pointer transition-all ${
+              language === "en" 
+                ? "bg-marigold text-ink shadow-sm" 
+                : "text-slate hover:text-white"
+            }`}
+          >
+            EN
+          </button>
+          <button
+            id="lang-hi-btn"
+            onClick={() => setLanguage("hi")}
+            className={`px-2 py-1 rounded-md cursor-pointer transition-all ${
+              language === "hi" 
+                ? "bg-marigold text-ink shadow-sm" 
+                : "text-slate hover:text-white"
+            }`}
+          >
+            हिं
+          </button>
+        </div>
+
         {/* Switch segmented pill */}
         <div className="flex bg-white/5 p-0.5 rounded-lg border border-white/10 text-[9.5px] font-sans font-bold select-none">
           <button

@@ -2,6 +2,8 @@ import React, { ErrorInfo, ReactNode, StrictMode } from "react";
 import { createRoot } from "react-dom/client";
 import App from "./App.tsx";
 import { FirebaseProvider } from "./context/FirebaseContext";
+import { LanguageProvider } from "./context/LanguageContext";
+import { ToastProvider } from "./context/ToastContext";
 import "./index.css";
 
 class ErrorBoundary extends React.Component<{ children: ReactNode }, { hasError: boolean; error: Error | null }> {
@@ -71,9 +73,13 @@ class ErrorBoundary extends React.Component<{ children: ReactNode }, { hasError:
 createRoot(document.getElementById("root")!).render(
   <StrictMode>
     <FirebaseProvider>
-      <ErrorBoundary>
-        <App />
-      </ErrorBoundary>
+      <LanguageProvider>
+        <ToastProvider>
+          <ErrorBoundary>
+            <App />
+          </ErrorBoundary>
+        </ToastProvider>
+      </LanguageProvider>
     </FirebaseProvider>
   </StrictMode>,
 );

@@ -56,6 +56,8 @@ export interface IssueReport {
   // AI-Enhanced Analysis Fields
   title?: string;
   summary?: string;
+  titleHi?: string;
+  summaryHi?: string;
   severity?: number;
   urgency?: "routine" | "priority" | "urgent";
   visibleHazards?: string[];

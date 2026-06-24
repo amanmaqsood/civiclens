@@ -694,9 +694,13 @@ export default function App() {
 
             {currentView === "report" && (
               <ReportPage
-                onBack={() => handleNavigate("landing")}
+                onBack={() => {
+                  setPendingReportData(null);
+                  handleNavigate("landing");
+                }}
                 onSubmit={handleReportSubmit}
                 prefilledLocation={userLocation}
+                prefilledData={pendingReportData}
               />
             )}
 
@@ -718,7 +722,6 @@ export default function App() {
                 onMerge={handleMergeDuplicate}
                 onCreateNew={handleCreateStandaloneAnyway}
                 onCancel={() => {
-                  setPendingReportData(null);
                   setDuplicateCandidate(null);
                   setCurrentView("report");
                 }}

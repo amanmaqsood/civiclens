@@ -63,8 +63,8 @@ export default function OperatorQueue({ issues, onSelectIssue, onRefresh, loadin
             Authority Control Desk
           </h2>
         </div>
-        <p className="text-[13px] text-paper/85 mt-2 leading-relaxed font-normal">
-          Disclaimer: This is a simulated preview console for municipal and agency triage officers. Adjust status, review metrics, and enforce SLA pipelines.
+        <p className="text-[11px] text-paper/70 mt-1.5 leading-relaxed font-medium font-sans">
+          Developer panel to verify, purge, and seed test data. Simulated authority actions only.
         </p>
       </div>
 

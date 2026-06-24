@@ -684,6 +684,24 @@ export async function updateIssueStatus(
   }
 }
 
+// Update cached translations
+export async function updateIssueTranslations(
+  issueId: string,
+  titleHi: string,
+  summaryHi: string
+): Promise<void> {
+  const docRef = doc(db, COLLECTION_NAME, issueId);
+  try {
+    await updateDoc(docRef, {
+      titleHi,
+      summaryHi
+    });
+  } catch (err) {
+    handleFirestoreError(err, OperationType.UPDATE, `${COLLECTION_NAME}/${issueId}`);
+    throw err;
+  }
+}
+
 // Increment citizen upvotes
 export async function upvoteIssue(issueId: string): Promise<void> {
   const docRef = doc(db, COLLECTION_NAME, issueId);

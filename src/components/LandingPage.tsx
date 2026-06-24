@@ -3,6 +3,8 @@ import { Camera, TrendingUp, CheckCircle2, Users } from "lucide-react";
 import { ActiveView, IssueReport } from "../types";
 import HomeMap from "./HomeMap";
 import IssueListWithFilter from "./IssueListWithFilter";
+import Onboarding from "./Onboarding";
+import { useLanguage } from "../context/LanguageContext";
 
 interface LandingPageProps {
   onNavigate: (view: ActiveView) => void;
@@ -25,11 +27,17 @@ export default function LandingPage({
   onUserLocationChange,
   loading = false,
 }: LandingPageProps) {
+  const { t } = useLanguage();
   const [showDemoBanner, setShowDemoBanner] = useState(true);
+  const [showOnboarding, setShowOnboarding] = useState(() => {
+    return !localStorage.getItem("has_seen_onboarding");
+  });
   const hasDemoData = issues.some(i => i.isDemoData);
 
   return (
     <div id="landing-page-root" className="flex flex-col gap-4 px-4 py-4 font-sans pb-16">
+      {showOnboarding && <Onboarding onDismiss={() => setShowOnboarding(false)} />}
+      
       {/* Noticeable but dismissible alert banner */}
       {showDemoBanner && hasDemoData && (
         <div className="bg-marigold/10 border border-marigold/35 text-ink text-xs p-3 rounded-2xl flex items-start gap-2.5 relative shadow-3xs">
@@ -56,20 +64,20 @@ export default function LandingPage({
         
         <div className="relative z-10 flex flex-col gap-3">
           <span className="self-start text-[10px] font-mono lg:text-xs font-bold uppercase tracking-widest bg-marigold text-ink px-2.5 py-0.5 rounded-full select-none">
-            LIVE CIVIC TRACKER
+            {t("hero.title")}
           </span>
-          <h2 className="text-xl font-display font-black tracking-tight leading-tight text-white animate-fade-in">
-            Flag local hazard.<br />Witness live resolution.
+          <h2 className="text-sm font-sans text-white/90 animate-fade-in leading-relaxed">
+            {t("hero.subtitle")}
           </h2>
           <button
             id="report-issue-btn"
             onClick={() => onNavigate("report")}
             className="mt-1 w-full flex items-center justify-center gap-2 bg-marigold hover:bg-marigold/95 font-bold text-ink text-sm py-3 px-5 rounded-xl transition duration-150 active:scale-[0.98] cursor-pointer font-sans"
             style={{ minHeight: "44px" }}
-            aria-label="Report a new civic issue"
+            aria-label={t("hero.reportButton")}
           >
             <Camera className="w-4 h-4 flex-shrink-0" />
-            Report Local Incident
+            {t("hero.reportButton")}
           </button>
         </div>
       </div>

@@ -2,6 +2,7 @@ import React, { useState, useEffect, useRef } from "react";
 import { Camera, MapPin, Trash2, CheckCircle2, ChevronRight, Loader2, Mic, MicOff, Sparkles, ArrowLeft } from "lucide-react";
 import { IssueReport } from "../types";
 import { getCurrentLocation, LocationData } from "../utils/location";
+import { useLanguage } from "../context/LanguageContext";
 import { compressImage } from "../utils/compression";
 
 // Import modular layouts
@@ -14,6 +15,7 @@ interface ReportPageProps {
   onBack: () => void;
   onSubmit: (report: Partial<IssueReport>) => void;
   prefilledLocation?: { lat: number; lng: number } | null;
+  prefilledData?: Partial<IssueReport> | null;
 }
 
 const categoryMap: Record<string, string> = {
@@ -28,11 +30,18 @@ const categoryMap: Record<string, string> = {
 
 const serverCategories = ["pothole", "water_leak", "streetlight", "waste", "drainage", "road_damage", "other"];
 
-export default function ReportPage({ onBack, onSubmit, prefilledLocation }: ReportPageProps) {
-  const [image, setImage] = useState<string | null>(null);
-  const [description, setDescription] = useState("");
+export default function ReportPage({ onBack, onSubmit, prefilledLocation, prefilledData }: ReportPageProps) {
+  const { language, t } = useLanguage();
+  const [image, setImage] = useState<string | null>(prefilledData?.image || null);
+  const [description, setDescription] = useState(prefilledData?.description || prefilledData?.summary || "");
   const [location, setLocation] = useState<LocationData | null>(
-    prefilledLocation
+    prefilledData?.lat !== undefined && prefilledData?.lng !== undefined
+      ? {
+          lat: prefilledData.lat,
+          lng: prefilledData.lng,
+          addressPlaceholder: `Latitude: ${prefilledData.lat.toFixed(4)}, Longitude: ${prefilledData.lng.toFixed(4)}`,
+        }
+      : prefilledLocation
       ? {
           lat: prefilledLocation.lat,
           lng: prefilledLocation.lng,
@@ -42,7 +51,7 @@ export default function ReportPage({ onBack, onSubmit, prefilledLocation }: Repo
   );
   const [locLoading, setLocLoading] = useState(false);
   const [locError, setLocError] = useState<string | null>(null);
-  const [manualAddress, setManualAddress] = useState("");
+  const [manualAddress, setManualAddress] = useState(prefilledData?.locationName || "");
 
   const [isListening, setIsListening] = useState(false);
   const [speechSupported, setSpeechSupported] = useState(false);
@@ -70,6 +79,12 @@ export default function ReportPage({ onBack, onSubmit, prefilledLocation }: Repo
   ];
 
   useEffect(() => {
+    if (recognitionRef.current) {
+      recognitionRef.current.lang = language === "hi" ? "hi-IN" : "en-IN";
+    }
+  }, [language]);
+
+  useEffect(() => {
     if (!prefilledLocation) {
       handleFetchLocation();
     }
@@ -79,7 +94,7 @@ export default function ReportPage({ onBack, onSubmit, prefilledLocation }: Repo
       const rec = new SpeechRec();
       rec.continuous = false;
       rec.interimResults = false;
-      rec.lang = "en-IN";
+      rec.lang = language === "hi" ? "hi-IN" : "en-IN";
       rec.onstart = () => setIsListening(true);
       rec.onend = () => setIsListening(false);
       rec.onresult = (e: any) => {
@@ -414,30 +429,60 @@ export default function ReportPage({ onBack, onSubmit, prefilledLocation }: Repo
         />
       </div>
 
+      {/* Voice Input Block */}
+      {speechSupported && (
+        <div className="bg-paper border border-hairline p-4 rounded-xl flex flex-col gap-2 shadow-3xs animate-fade-in select-none">
+          <div className="flex items-center justify-between">
+            <span className="text-[9pt] font-mono uppercase text-slate tracking-wider block">
+              {t("report.voiceInput")}
+            </span>
+            <div className="flex items-center gap-1.5">
+              <span className="w-1.5 h-1.5 rounded-full bg-marigold animate-ping" />
+              <span className="text-[9px] font-mono text-slate uppercase font-bold">
+                {language === "hi" ? "हिन्दी एक्टिव" : "English Active"}
+              </span>
+            </div>
+          </div>
+          
+          <p className="text-[10px] text-slate font-medium leading-normal">
+            {t("report.voiceHint")}
+          </p>
+
+          <button
+            type="button"
+            onClick={toggleListening}
+            className={`w-full flex items-center justify-center gap-2 border py-2.5 px-4 rounded-xl text-xs font-semibold cursor-pointer transition-all ${
+              isListening
+                ? "bg-alert text-white border-alert/20 animate-pulse"
+                : "bg-white text-ink border-hairline hover:bg-slate-50 shadow-2xs"
+            }`}
+            style={{ minHeight: "40px" }}
+          >
+            {isListening ? (
+              <>
+                <MicOff className="w-4 h-4 text-white animate-spin" />
+                <span>{language === "hi" ? "रिकॉर्डिंग बंद करें..." : "Stop Recording..."}</span>
+              </>
+            ) : (
+              <>
+                <Mic className="w-4 h-4 text-marigold" />
+                <span>{language === "hi" ? "बोलकर दर्ज करें" : "Start Voice Dictation"}</span>
+              </>
+            )}
+          </button>
+        </div>
+      )}
+
       {/* Description / Dictation */}
       <div className="flex flex-col gap-1.5">
-        <div className="flex items-center justify-between">
-          <label className="text-[9pt] font-mono uppercase text-slate block">Observations (Optional)</label>
-          {speechSupported && (
-            <button
-              type="button"
-              onClick={toggleListening}
-              className={`flex items-center gap-1 text-[9px] font-mono font-bold px-2 py-0.5 rounded-full border transition-all cursor-pointer ${
-                isListening 
-                  ? "bg-alert/5 text-alert border-alert/20 animate-pulse" 
-                  : "bg-white text-slate border-hairline hover:text-ink"
-              }`}
-            >
-              {isListening ? <MicOff className="w-2.5 h-2.5" /> : <Mic className="w-2.5 h-2.5 text-marigold" />}
-              <span>{isListening ? "Recording..." : "Voice input"}</span>
-            </button>
-          )}
-        </div>
+        <label className="text-[9pt] font-mono uppercase text-slate block">
+          {t("report.descLabel")}
+        </label>
         <textarea
           value={description}
           onChange={(e) => setDescription(e.target.value)}
-          placeholder="Briefly describe the civic issue..."
-          className="w-full text-xs border border-hairline bg-white p-2.5 rounded-xl min-h-[70px] leading-relaxed text-ink font-sans"
+          placeholder={t("report.descPlaceholder")}
+          className="w-full text-xs border border-hairline bg-white p-2.5 rounded-xl min-h-[80px] leading-relaxed text-ink font-sans"
         />
       </div>
 
@@ -450,7 +495,7 @@ export default function ReportPage({ onBack, onSubmit, prefilledLocation }: Repo
         }`}
         style={{ minHeight: "44px" }}
       >
-        <span>Submit to Inspection Core</span>
+        <span>{t("report.submit")}</span>
         <ChevronRight className="w-4 h-4 shrink-0" />
       </button>
     </form>

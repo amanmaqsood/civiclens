@@ -16,8 +16,12 @@ export default function VerificationPanel({ issue, onRefresh }: VerificationPane
 
   useEffect(() => {
     async function fetchUserVote() {
-      const vote = await checkUserVerification(issue.id);
-      setUserVote(vote);
+      try {
+        const vote = await checkUserVerification(issue.id);
+        setUserVote(vote);
+      } catch (err) {
+        console.error("fetchUserVote error: ", err);
+      }
     }
     fetchUserVote();
   }, [issue.id]);

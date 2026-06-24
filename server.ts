@@ -677,6 +677,59 @@ Return a STRICT JSON response adhering precisely to this schema:
     }
   });
 
+  // Server-side Gemini Translation Endpoint
+  app.post("/api/translate", async (req, res) => {
+    const { title, summary } = req.body;
+    if (!title || !summary) {
+      return res.status(400).json({ success: false, error: "Missing title or summary to translate." });
+    }
+    try {
+      const promptText = `Translate the following civic issue title and summary from English to Hindi (हिन्दी).
+Title: "${title}"
+Summary: "${summary}"
+
+Ensure the translation is natural, official, and easy for Indian citizens to understand.
+Output STRICT, VALID JSON conforming exactly to this schema:
+{
+  "titleHi": "string",
+  "summaryHi": "string"
+}
+Output ONLY valid JSON and nothing else.`;
+
+      const result = await generateContentWithRetry(ai, {
+        model: "gemini-2.5-flash",
+        contents: promptText,
+        config: {
+          responseMimeType: "application/json",
+          responseSchema: {
+            type: Type.OBJECT,
+            properties: {
+              titleHi: { type: Type.STRING, description: "The Hindi translation of the title." },
+              summaryHi: { type: Type.STRING, description: "The Hindi translation of the summary." },
+            },
+            required: ["titleHi", "summaryHi"],
+          },
+        },
+      });
+
+      const responseText = (result.response.text || "").trim();
+      let cleanText = responseText;
+      // Strip markdown code fences if present
+      cleanText = cleanText.replace(/^```(?:json)?\s*/i, "").replace(/```\s*$/, "").trim();
+
+      const parsedData = JSON.parse(cleanText);
+      return res.json({ success: true, data: parsedData });
+    } catch (error: any) {
+      console.error("Translation error:", error);
+      // Fallback: return the original English strings
+      return res.json({
+        success: false,
+        error: error.message || "Translation failed",
+        data: { titleHi: title, summaryHi: summary }
+      });
+    }
+  });
+
   // Vite middleware for development
   if (process.env.NODE_ENV !== "production") {
     const vite = await createViteServer({

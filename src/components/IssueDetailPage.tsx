@@ -2,6 +2,7 @@ import React, { useState, useEffect } from "react";
 import { ArrowLeft, ArrowUp, MapPin, ShieldAlert, Clock, RefreshCw, Sparkles } from "lucide-react";
 import { IssueReport, IssueActivity } from "../types";
 import { fetchIssueActivities } from "../services/issues";
+import { useLanguage } from "../context/LanguageContext";
 import PriorityBreakdownWidget from "./PriorityBreakdownWidget";
 import VerificationPanel from "./VerificationPanel";
 import AgentTraceTimeline from "./AgentTraceTimeline";
@@ -69,7 +70,39 @@ export default function IssueDetailPage({
 
   const [activities, setActivities] = useState<IssueActivity[]>([]);
   const [loadingAct, setLoadingAct] = useState(true);
-  const [lang, setLang] = useState<"en" | "hi">("en");
+  
+  const { language: lang, setLanguage: setLang, t } = useLanguage();
+  const [translating, setTranslating] = useState(false);
+
+  useEffect(() => {
+    if (lang === "hi" && (!issue.titleHi || !issue.summaryHi) && !translating) {
+      setTranslating(true);
+      const translateContent = async () => {
+        try {
+          const res = await fetch("/api/translate", {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({
+              title: issue.title || "Geotagged Civic Incident",
+              summary: issue.summary || issue.description || ""
+            })
+          });
+          const json = await res.json();
+          if (json.success && json.data) {
+            const { titleHi, summaryHi } = json.data;
+            const { updateIssueTranslations } = await import("../services/issues");
+            await updateIssueTranslations(issue.id, titleHi, summaryHi);
+            onRefresh();
+          }
+        } catch (err) {
+          console.error("Failed to translate dynamically:", err);
+        } finally {
+          setTranslating(false);
+        }
+      };
+      translateContent();
+    }
+  }, [lang, issue.id, issue.title, issue.summary, issue.description, issue.titleHi, issue.summaryHi, translating, onRefresh]);
 
   useEffect(() => {
     let active = true;
@@ -169,9 +202,9 @@ export default function IssueDetailPage({
         <div className="p-4 flex flex-col gap-2.5">
           {/* Headline analysis state */}
           <div className="flex items-start justify-between gap-3">
-            <h1 className="text-sm font-semibold text-ink leading-snug">
-              {lang === "hi" && issue.resolutionPlan?.actionPacket.subject
-                ? issue.resolutionPlan.actionPacket.subject
+            <h1 className="text-sm font-semibold text-ink leading-snug animate-fade-in">
+              {lang === "hi"
+                ? (issue.titleHi || issue.title || "Geotagged Civic Incident")
                 : (issue.title || "Geotagged Civic Incident")}
             </h1>
             {issue.confidence !== undefined && (
@@ -181,9 +214,9 @@ export default function IssueDetailPage({
             )}
           </div>
 
-          <p className="text-[11px] text-slate leading-relaxed bg-paper/50 p-3 rounded-xl border border-hairline/80 whitespace-pre-wrap">
+          <p className="text-[11px] text-slate leading-relaxed bg-paper/50 p-3 rounded-xl border border-hairline/80 whitespace-pre-wrap animate-fade-in">
             {lang === "hi"
-              ? (issue.resolutionPlan?.actionPacket.summaryHindi || `[हिन्दी अनुवाद के लिए नीचे 'SLA Plan' संकलित करें]\n\n${issue.summary || issue.description}`)
+              ? (issue.summaryHi || issue.summary || issue.description)
               : (issue.summary || issue.description)}
           </p>
 
@@ -208,7 +241,7 @@ export default function IssueDetailPage({
       <div className="bg-white border border-hairline rounded-2xl p-4 flex flex-col gap-3 shadow-[0_4px_16px_-4px_rgba(14,26,43,0.05)]">
         <h3 className="text-xs font-display font-bold text-ink uppercase tracking-wider flex items-center gap-1.5 border-b border-hairline pb-2.5">
           <ShieldAlert className="w-4 h-4 text-alert" />
-          RISK ASSESSMENT
+          {t("detail.hazard")}
         </h3>
 
         <div className="flex flex-col gap-3 text-xs text-ink/80">
@@ -361,7 +394,7 @@ export default function IssueDetailPage({
       {/* Compact Interactive Status progress bar */}
       <div className="bg-white border border-hairline rounded-2xl p-4 flex flex-col gap-4 shadow-[0_4px_16px_-4px_rgba(14,26,43,0.05)]">
         <h3 className="text-xs font-display font-bold text-ink uppercase tracking-wider border-b border-hairline pb-2.5">
-          PROGRESS
+          {t("detail.status")}
         </h3>
         <div className="relative flex justify-between items-center px-1">
           {/* Timeline background rule */}
@@ -404,7 +437,7 @@ export default function IssueDetailPage({
       <div className="bg-white border border-hairline rounded-2xl p-4 flex flex-col gap-3.5 shadow-[0_4px_16px_-4px_rgba(14,26,43,0.05)]">
         <h3 className="text-xs font-display font-bold text-ink uppercase tracking-tight flex items-center gap-1.5 border-b border-hairline pb-2.5">
           <Clock className="w-3.5 h-3.5 text-slate" />
-          ACTIVITY HISTORY
+          {t("detail.timeline")}
         </h3>
 
         {loadingAct ? (

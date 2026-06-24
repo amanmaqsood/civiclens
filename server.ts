@@ -2,6 +2,8 @@ import express from "express";
 import path from "path";
 import { createServer as createViteServer } from "vite";
 import { GoogleGenAI, Type } from "@google/genai";
+import { initializeApp as initAdminApp, getApps as getAdminApps } from "firebase-admin/app";
+import { getFirestore as getAdminFirestore } from "firebase-admin/firestore";
 
 async function startServer() {
   const app = express();
@@ -19,6 +21,19 @@ async function startServer() {
       },
     },
   });
+
+  // --- Admin SDK probe (STEP 19a) ---
+  let adminDb: any = null;
+  let adminInitError: string | null = null;
+  try {
+    if (!getAdminApps().length) {
+      initAdminApp({ projectId: "gen-lang-client-0871796745" });
+    }
+    adminDb = getAdminFirestore("ai-studio-cd9d785c-f851-4555-9ebe-71e0746f69aa");
+  } catch (e: any) {
+    adminInitError = e?.message || String(e);
+    console.error("Admin SDK init failed:", adminInitError);
+  }
 
   const sleep = (ms: number) => new Promise((resolve) => setTimeout(resolve, ms));
 
@@ -127,6 +142,19 @@ async function startServer() {
     res.json({ status: "ok" });
   });
 
+  // Admin SDK health probe (STEP 19a)
+  app.get("/api/admin/health", async (req, res) => {
+    if (!adminDb) {
+      return res.status(500).json({ ok: false, stage: "init", error: adminInitError });
+    }
+    try {
+      const snap = await adminDb.collection("issues").limit(1).get();
+      res.json({ ok: true, adminSdk: "initialized", sampleDocsRead: snap.size });
+    } catch (e: any) {
+      res.status(500).json({ ok: false, stage: "read", error: e?.message || String(e) });
+    }
+  });
+
   const categoriesList = ["pothole", "water_leak", "streetlight", "waste", "drainage", "road_damage", "other"];
   const urgenciesList = ["routine", "priority", "urgent"];
   const areasList = ["single_property", "street", "neighborhood", "unknown"];
@@ -172,7 +200,7 @@ If confidence is low (under 0.6) or ambiguity exists, ask a targeted clarificati
       const startTime = Date.now();
       // Main Gemini Content Generation
       const mainResult = await generateContentWithRetry(ai, {
-        model: "gemini-3.5-flash",
+        model: "gemini-2.5-flash",
         contents: [imagePart, { text: promptText }],
         config: {
           responseMimeType: "application/json",
@@ -283,7 +311,7 @@ ${responseText}
 Respond ONLY with the corrected, valid JSON object.`;
 
           const repairResult = await generateContentWithRetry(ai, {
-            model: "gemini-3.5-flash",
+            model: "gemini-2.5-flash",
             contents: repairPrompt,
             config: {
               responseMimeType: "application/json",
@@ -373,7 +401,7 @@ Output STRICT, VALID JSON conforming exactly to the response schema.`;
 
       const startTime = Date.now();
       const result = await generateContentWithRetry(ai, {
-        model: "gemini-3.5-flash",
+        model: "gemini-2.5-flash",
         contents: promptText,
         config: {
           responseMimeType: "application/json",
@@ -490,7 +518,7 @@ Output ONLY valid JSON and nothing else.`;
 
       const startTime = Date.now();
       const result = await generateContentWithRetry(ai, {
-        model: "gemini-3.5-flash",
+        model: "gemini-2.5-flash",
         contents: promptText,
         config: {
           tools: [{ googleSearch: {} }],
@@ -618,7 +646,7 @@ Return a STRICT JSON response adhering precisely to this schema. Do not include 
 
       const startTime = Date.now();
       const result = await generateContentWithRetry(ai, {
-        model: "gemini-3.5-flash",
+        model: "gemini-2.5-flash",
         contents: contentsList,
         config: {
           responseMimeType: "application/json",
@@ -710,7 +738,7 @@ Return a STRICT JSON response adhering precisely to this schema:
 
       const startTime = Date.now();
       const result = await generateContentWithRetry(ai, {
-        model: "gemini-3.5-flash",
+        model: "gemini-2.5-flash",
         contents: promptText,
         config: {
           responseMimeType: "application/json",
@@ -777,7 +805,7 @@ Output STRICT, VALID JSON conforming exactly to this schema:
 Output ONLY valid JSON and nothing else.`;
 
       const result = await generateContentWithRetry(ai, {
-        model: "gemini-3.5-flash",
+        model: "gemini-2.5-flash",
         contents: promptText,
         config: {
           responseMimeType: "application/json",
@@ -841,7 +869,7 @@ Output STRICT, VALID JSON conforming exactly to this schema:
 Output ONLY valid JSON and nothing else.`;
 
     const result = await generateContentWithRetry(aiClient, {
-      model: "gemini-3.5-flash",
+      model: "gemini-2.5-flash",
       contents: promptText,
       config: {
         responseMimeType: "application/json",

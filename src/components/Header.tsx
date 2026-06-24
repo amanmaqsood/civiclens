@@ -46,7 +46,7 @@ export default function Header({ currentView, onNavigate, persona, onTogglePerso
             <h1 className="text-base font-display font-black tracking-tight text-white flex items-center gap-0.5">
               Civic<span className="text-marigold">Lens</span>
             </h1>
-            <p className="text-[10px] font-mono font-medium text-slate/80 uppercase tracking-widest leading-none">
+            <p className="text-[10px] font-mono font-medium text-[#94a3b8] uppercase tracking-widest leading-none">
               {persona === "citizen" ? "India · Citizen Reports" : "India · Operator Portal"}
             </p>
           </div>
@@ -62,7 +62,7 @@ export default function Header({ currentView, onNavigate, persona, onTogglePerso
             className={`px-2 py-1 rounded-md cursor-pointer transition-all ${
               language === "en" 
                 ? "bg-marigold text-ink shadow-sm" 
-                : "text-slate hover:text-white"
+                : "text-[#94a3b8] hover:text-white"
             }`}
           >
             EN
@@ -73,7 +73,7 @@ export default function Header({ currentView, onNavigate, persona, onTogglePerso
             className={`px-2 py-1 rounded-md cursor-pointer transition-all ${
               language === "hi" 
                 ? "bg-marigold text-ink shadow-sm" 
-                : "text-slate hover:text-white"
+                : "text-[#94a3b8] hover:text-white"
             }`}
           >
             हिं
@@ -88,7 +88,7 @@ export default function Header({ currentView, onNavigate, persona, onTogglePerso
             className={`px-2 py-1 rounded-md cursor-pointer transition-all ${
               persona === "citizen" 
                 ? "bg-marigold text-ink shadow-sm" 
-                : "text-slate hover:text-white"
+                : "text-[#94a3b8] hover:text-white"
             }`}
           >
             Citizen
@@ -99,7 +99,7 @@ export default function Header({ currentView, onNavigate, persona, onTogglePerso
             className={`px-2 py-1 rounded-md cursor-pointer transition-all ${
               persona === "operator" 
                 ? "bg-marigold text-ink shadow-sm" 
-                : "text-slate hover:text-white"
+                : "text-[#94a3b8] hover:text-white"
             }`}
           >
             Operator

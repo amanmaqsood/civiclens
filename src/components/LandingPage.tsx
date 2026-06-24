@@ -43,7 +43,7 @@ export default function LandingPage({
         <div className="bg-marigold/10 border border-marigold/35 text-ink text-xs p-3 rounded-2xl flex items-start gap-2.5 relative shadow-3xs">
           <div className="flex-1">
             <p className="font-bold text-xs text-ink">Sample data</p>
-            <p className="text-slate text-[11px] mt-0.5 leading-relaxed">
+            <p className="text-[#475569] text-[11px] mt-0.5 leading-relaxed">
               These Bengaluru reports are pre-seeded samples to demonstrate the workflow. File your own report anytime, or clear samples from the Operator panel.
             </p>
           </div>

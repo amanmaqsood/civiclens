@@ -1,0 +1,152 @@
+{
+  "entities": {
+    "User": {
+      "title": "User",
+      "description": "Represents a citizen registered on CivicLens",
+      "type": "object",
+      "properties": {
+        "userId": {
+          "type": "string",
+          "description": "The unique Firebase Authentication UID of the user"
+        },
+        "displayName": {
+          "type": "string",
+          "description": "DisplayName of the user"
+        },
+        "email": {
+          "type": "string",
+          "description": "User's verified email address"
+        },
+        "createdAt": {
+          "type": "string",
+          "format": "date-time",
+          "description": "Timestamp when user profile was initialized"
+        }
+      },
+      "required": ["userId", "displayName", "email", "createdAt"]
+    },
+    "IssueReport": {
+      "title": "IssueReport",
+      "description": "A geotagged civic issue reported by a citizen with AI multimodal insights",
+      "type": "object",
+      "properties": {
+        "id": {
+          "type": "string",
+          "description": "Unique identifier of the issue document"
+        },
+        "ticketId": {
+          "type": "string",
+          "description": "Human-friendly complaint registration number"
+        },
+        "image": {
+          "type": "string",
+          "description": "Firebase Storage download URL pointing to reports/{issueId}.jpg"
+        },
+        "category": {
+          "type": "string",
+          "description": "Category of civic issue"
+        },
+        "description": {
+          "type": "string",
+          "description": "Detailed explanation of the issue"
+        },
+        "lat": {
+          "type": "number",
+          "description": "Geotag latitude coordinate"
+        },
+        "lng": {
+          "type": "number",
+          "description": "Geotag longitude coordinate"
+        },
+        "locationName": {
+          "type": "string",
+          "description": "Text representation of the location or landmark"
+        },
+        "status": {
+          "type": "string",
+          "enum": ["Submitted", "Verified", "In Progress", "Resolved"],
+          "description": "Resolution lifecycle status"
+        },
+        "citizenUpvotes": {
+          "type": "number",
+          "description": "Count of other citizens backing this issue"
+        },
+        "userId": {
+          "type": "string",
+          "description": "The reporter's UID"
+        },
+        "timestamp": {
+          "type": "string",
+          "format": "date-time",
+          "description": "Creation timestamp of the report"
+        },
+        "title": {
+          "type": "string",
+          "description": "The brief descriptive title for the report"
+        },
+        "summary": {
+          "type": "string",
+          "description": "Gemini-generated concise summary of the civic threat"
+        },
+        "severity": {
+          "type": "number",
+          "description": "AI-estimated severity rating from 1 to 5"
+        },
+        "urgency": {
+          "type": "string",
+          "enum": ["routine", "priority", "urgent"],
+          "description": "Calculated urgent triage tag"
+        },
+        "visibleHazards": {
+          "type": "array",
+          "items": { "type": "string" },
+          "description": "Visual hazards cataloged inside the image key frame"
+        },
+        "affectedArea": {
+          "type": "string",
+          "enum": ["single_property", "street", "neighborhood", "unknown"],
+          "description": "Extracted scale footprint"
+        },
+        "privacyFlags": {
+          "type": "array",
+          "items": { "type": "string" },
+          "description": "Flags highlighting privacy risks such as visible license plates or citizen faces"
+        },
+        "confidence": {
+          "type": "number",
+          "description": "Confidence of AI model's structural categorization"
+        }
+      },
+      "required": [
+        "id",
+        "ticketId",
+        "image",
+        "category",
+        "description",
+        "locationName",
+        "status",
+        "citizenUpvotes",
+        "userId",
+        "timestamp",
+        "title",
+        "summary",
+        "severity",
+        "urgency",
+        "visibleHazards",
+        "affectedArea",
+        "privacyFlags",
+        "confidence"
+      ]
+    }
+  },
+  "firestore": {
+    "/users/{userId}": {
+      "schema": "User",
+      "description": "User profile collection"
+    },
+    "/issues/{issueId}": {
+      "schema": "IssueReport",
+      "description": "Geotagged citizen civic issue reports"
+    }
+  }
+}

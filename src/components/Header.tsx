@@ -20,16 +20,16 @@ export default function Header({ currentView, onNavigate, persona, onTogglePerso
 
   return (
     <header 
-      className="sticky top-0 z-40 bg-ink border-b border-white/10 px-4 pb-3 flex items-center justify-between shadow-[0_2px_15px_-3px_rgba(0,0,0,0.5)] font-sans"
+      className="sticky top-0 z-40 bg-ink border-b border-white/10 px-3 sm:px-4 pb-3 flex items-center justify-between gap-3 flex-wrap shadow-[0_2px_15px_-3px_rgba(0,0,0,0.5)] font-sans"
       style={{ paddingTop: "max(env(safe-area-inset-top), 12px)" }}
     >
-      <div className="flex items-center gap-2">
+      <div className="flex items-center gap-2 min-w-0">
         {currentView !== "landing" && persona === "citizen" && (
           <button
             id="back-button"
             onClick={() => onNavigate("landing")}
             className="flex items-center justify-center p-2 rounded-full hover:bg-white/10 transition-colors cursor-pointer mr-0.5"
-            style={{ minWidth: "36px", minHeight: "36px" }}
+            style={{ minWidth: "44px", minHeight: "44px" }}
             aria-label="Go back to landing page"
           >
             <ArrowLeft className="w-4 h-4 text-paper" />
@@ -60,28 +60,32 @@ export default function Header({ currentView, onNavigate, persona, onTogglePerso
         </div>
       </div>
 
-      <div className="flex items-center gap-2">
+      <div className="flex items-center justify-end gap-2 flex-wrap">
         {/* Language selector segmented pill */}
         <div className="flex bg-white/5 p-0.5 rounded-lg border border-white/10 text-[9.5px] font-sans font-bold select-none">
           <button
             id="lang-en-btn"
             onClick={() => setLanguage("en")}
-            className={`px-2 py-1 rounded-md cursor-pointer transition-all ${
+            className={`min-h-[44px] min-w-[44px] px-2 py-1 rounded-md cursor-pointer transition-all ${
               language === "en" 
                 ? "bg-marigold text-ink shadow-sm" 
                 : "text-[#94a3b8] hover:text-white"
             }`}
+            aria-label="Switch language to English"
+            aria-pressed={language === "en"}
           >
             EN
           </button>
           <button
             id="lang-hi-btn"
             onClick={() => setLanguage("hi")}
-            className={`px-2 py-1 rounded-md cursor-pointer transition-all ${
+            className={`min-h-[44px] min-w-[44px] px-2 py-1 rounded-md cursor-pointer transition-all ${
               language === "hi" 
                 ? "bg-marigold text-ink shadow-sm" 
                 : "text-[#94a3b8] hover:text-white"
             }`}
+            aria-label="Switch language to Hindi"
+            aria-pressed={language === "hi"}
           >
             हिं
           </button>
@@ -92,11 +96,13 @@ export default function Header({ currentView, onNavigate, persona, onTogglePerso
           <button
             id="persona-citizen-pill"
             onClick={() => onTogglePersona("citizen")}
-            className={`px-2 py-1 rounded-md cursor-pointer transition-all ${
+            className={`min-h-[44px] px-3 py-1 rounded-md cursor-pointer transition-all ${
               persona === "citizen" 
                 ? "bg-marigold text-ink shadow-sm" 
                 : "text-[#94a3b8] hover:text-white"
             }`}
+            aria-label="Switch to citizen report view"
+            aria-pressed={persona === "citizen"}
           >
             Citizen
           </button>
@@ -104,11 +110,13 @@ export default function Header({ currentView, onNavigate, persona, onTogglePerso
             <button
               id="persona-operator-pill"
               onClick={() => onTogglePersona("operator")}
-              className={`px-2 py-1 rounded-md cursor-pointer transition-all ${
+              className={`min-h-[44px] px-3 py-1 rounded-md cursor-pointer transition-all ${
                 persona === "operator"
                   ? "bg-marigold text-ink shadow-sm"
                   : "text-[#94a3b8] hover:text-white"
               }`}
+              aria-label={operatorAccess === "real" ? "Switch to server-authorized operator desk" : "Switch to synthetic demo desk"}
+              aria-pressed={persona === "operator"}
             >
               {operatorAccess === "real" ? "Operator" : "Demo"}
             </button>
@@ -119,12 +127,13 @@ export default function Header({ currentView, onNavigate, persona, onTogglePerso
           <button
             id="header-dashboard-button"
             onClick={() => onNavigate("dashboard")}
-            className={`px-2.5 py-1 rounded-lg border flex items-center gap-1 transition-all cursor-pointer ${
+            className={`min-h-[44px] px-3 py-1 rounded-lg border flex items-center gap-1 transition-all cursor-pointer ${
               currentView === "dashboard"
                 ? "bg-marigold/10 text-marigold border-marigold/40"
                 : "text-paper border-transparent hover:bg-white/10"
             }`}
             title="City Impact Dashboard"
+            aria-label="Open impact dashboard"
           >
             <BarChart3 className="w-3.5 h-3.5" />
             <span className="text-[10px] font-sans font-bold">Stats</span>
@@ -137,8 +146,9 @@ export default function Header({ currentView, onNavigate, persona, onTogglePerso
           <button
             type="button"
             onClick={() => signedInWithGoogle ? signOutUser() : signInWithGoogle()}
-            className="flex items-center gap-1 text-paper hover:text-white bg-white/5 hover:bg-white/10 border border-white/10 rounded-lg px-2 py-1 transition-colors"
+            className="min-h-[44px] flex items-center gap-1 text-paper hover:text-white bg-white/5 hover:bg-white/10 border border-white/10 rounded-lg px-2 py-1 transition-colors"
             title={signedInWithGoogle ? "Sign out" : "Sign in with Google"}
+            aria-label={signedInWithGoogle ? "Sign out" : "Sign in with Google"}
           >
             {signedInWithGoogle ? <LogOut className="w-3.5 h-3.5 text-marigold" /> : <LogIn className="w-3.5 h-3.5 text-marigold" />}
             <UserCircle className="w-5 h-5 text-marigold" />

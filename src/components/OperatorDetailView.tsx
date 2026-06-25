@@ -11,9 +11,10 @@ interface OperatorDetailViewProps {
   onBack: () => void;
   onRefresh: () => void;
   demoOperator: boolean;
+  embedded?: boolean;
 }
 
-export default function OperatorDetailView({ issue, onBack, onRefresh, demoOperator }: OperatorDetailViewProps) {
+export default function OperatorDetailView({ issue, onBack, onRefresh, demoOperator, embedded = false }: OperatorDetailViewProps) {
   const [activities, setActivities] = useState<IssueActivity[]>([]);
   const [loadingAct, setLoadingAct] = useState(true);
   const [confirmingStatus, setConfirmingStatus] = useState<"Verified" | "In Progress" | "Resolved" | null>(null);
@@ -97,11 +98,19 @@ export default function OperatorDetailView({ issue, onBack, onRefresh, demoOpera
   const isResolved = issue.status === "Resolved";
   const isAiVerified = !!issue.closureAssessment;
   const canMarkResolved = issue.status === "In Progress" && (isAiVerified || manualOverride);
+  const rootClassName = embedded
+    ? "flex flex-col gap-4 p-4 sm:p-5 lg:p-6 bg-slate-50 min-h-full w-full font-sans"
+    : "flex flex-col gap-4 p-4 sm:p-6 lg:p-8 bg-slate-50 min-h-screen w-full font-sans";
 
   return (
-    <div id="operator-detail-scroll-view" className="flex flex-col gap-4 p-4 bg-slate-50 min-h-screen font-sans">
+    <div id="operator-detail-scroll-view" className={rootClassName}>
       <div className="flex items-center gap-3">
-        <button onClick={onBack} className="p-2 rounded-full hover:bg-slate-200 cursor-pointer min-w-[40px] min-h-[40px]">
+        <button
+          type="button"
+          onClick={onBack}
+          className="rounded-full hover:bg-slate-200 cursor-pointer min-w-[44px] min-h-[44px] flex items-center justify-center"
+          aria-label="Back to operator queue"
+        >
           <ArrowLeft className="w-5 h-5 text-slate-700" />
         </button>
         <div>
@@ -112,9 +121,11 @@ export default function OperatorDetailView({ issue, onBack, onRefresh, demoOpera
         </div>
       </div>
 
-      <ClosureVerificationPanel issue={issue} onVerified={() => { loadActivities(); onRefresh(); }} />
+      <div className="grid gap-4 xl:grid-cols-[minmax(0,1fr)_minmax(320px,420px)] xl:items-start">
+        <div className="flex flex-col gap-4">
+          <ClosureVerificationPanel issue={issue} onVerified={() => { loadActivities(); onRefresh(); }} />
 
-      <div className="bg-white border rounded-2xl p-4 shadow-3xs flex flex-col gap-3">
+          <div className="bg-white border rounded-2xl p-4 shadow-3xs flex flex-col gap-3">
         <h3 className="text-xs font-extrabold text-slate-800 uppercase tracking-tight flex items-center gap-1.5 border-b pb-2">
           <CheckSquare className="w-4 h-4 text-indigo-500" />
           Status Advance Controls
@@ -134,7 +145,7 @@ export default function OperatorDetailView({ issue, onBack, onRefresh, demoOpera
               <button
                 disabled={issue.status !== "Submitted"}
                 onClick={() => setConfirmingStatus("Verified")}
-                className="w-full text-left bg-slate-50 disabled:opacity-40 hover:bg-slate-100/50 cursor-pointer border py-2.5 px-3 rounded-xl flex items-center justify-between font-semibold"
+                className="w-full min-h-[44px] text-left bg-slate-50 disabled:opacity-40 hover:bg-slate-100/50 cursor-pointer border py-2.5 px-3 rounded-xl flex items-center justify-between font-semibold"
               >
                 <span>1. Acknowledge Draft</span>
                 <span className="text-[9px] bg-sky-100 text-sky-800 px-2 py-0.5 rounded-md">To Verified</span>
@@ -143,7 +154,7 @@ export default function OperatorDetailView({ issue, onBack, onRefresh, demoOpera
               <button
                 disabled={issue.status !== "Verified"}
                 onClick={() => setConfirmingStatus("In Progress")}
-                className="w-full text-left bg-slate-50 disabled:opacity-40 hover:bg-slate-100/50 cursor-pointer border py-2.5 px-3 rounded-xl flex items-center justify-between font-semibold"
+                className="w-full min-h-[44px] text-left bg-slate-50 disabled:opacity-40 hover:bg-slate-100/50 cursor-pointer border py-2.5 px-3 rounded-xl flex items-center justify-between font-semibold"
               >
                 <span>2. Mark In Progress</span>
                 <span className="text-[9px] bg-violet-100 text-violet-800 px-2 py-0.5 rounded-md">To In Progress</span>
@@ -153,7 +164,7 @@ export default function OperatorDetailView({ issue, onBack, onRefresh, demoOpera
                 <button
                   disabled={!canMarkResolved}
                   onClick={() => setConfirmingStatus("Resolved")}
-                  className="w-full text-left bg-emerald-50 disabled:opacity-40 hover:bg-emerald-100/50 hover:border-emerald-300 disabled:bg-slate-50 cursor-pointer border py-2.5 px-3 rounded-xl flex items-center justify-between font-semibold text-emerald-950"
+                  className="w-full min-h-[44px] text-left bg-emerald-50 disabled:opacity-40 hover:bg-emerald-100/50 hover:border-emerald-300 disabled:bg-slate-50 cursor-pointer border py-2.5 px-3 rounded-xl flex items-center justify-between font-semibold text-emerald-950"
                 >
                   <span>3. Mark Resolved</span>
                   <span className="text-[9px] bg-emerald-100 text-emerald-800 px-2 py-0.5 rounded-md">To Resolved</span>
@@ -165,7 +176,7 @@ export default function OperatorDetailView({ issue, onBack, onRefresh, demoOpera
                       type="checkbox"
                       checked={manualOverride}
                       onChange={(e) => setManualOverride(e.target.checked)}
-                      className="rounded border-slate-300 text-[#4F46E5] focus:ring-[#4F46E5] w-3.5 h-3.5"
+                      className="rounded border-slate-300 text-[#4F46E5] focus:ring-[#4F46E5] w-5 h-5"
                     />
                     <span>Manual prototype override (requires rationale in final rebuild)</span>
                   </label>
@@ -174,14 +185,16 @@ export default function OperatorDetailView({ issue, onBack, onRefresh, demoOpera
             </div>
           </div>
         )}
-      </div>
+          </div>
 
-      {issue.status !== "Resolved" && (
-        <AutoEscalationPanel issue={issue} onUpdated={onRefresh} />
-      )}
+          {issue.status !== "Resolved" && (
+            <AutoEscalationPanel issue={issue} onUpdated={onRefresh} />
+          )}
+        </div>
 
-      {(issue.resolutionPlan || issue.escalation) && (
-        <div className="bg-white border rounded-2xl p-4 shadow-3xs flex flex-col gap-3">
+        <aside className="flex flex-col gap-4">
+          {(issue.resolutionPlan || issue.escalation) && (
+            <div className="bg-white border rounded-2xl p-4 shadow-3xs flex flex-col gap-3">
           <h3 className="text-xs font-extrabold text-slate-800 uppercase tracking-tight border-b pb-2">
             Human Approval Records
           </h3>
@@ -189,7 +202,7 @@ export default function OperatorDetailView({ issue, onBack, onRefresh, demoOpera
             <button
               onClick={handleApproveRouting}
               disabled={actionPending}
-              className="w-full text-left bg-slate-50 disabled:opacity-50 hover:bg-slate-100/50 cursor-pointer border py-2.5 px-3 rounded-xl flex items-center justify-between font-semibold text-xs"
+              className="w-full min-h-[44px] text-left bg-slate-50 disabled:opacity-50 hover:bg-slate-100/50 cursor-pointer border py-2.5 px-3 rounded-xl flex items-center justify-between font-semibold text-xs"
             >
               <span>Approve draft routing/action packet</span>
               <span className="text-[9px] bg-sky-100 text-sky-800 px-2 py-0.5 rounded-md">Record</span>
@@ -199,16 +212,16 @@ export default function OperatorDetailView({ issue, onBack, onRefresh, demoOpera
             <button
               onClick={handleFinalizeEscalation}
               disabled={actionPending}
-              className="w-full text-left bg-slate-50 disabled:opacity-50 hover:bg-slate-100/50 cursor-pointer border py-2.5 px-3 rounded-xl flex items-center justify-between font-semibold text-xs"
+              className="w-full min-h-[44px] text-left bg-slate-50 disabled:opacity-50 hover:bg-slate-100/50 cursor-pointer border py-2.5 px-3 rounded-xl flex items-center justify-between font-semibold text-xs"
             >
               <span>Finalize escalation/RTI draft</span>
               <span className="text-[9px] bg-violet-100 text-violet-800 px-2 py-0.5 rounded-md">Record</span>
             </button>
           )}
-        </div>
-      )}
+            </div>
+          )}
 
-      <div className="bg-white border rounded-2xl p-4 shadow-3xs flex flex-col gap-3">
+          <div className="bg-white border rounded-2xl p-4 shadow-3xs flex flex-col gap-3">
         <h3 className="text-xs font-bold text-slate-800 uppercase tracking-tight flex items-center gap-1.5 border-b pb-2">
           <Clock className="w-4 h-4 text-slate-500" />
           Activity History (Prototype)
@@ -229,12 +242,19 @@ export default function OperatorDetailView({ issue, onBack, onRefresh, demoOpera
             ))}
           </div>
         )}
+          </div>
+        </aside>
       </div>
 
       {confirmingStatus && (
         <div className="fixed inset-0 bg-slate-900/40 backdrop-blur-3xs flex items-center justify-center z-50 p-4">
-          <div className="bg-white p-5 rounded-2xl border max-w-xs w-full shadow-xl flex flex-col gap-4 text-center">
-            <h4 className="text-xs font-bold text-slate-800 uppercase">Confirm Status</h4>
+          <div
+            role="dialog"
+            aria-modal="true"
+            aria-labelledby="operator-status-dialog-title"
+            className="bg-white p-5 rounded-2xl border max-w-xs w-full shadow-xl flex flex-col gap-4 text-center"
+          >
+            <h4 id="operator-status-dialog-title" className="text-xs font-bold text-slate-800 uppercase">Confirm Status</h4>
             <p className="text-[10.5px] text-slate-500 font-medium">
               Transition this complaint status to <span className="font-extrabold text-[#4F46E5]">"{confirmingStatus}"</span>?
             </p>
@@ -243,10 +263,11 @@ export default function OperatorDetailView({ issue, onBack, onRefresh, demoOpera
               onChange={(event) => setApprovalRationale(event.target.value)}
               className="w-full min-h-20 border rounded-xl p-2 text-xs text-left"
               placeholder="Operator rationale"
+              aria-label="Operator rationale for status transition"
             />
             <div className="flex gap-2 justify-center">
-              <button onClick={() => { setConfirmingStatus(null); setApprovalRationale(""); }} className="bg-slate-100 text-slate-700 text-xs font-bold py-1.5 px-3 rounded-lg cursor-pointer border">No</button>
-              <button onClick={() => handleAdvanceStatus(confirmingStatus)} disabled={actionPending} className="bg-[#4F46E5] text-white text-xs font-bold py-1.5 px-3 rounded-lg cursor-pointer">Yes</button>
+              <button onClick={() => { setConfirmingStatus(null); setApprovalRationale(""); }} className="min-h-[44px] bg-slate-100 text-slate-700 text-xs font-bold py-2 px-4 rounded-lg cursor-pointer border">No</button>
+              <button onClick={() => handleAdvanceStatus(confirmingStatus)} disabled={actionPending} className="min-h-[44px] bg-[#4F46E5] text-white text-xs font-bold py-2 px-4 rounded-lg cursor-pointer">Yes</button>
             </div>
           </div>
         </div>

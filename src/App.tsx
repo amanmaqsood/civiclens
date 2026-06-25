@@ -100,6 +100,9 @@ export default function App() {
   }, [operatorAccess, persona]);
 
   const operatorIssues = operatorAccess === "real" ? issues : issues.filter((issue) => issue.isDemoData);
+  const selectedOperatorIssue = operatorSelectedIssueId
+    ? operatorIssues.find((issue) => issue.id === operatorSelectedIssueId) || null
+    : null;
 
   const handleNavigate = (view: ActiveView) => {
     setErrorNotice(null);
@@ -405,50 +408,67 @@ export default function App() {
               <div>
                 <h3 className="text-sm font-bold text-ink">Unable to fetch registered incidents</h3>
                 <p className="text-[11px] text-slate mt-1 leading-relaxed">
-                  Our secure connection to the Inspectorate is temporarily congested or your network is slow.
+                  The prototype service could not load saved reports. Please check the network and try again.
                 </p>
               </div>
               <button
                 type="button"
                 onClick={loadIssues}
-                className="w-full bg-marigold hover:bg-marigold/90 text-ink font-bold text-xs py-2 px-4 rounded-xl shadow-xs cursor-pointer min-h-[36px]"
+                className="w-full bg-marigold hover:bg-marigold/90 text-ink font-bold text-xs py-2 px-4 rounded-xl shadow-xs cursor-pointer min-h-[44px]"
               >
                 Retry Connection
               </button>
             </div>
           </div>
         ) : persona === "operator" && operatorAccess !== "none" ? (
-          operatorSelectedIssueId ? (
-            (() => {
-              const selectedIssue = operatorIssues.find((issue) => issue.id === operatorSelectedIssueId);
-              if (!selectedIssue) {
-                return (
-                  <div className="p-4 text-center text-xs font-semibold text-slate-500 font-sans">
-                    Issue report not found.
-                    <button onClick={() => setOperatorSelectedIssueId(null)} className="block mt-2 underline mx-auto text-[#4F46E5] font-bold">
-                      Back to Queue
-                    </button>
-                  </div>
-                );
-              }
-              return (
+          <div className="min-h-full w-full bg-slate-50 lg:grid lg:grid-cols-[380px_minmax(0,1fr)] xl:grid-cols-[420px_minmax(0,1fr)]">
+            <section
+              className={`${operatorSelectedIssueId ? "hidden lg:block" : "block"} min-w-0 lg:border-r lg:border-slate-200 lg:bg-paper`}
+              aria-label="Operator case queue"
+            >
+              <OperatorQueue
+                issues={operatorIssues}
+                onSelectIssue={(id) => setOperatorSelectedIssueId(id)}
+                onRefresh={loadIssues}
+                loading={issuesLoading}
+                accessMode={operatorAccess}
+                selectedIssueId={operatorSelectedIssueId}
+                embedded
+              />
+            </section>
+            <section
+              className={`${operatorSelectedIssueId ? "block" : "hidden lg:flex"} min-w-0 lg:min-h-[calc(100vh-76px)]`}
+              aria-label="Selected operator case"
+            >
+              {selectedOperatorIssue ? (
                 <OperatorDetailView
-                  issue={selectedIssue}
+                  issue={selectedOperatorIssue}
                   onBack={() => setOperatorSelectedIssueId(null)}
                   onRefresh={loadIssues}
                   demoOperator={operatorAccess === "demo"}
+                  embedded
                 />
-              );
-            })()
-          ) : (
-            <OperatorQueue
-              issues={operatorIssues}
-              onSelectIssue={(id) => setOperatorSelectedIssueId(id)}
-              onRefresh={loadIssues}
-              loading={issuesLoading}
-              accessMode={operatorAccess}
-            />
-          )
+              ) : (
+                <div className="flex min-h-[55vh] w-full flex-col items-center justify-center gap-3 p-6 text-center font-sans text-slate-500">
+                  <h2 className="text-sm font-bold text-slate-800">
+                    {operatorSelectedIssueId ? "Issue report not found." : "Select a prototype case"}
+                  </h2>
+                  <p className="max-w-sm text-xs leading-relaxed">
+                    Choose a saved case from the queue to review evidence, persisted agent steps, approvals, and closure controls.
+                  </p>
+                  {operatorSelectedIssueId && (
+                    <button
+                      type="button"
+                      onClick={() => setOperatorSelectedIssueId(null)}
+                      className="min-h-[44px] rounded-xl border border-slate-300 bg-white px-4 text-xs font-bold text-[#4F46E5]"
+                    >
+                      Back to Queue
+                    </button>
+                  )}
+                </div>
+              )}
+            </section>
+          </div>
         ) : (
           <>
             {currentView === "landing" && (

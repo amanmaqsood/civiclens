@@ -10,9 +10,19 @@ interface OperatorQueueProps {
   onRefresh: () => void;
   loading: boolean;
   accessMode: "demo" | "real";
+  selectedIssueId?: string | null;
+  embedded?: boolean;
 }
 
-export default function OperatorQueue({ issues, onSelectIssue, onRefresh, loading, accessMode }: OperatorQueueProps) {
+export default function OperatorQueue({
+  issues,
+  onSelectIssue,
+  onRefresh,
+  loading,
+  accessMode,
+  selectedIssueId,
+  embedded = false,
+}: OperatorQueueProps) {
   const [seeding, setSeeding] = useState(false);
   const [clearing, setClearing] = useState(false);
   const [seedError, setSeedError] = useState("");
@@ -54,8 +64,12 @@ export default function OperatorQueue({ issues, onSelectIssue, onRefresh, loadin
     }
   };
 
+  const rootClassName = embedded
+    ? "flex flex-col gap-4 p-4 sm:p-5 lg:p-6 font-sans bg-paper min-h-full text-ink"
+    : "flex flex-col gap-4 p-4 sm:p-6 lg:p-8 font-sans bg-paper min-h-screen text-ink";
+
   return (
-    <div id="operator-queue-container" className="flex flex-col gap-4 p-4 font-sans bg-paper min-h-screen text-ink">
+    <div id="operator-queue-container" className={rootClassName}>
       {/* Prototype operator header */}
       <div className="bg-ink text-paper p-4.5 rounded-2xl shadow-xs border border-white/5">
         <div className="flex items-center gap-2">
@@ -101,8 +115,9 @@ export default function OperatorQueue({ issues, onSelectIssue, onRefresh, loadin
           <button
             onClick={onRefresh}
             disabled={loading}
-            className="p-1 rounded-lg text-slate hover:bg-paper disabled:opacity-50 cursor-pointer"
+            className="h-11 w-11 rounded-lg text-slate hover:bg-paper disabled:opacity-50 cursor-pointer flex items-center justify-center"
             title="Refresh Ledger"
+            aria-label="Refresh operator case queue"
           >
             <RefreshCw className={`w-3.5 h-3.5 ${loading ? "animate-spin" : ""}`} />
           </button>
@@ -126,8 +141,7 @@ export default function OperatorQueue({ issues, onSelectIssue, onRefresh, loadin
                 id="load-demo-btn"
                 onClick={handleLoadDemo}
                 disabled={seeding || clearing || loading}
-                className="flex-1 bg-marigold hover:bg-marigold/95 text-ink text-[13px] font-bold px-3 py-1.5 rounded-lg border border-hairline cursor-pointer flex items-center justify-center gap-1.5 transition-all"
-                style={{ minHeight: "30px" }}
+                className="flex-1 min-h-[44px] bg-marigold hover:bg-marigold/95 text-ink text-[13px] font-bold px-3 py-2 rounded-lg border border-hairline cursor-pointer flex items-center justify-center gap-1.5 transition-all"
               >
                 {seeding ? (
                   <>
@@ -143,8 +157,7 @@ export default function OperatorQueue({ issues, onSelectIssue, onRefresh, loadin
                 id="clear-demo-btn"
                 onClick={handleClearDemo}
                 disabled={seeding || clearing || loading}
-                className="flex-1 bg-white hover:bg-paper text-slate border border-slate-300 hover:border-slate-500 hover:text-ink text-[13px] font-bold px-3 py-1.5 rounded-lg cursor-pointer flex items-center justify-center gap-1.5 transition-all"
-                style={{ minHeight: "30px" }}
+                className="flex-1 min-h-[44px] bg-white hover:bg-paper text-slate border border-slate-300 hover:border-slate-500 hover:text-ink text-[13px] font-bold px-3 py-2 rounded-lg cursor-pointer flex items-center justify-center gap-1.5 transition-all"
               >
                 {clearing ? (
                   <>
@@ -166,11 +179,18 @@ export default function OperatorQueue({ issues, onSelectIssue, onRefresh, loadin
         ) : (
           <div className="flex flex-col gap-2.5">
             {sortedIssues.map((issue) => (
-              <div
+              <button
+                type="button"
                 id={`operator-issue-row-${issue.id}`}
                 key={issue.id}
                 onClick={() => onSelectIssue(issue.id)}
-                className="bg-paper hover:bg-[#FDFDFD] border border-hairline rounded-xl p-3 flex flex-col gap-2 cursor-pointer transition-all hover:shadow-2xs select-none"
+                aria-label={`Open case ${issue.title || issue.ticketId || issue.id}`}
+                aria-pressed={selectedIssueId === issue.id}
+                className={`w-full text-left bg-paper hover:bg-[#FDFDFD] border rounded-xl p-3 flex flex-col gap-2 cursor-pointer transition-all hover:shadow-2xs select-none min-h-[112px] ${
+                  selectedIssueId === issue.id
+                    ? "border-marigold shadow-xs ring-2 ring-marigold/20"
+                    : "border-hairline"
+                }`}
               >
                 {/* Header info */}
                 <div className="flex items-center justify-between gap-2.5">
@@ -217,7 +237,7 @@ export default function OperatorQueue({ issues, onSelectIssue, onRefresh, loadin
                     </div>
                   </div>
                 </div>
-              </div>
+              </button>
             ))}
           </div>
         )}

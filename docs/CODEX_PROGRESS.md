@@ -205,6 +205,34 @@ Remaining risks:
 - Duplicate merge is still represented through server-owned evidence attachment rather than a dedicated merge approval document. This should be expanded in Milestone 8 release tests or a follow-up lifecycle hardening pass.
 - Existing legacy documents may lack closure/timestamp fields until they move through the new lifecycle endpoints or are reseeded.
 
+## Milestone 6: Responsive Product Design and Accessibility
+Status: completed on 2026-06-26
+
+Files changed:
+- `src/components/MobileFrame.tsx`: removed the fake phone/status-bar/home-bar shell and replaced it with a full-width responsive application shell.
+- `src/App.tsx`: changed the operator route into a responsive desktop queue/detail workspace with a mobile fallback, selected-case empty state, and safer load-error copy.
+- `src/components/OperatorQueue.tsx`: added embedded/selected state support, converted case rows to accessible buttons, enlarged demo and refresh controls, and exposed selected-case state with `aria-pressed`.
+- `src/components/OperatorDetailView.tsx`: added embedded mode, a desktop review/approval grid, larger lifecycle/approval targets, dialog semantics for status confirmation, and explicit operator rationale labeling.
+- `src/components/Header.tsx`: allowed header controls to wrap on small screens and added accessible labels/pressed states plus 44px control targets for navigation, language, persona, dashboard, and auth controls.
+- `src/ui-responsive.test.ts`: added regression coverage for the responsive shell, operator workspace, accessible queue rows, and dialog semantics.
+
+Validation commands:
+- `npm ci`: passed in 51 seconds; 450 packages installed/audited; 0 vulnerabilities. Warnings: deprecated `node-domexception@1.0.0` and `glob@10.5.0`.
+- `npm run lint`: passed (`tsc --noEmit`).
+- `npm test`: passed (7 test files, 36 tests).
+- `npm run build`: passed. Warnings remain: large JS bundle (`assets/index-D5loy_Kl.js`, 1,277.45 kB / 344.34 kB gzip) and `src/services/issues.ts` dynamic import cannot create a separate chunk because it is also statically imported.
+- `npm audit --omit=dev`: passed; 0 vulnerabilities.
+
+Decisions:
+- Kept the `MobileFrame` component name to avoid a broad rename, but changed its implementation to a real app shell.
+- Used a side-by-side operator desk only at large breakpoints; mobile still shows queue/detail as separate focused screens.
+- Preserved the ink/paper/marigold/teal visual identity while avoiding a decorative fake-device presentation.
+
+Remaining risks:
+- This milestone added source-level UI regression tests but did not run browser/screenshot accessibility checks; full viewport and axe-style coverage belongs to Milestone 8.
+- Several older components still use compact visual treatment and should be revisited during the release UI/E2E pass.
+- Build still has the known large-bundle and ineffective dynamic-import warnings; Milestone 7 should address code splitting and payload strategy.
+
 ## Decision log
 - 2026-06-26: Initialized a valid project-local Git repository because the existing `.git` directory was empty/invalid and Git was resolving to `C:/Users/apexm`.
 - 2026-06-26: Captured the untouched prototype before dependency repair as commit `ffd4ebc` and tag `baseline/original-prototype`.
@@ -220,10 +248,11 @@ Remaining risks:
 - 2026-06-26: Added Storage Rules for user-owned report/evidence/closure image paths rather than allowing arbitrary bucket writes.
 - 2026-06-26: Changed the agent API contract from browser-supplied issue/candidates to server-loaded `issueId` plus idempotent persisted run records.
 - 2026-06-26: Added human approval records for lifecycle transitions, routing/action packets, and escalation finalization; resolving requires closure evidence.
+- 2026-06-26: Removed the fake phone frame/status bar and moved the operator experience to a responsive queue/detail workspace at desktop breakpoints.
 
 ## External blockers
 - Firebase/GCP deployment credentials and billing access are required before deployed smoke tests.
 - Public GitHub repository URL, public app URL, Google Doc URL, demo video URL, and BlockseBlock submission require user/account approval before final submission actions.
 
 ## Next milestone
-Milestone 6: replace the fake mobile shell with a real responsive app/operator workspace and improve accessibility states, targets, labels, and layout.
+Milestone 7: derive metrics from persisted lifecycle fields, separate demo/real metrics, add pagination/query strategy, code-split heavy paths, and improve deployment-safe observability/config validation.

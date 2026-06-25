@@ -266,6 +266,32 @@ Remaining risks:
 - Readiness/config validation has not been smoke-tested in Cloud Run; deployment requires Firebase/GCP credentials.
 - Source-level tests were added, but performance budgets, browser traces, accessibility audits, and E2E pagination behavior belong to Milestone 8.
 
+## Milestone 8: Release Tests and Security Evidence
+Status: completed on 2026-06-26
+
+Files changed:
+- `src/server/release-security.test.ts`: added release-gate coverage for protected API rejection, App Check/auth/quotas/body-size controls, demo-only operator mutation limits, one support/verification action per user, illegal transitions, closure-before-resolve, SSRF-restricted image fetching, persisted agent steps, idempotent agent runs, and human-approval tools.
+- `src/server/release-rules-matrix.test.ts`: added Firestore/Storage rules matrix checks for server-owned issue/audit/approval/agent writes, user role self-assignment denial, owner-scoped image paths, MIME limits, size limits, and catch-all deny rules.
+- `src/release-golden-path.test.ts`: added golden-path and accessibility regression coverage for report analysis, duplicate decision, evidence merge, persisted case creation, persisted agent run loading, community verification, resolution plan, escalation draft, routing approval, closure verification, skip link, dialog semantics, `aria-label`, `aria-pressed`, and 44px target markers.
+
+Validation commands:
+- `npm ci`: passed in 46 seconds; 450 packages installed/audited; 0 vulnerabilities. Warnings: deprecated `node-domexception@1.0.0` and `glob@10.5.0`.
+- `npm run lint`: passed (`tsc --noEmit`).
+- `npm test`: passed (11 test files, 52 tests).
+- `npm run build`: passed. Warnings remain: Firebase chunk is larger than 500 kB (`assets/firebase-DfUh0SdN.js`, 716.39 kB / 179.17 kB gzip), and `src/services/issues.ts` is still both dynamically and statically imported.
+- `npm audit --omit=dev`: passed; 0 vulnerabilities.
+
+Decisions:
+- Added source-level release gates now because Firebase Emulator Suite and browser E2E tooling are not yet configured in this repository.
+- Kept named release cases explicit in test names/assertions so future changes fail close to the product/security requirement they violate.
+- Treated emulator-backed rules tests, transaction race tests, and browser accessibility/E2E as documented release gaps rather than claiming they ran.
+
+Remaining risks:
+- Firestore Rules and Storage Rules are still verified by source/rules-matrix tests, not emulator execution.
+- Transaction/concurrency behavior is verified by transaction/idempotency source coverage, not a parallel emulator race harness.
+- Golden-path and accessibility coverage is source-level; no Playwright/axe browser run has been added yet.
+- Deployment smoke tests remain blocked by Firebase/GCP credentials and explicit deployment approval.
+
 ## Decision log
 - 2026-06-26: Initialized a valid project-local Git repository because the existing `.git` directory was empty/invalid and Git was resolving to `C:/Users/apexm`.
 - 2026-06-26: Captured the untouched prototype before dependency repair as commit `ffd4ebc` and tag `baseline/original-prototype`.
@@ -283,10 +309,11 @@ Remaining risks:
 - 2026-06-26: Added human approval records for lifecycle transitions, routing/action packets, and escalation finalization; resolving requires closure evidence.
 - 2026-06-26: Removed the fake phone frame/status bar and moved the operator experience to a responsive queue/detail workspace at desktop breakpoints.
 - 2026-06-26: Scoped dashboard metrics to loaded real/demo records, added paged issue loading, and added readiness/logging/chunking instead of presenting recent records as complete history.
+- 2026-06-26: Added source-level release-gate tests for named security, rules, lifecycle, agent, UI, and golden-path cases while recording emulator/browser gaps honestly.
 
 ## External blockers
 - Firebase/GCP deployment credentials and billing access are required before deployed smoke tests.
 - Public GitHub repository URL, public app URL, Google Doc URL, demo video URL, and BlockseBlock submission require user/account approval before final submission actions.
 
 ## Next milestone
-Milestone 8: add release-grade unit/API/rules/storage/transaction/agent/closure/UI/E2E/accessibility tests and cover the named security release cases.
+Milestone 9: complete docs, attribution, architecture, license, Cloud Run readiness notes, demo/submission artifacts, and final evidence reporting; deploy only with credentials and explicit approval.

@@ -11,10 +11,10 @@ This document records the current baseline security posture and the target rebui
 - `POST /api/issues/update-status` verifies Firebase ID token, resolves role, checks demo boundary, writes through the Admin SDK, and records a server-authored status activity.
 - Gemini and mutation endpoints require Firebase identity, App Check or the explicit local-only App Check bypass header, shared payload size checks, stable public errors, and in-memory per-user/IP quotas.
 - `GET /api/admin/health` is restricted to real operators.
-- The browser can currently write or update issue fields that should become server-owned, including counts, priority, agent traces, activity records, resolution plans, escalation records, and closure assessments.
-- Firestore rules allow signed-in users to broadly update issue documents if `userId` and `ticketId` remain unchanged.
-- Activity entries under `/issues/{issueId}/activity` can currently be written by signed-in clients.
-- No Storage Rules file is present yet.
+- Issue creation, evidence attachment, support, verification, translations, activity, trace/plan, closure assessment, escalation draft, and demo seed/clear now route through Admin SDK endpoints.
+- Firestore Rules deny direct client create/update/delete access to `/issues/{issueId}` and its issue-owned subcollections.
+- Storage Rules allow signed-in users to upload image files only under their own `reports/{uid}`, `evidence/{uid}`, and `closures/{uid}` paths with MIME and size checks.
+- Legacy pre-Milestone-3 data may still contain browser-authored fields until reseeded or migrated.
 
 ## Target Invariants
 
@@ -25,7 +25,7 @@ This document records the current baseline security posture and the target rebui
 - Use transactions and idempotency for votes, verification, merges, counters, state changes, and audit writes.
 - Require human approval for duplicate merge, final routing/action packet, escalation finalization, resolve, and reopen.
 - Persist only real server-executed agent tools as agent traces.
-- Add Storage Rules for path ownership, MIME type, and file-size restrictions.
+- Keep Storage Rules aligned with path ownership, MIME type, and file-size restrictions.
 - Prevent arbitrary URL fetching and SSRF in closure verification.
 - Add request schemas, quotas, safe errors, App Check verification where deployable, and explicit local-only bypasses.
 

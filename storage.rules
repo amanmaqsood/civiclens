@@ -1,0 +1,37 @@
+rules_version = '2';
+service firebase.storage {
+  match /b/{bucket}/o {
+    function isSignedIn() {
+      return request.auth != null;
+    }
+
+    function isOwner(userId) {
+      return isSignedIn() && request.auth.uid == userId;
+    }
+
+    function isAllowedImage() {
+      return request.resource != null
+        && request.resource.size <= 5 * 1024 * 1024
+        && request.resource.contentType.matches('image/(jpeg|png|webp)');
+    }
+
+    match /reports/{userId}/{issueId}/{fileName} {
+      allow read: if isSignedIn();
+      allow write: if isOwner(userId) && isAllowedImage();
+    }
+
+    match /evidence/{userId}/{issueId}/{fileName} {
+      allow read: if isSignedIn();
+      allow write: if isOwner(userId) && isAllowedImage();
+    }
+
+    match /closures/{userId}/{issueId}/{fileName} {
+      allow read: if isSignedIn();
+      allow write: if isOwner(userId) && isAllowedImage();
+    }
+
+    match /{allPaths=**} {
+      allow read, write: if false;
+    }
+  }
+}

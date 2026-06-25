@@ -3,7 +3,7 @@ import path from "path";
 import { createServer as createViteServer } from "vite";
 import { GoogleGenAI, Type } from "@google/genai";
 import { initializeApp as initAdminApp, getApps as getAdminApps } from "firebase-admin/app";
-import { getFirestore as getAdminFirestore } from "firebase-admin/firestore";
+import { FieldValue, getFirestore as getAdminFirestore } from "firebase-admin/firestore";
 import { getAuth as getAdminAuth } from "firebase-admin/auth";
 import { getAppCheck as getAdminAppCheck } from "firebase-admin/app-check";
 import {
@@ -296,6 +296,59 @@ async function startServer() {
     return true;
   }
 
+  function isSafeDocumentId(id: unknown): id is string {
+    return typeof id === "string" && /^[a-zA-Z0-9_-]{8,128}$/.test(id);
+  }
+
+  function cleanText(value: unknown, fallback = "", maxLength = 2000): string {
+    if (typeof value !== "string") return fallback;
+    return value.trim().slice(0, maxLength);
+  }
+
+  function cleanStringArray(value: unknown, maxItems = 10, maxLength = 160): string[] {
+    if (!Array.isArray(value)) return [];
+    return value
+      .filter((item) => typeof item === "string")
+      .slice(0, maxItems)
+      .map((item) => item.trim().slice(0, maxLength))
+      .filter(Boolean);
+  }
+
+  function cleanNumber(value: unknown, fallback: number, min: number, max: number): number {
+    const parsed = typeof value === "number" ? value : Number(value);
+    if (!Number.isFinite(parsed)) return fallback;
+    return Math.max(min, Math.min(max, parsed));
+  }
+
+  function serverPriorityScore(issue: any): number {
+    const severity = cleanNumber(issue.severity, 1, 1, 5);
+    const urgencyBonus = issue.urgency === "urgent" ? 10 : issue.urgency === "priority" ? 5 : 0;
+    const confirmBonus = Math.min(cleanNumber(issue.confirmCount, 0, 0, 999) * 3, 15);
+    const reportBonus = Math.min(cleanNumber(issue.reportCount, 1, 1, 999) * 4, 15);
+    return Math.round(Math.min(100, severity * 12 + urgencyBonus + confirmBonus + reportBonus) * 10) / 10;
+  }
+
+  function makeTicketId(): string {
+    const datePart = new Date().toISOString().slice(2, 10).replace(/-/g, "");
+    const randomPart = Math.random().toString(36).slice(2, 7).toUpperCase();
+    return `CL-${datePart}-${randomPart}`;
+  }
+
+  function publicIssueFromDoc(id: string, data: any) {
+    return { id, ...data };
+  }
+
+  async function addServerActivity(issueRef: any, activity: {
+    actorType: "operator" | "citizen" | "ai";
+    eventType: string;
+    message: string;
+    timestamp: string;
+    byUid?: string;
+    byRole?: string;
+  }) {
+    await issueRef.collection("activity").add(activity);
+  }
+
     // Server-authoritative status transition (Admin SDK + auth + state machine) — STEP 19b
   app.post("/api/issues/update-status", async (req: any, res) => {
     if (!adminDb) return sendApiError(res, 503, "Server data layer unavailable.");
@@ -342,6 +395,552 @@ async function startServer() {
       res.json({ success: true, status: newStatus, resolvedAt: updates.resolvedAt || null });
     } catch (e: any) {
       sendApiError(res, 500, "Status update failed.", e);
+    }
+  });
+
+  app.post("/api/issues/create", async (req: any, res) => {
+    if (!adminDb) return sendApiError(res, 503, "Server data layer unavailable.");
+    const actor = req.actor as RequestActor | undefined;
+    if (!actor) return sendApiError(res, 401, "Firebase ID token is required.");
+
+    const idempotencyKey = isSafeDocumentId(req.body?.idempotencyKey) ? req.body.idempotencyKey : adminDb.collection("issues").doc().id;
+    const issueRef = adminDb.collection("issues").doc(idempotencyKey);
+    const nowIso = new Date().toISOString();
+
+    const category = categoriesList.includes(req.body?.category) ? req.body.category : "other";
+    const urgency = urgenciesList.includes(req.body?.urgency) ? req.body.urgency : "routine";
+    const affectedArea = areasList.includes(req.body?.affectedArea) ? req.body.affectedArea : "unknown";
+    const imageValue = cleanText(req.body?.imageUrl || req.body?.image, "", 1_200_000);
+    if (!imageValue) return sendApiError(res, 400, "Image URL or image payload is required.");
+
+    const report = {
+      ticketId: makeTicketId(),
+      image: imageValue,
+      lat: typeof req.body?.lat === "number" ? req.body.lat : null,
+      lng: typeof req.body?.lng === "number" ? req.body.lng : null,
+      locationName: cleanText(req.body?.locationName, "Current Location", 500),
+      category,
+      description: cleanText(req.body?.description, "No description provided", 3000),
+      timestamp: nowIso,
+      createdAt: nowIso,
+      updatedAt: nowIso,
+      status: "Submitted",
+      citizenUpvotes: 0,
+      userId: actor.uid,
+      isDemoData: false,
+      title: cleanText(req.body?.title, "Civic Incident", 180),
+      summary: cleanText(req.body?.summary, req.body?.description || "No summary provided", 1200),
+      severity: cleanNumber(req.body?.severity, 3, 1, 5),
+      urgency,
+      visibleHazards: cleanStringArray(req.body?.visibleHazards),
+      affectedArea,
+      privacyFlags: cleanStringArray(req.body?.privacyFlags),
+      confidence: cleanNumber(req.body?.confidence, 0, 0, 1),
+      reportCount: 1,
+      confirmCount: 0,
+      disputeCount: 0,
+      verificationStatus: "unverified",
+      agentTrace: [],
+      priorityScore: 0,
+    };
+    report.priorityScore = serverPriorityScore(report);
+
+    try {
+      const saved = await adminDb.runTransaction(async (tx: any) => {
+        const existing = await tx.get(issueRef);
+        if (existing.exists) {
+          const existingData = existing.data();
+          if (existingData.userId !== actor.uid) {
+            throw new Error("IDEMPOTENCY_CONFLICT");
+          }
+          return existingData;
+        }
+        tx.set(issueRef, report);
+        const activityRef = issueRef.collection("activity").doc();
+        tx.set(activityRef, {
+          actorType: "citizen",
+          eventType: "created",
+          message: "Prototype report saved by server.",
+          timestamp: nowIso,
+          byUid: actor.uid,
+          byRole: actor.role,
+        });
+        return report;
+      });
+
+      return res.json({ success: true, data: publicIssueFromDoc(issueRef.id, saved) });
+    } catch (error: any) {
+      if (error?.message === "IDEMPOTENCY_CONFLICT") {
+        return sendApiError(res, 409, "Idempotency key already belongs to another user.");
+      }
+      return sendApiError(res, 500, "Failed to create issue report.", error);
+    }
+  });
+
+  app.post("/api/issues/:issueId/evidence", async (req: any, res) => {
+    if (!adminDb) return sendApiError(res, 503, "Server data layer unavailable.");
+    const actor = req.actor as RequestActor | undefined;
+    if (!actor) return sendApiError(res, 401, "Firebase ID token is required.");
+    const { issueId } = req.params;
+    if (!isSafeDocumentId(issueId)) return sendApiError(res, 400, "Invalid issue id.");
+    const evidenceId = isSafeDocumentId(req.body?.idempotencyKey) ? req.body.idempotencyKey : `${actor.uid}_${Date.now()}`;
+    const issueRef = adminDb.collection("issues").doc(issueId);
+    const evidenceRef = issueRef.collection("evidence").doc(evidenceId);
+    const nowIso = new Date().toISOString();
+
+    try {
+      await adminDb.runTransaction(async (tx: any) => {
+        const issueSnap = await tx.get(issueRef);
+        if (!issueSnap.exists) throw new Error("NOT_FOUND");
+        const existingEvidence = await tx.get(evidenceRef);
+        if (existingEvidence.exists) return;
+
+        tx.set(evidenceRef, {
+          imageUrl: cleanText(req.body?.imageUrl, "", 1200),
+          description: cleanText(req.body?.description, "Supporting evidence", 1200),
+          lat: typeof req.body?.lat === "number" ? req.body.lat : null,
+          lng: typeof req.body?.lng === "number" ? req.body.lng : null,
+          severity: cleanNumber(req.body?.severity, 1, 1, 5),
+          submittedBy: actor.uid,
+          timestamp: nowIso,
+        });
+        tx.update(issueRef, {
+          reportCount: FieldValue.increment(1),
+          updatedAt: nowIso,
+        });
+        tx.set(issueRef.collection("activity").doc(), {
+          actorType: "citizen",
+          eventType: "evidence_submitted",
+          message: "Supporting evidence linked by server.",
+          timestamp: nowIso,
+          byUid: actor.uid,
+          byRole: actor.role,
+        });
+      });
+
+      return res.json({ success: true, evidenceId });
+    } catch (error: any) {
+      if (error?.message === "NOT_FOUND") return sendApiError(res, 404, "Issue not found.");
+      return sendApiError(res, 500, "Failed to attach evidence.", error);
+    }
+  });
+
+  app.post("/api/issues/:issueId/support", async (req: any, res) => {
+    if (!adminDb) return sendApiError(res, 503, "Server data layer unavailable.");
+    const actor = req.actor as RequestActor | undefined;
+    if (!actor) return sendApiError(res, 401, "Firebase ID token is required.");
+    const { issueId } = req.params;
+    if (!isSafeDocumentId(issueId)) return sendApiError(res, 400, "Invalid issue id.");
+    const issueRef = adminDb.collection("issues").doc(issueId);
+    const supportRef = issueRef.collection("support").doc(actor.uid);
+    const nowIso = new Date().toISOString();
+
+    try {
+      await adminDb.runTransaction(async (tx: any) => {
+        const issueSnap = await tx.get(issueRef);
+        if (!issueSnap.exists) throw new Error("NOT_FOUND");
+        const existingSupport = await tx.get(supportRef);
+        if (existingSupport.exists) throw new Error("ALREADY_SUPPORTED");
+        tx.set(supportRef, { userId: actor.uid, timestamp: nowIso });
+        tx.update(issueRef, {
+          citizenUpvotes: FieldValue.increment(1),
+          updatedAt: nowIso,
+        });
+      });
+      return res.json({ success: true });
+    } catch (error: any) {
+      if (error?.message === "NOT_FOUND") return sendApiError(res, 404, "Issue not found.");
+      if (error?.message === "ALREADY_SUPPORTED") return sendApiError(res, 409, "You have already supported this issue.");
+      return sendApiError(res, 500, "Failed to support issue.", error);
+    }
+  });
+
+  app.post("/api/issues/:issueId/verification", async (req: any, res) => {
+    if (!adminDb) return sendApiError(res, 503, "Server data layer unavailable.");
+    const actor = req.actor as RequestActor | undefined;
+    if (!actor) return sendApiError(res, 401, "Firebase ID token is required.");
+    const { issueId } = req.params;
+    const type = req.body?.type;
+    if (!isSafeDocumentId(issueId) || !["confirm", "dispute"].includes(type)) {
+      return sendApiError(res, 400, "Invalid verification request.");
+    }
+    const issueRef = adminDb.collection("issues").doc(issueId);
+    const verificationRef = issueRef.collection("verifications").doc(actor.uid);
+    const nowIso = new Date().toISOString();
+
+    try {
+      await adminDb.runTransaction(async (tx: any) => {
+        const issueSnap = await tx.get(issueRef);
+        if (!issueSnap.exists) throw new Error("NOT_FOUND");
+        const existingVote = await tx.get(verificationRef);
+        if (existingVote.exists) throw new Error("ALREADY_VERIFIED");
+
+        tx.set(verificationRef, {
+          userId: actor.uid,
+          type,
+          timestamp: nowIso,
+        });
+        tx.update(issueRef, {
+          confirmCount: type === "confirm" ? FieldValue.increment(1) : FieldValue.increment(0),
+          disputeCount: type === "dispute" ? FieldValue.increment(1) : FieldValue.increment(0),
+          verificationStatus: type === "confirm" ? "community_confirmed" : "community_disputed",
+          updatedAt: nowIso,
+        });
+        tx.set(issueRef.collection("activity").doc(), {
+          actorType: "citizen",
+          eventType: "verification",
+          message: `Community ${type} recorded by server.`,
+          timestamp: nowIso,
+          byUid: actor.uid,
+          byRole: actor.role,
+        });
+      });
+      return res.json({ success: true });
+    } catch (error: any) {
+      if (error?.message === "NOT_FOUND") return sendApiError(res, 404, "Issue not found.");
+      if (error?.message === "ALREADY_VERIFIED") return sendApiError(res, 409, "You have already verified or disputed this issue.");
+      return sendApiError(res, 500, "Failed to submit verification.", error);
+    }
+  });
+
+  app.post("/api/issues/:issueId/translations", async (req: any, res) => {
+    if (!adminDb) return sendApiError(res, 503, "Server data layer unavailable.");
+    const actor = req.actor as RequestActor | undefined;
+    const { issueId } = req.params;
+    if (!actor || !isSafeDocumentId(issueId)) return sendApiError(res, 400, "Invalid translation request.");
+
+    try {
+      const issueRef = adminDb.collection("issues").doc(issueId);
+      await issueRef.update({
+        titleHi: cleanText(req.body?.titleHi, "", 240),
+        summaryHi: cleanText(req.body?.summaryHi, "", 1600),
+        updatedAt: new Date().toISOString(),
+      });
+      return res.json({ success: true });
+    } catch (error) {
+      return sendApiError(res, 500, "Failed to save translations.", error);
+    }
+  });
+
+  app.post("/api/issues/:issueId/activity", async (req: any, res) => {
+    if (!adminDb) return sendApiError(res, 503, "Server data layer unavailable.");
+    const actor = req.actor as RequestActor | undefined;
+    const { issueId } = req.params;
+    if (!actor || !isSafeDocumentId(issueId)) return sendApiError(res, 400, "Invalid activity request.");
+    const issueRef = adminDb.collection("issues").doc(issueId);
+    try {
+      const snap = await issueRef.get();
+      if (!snap.exists) return sendApiError(res, 404, "Issue not found.");
+      await addServerActivity(issueRef, {
+        actorType: actor.isRealOperator || actor.isDemoOperator ? "operator" : "citizen",
+        eventType: cleanText(req.body?.eventType, "note", 80),
+        message: cleanText(req.body?.message, "Activity recorded by server.", 1000),
+        timestamp: new Date().toISOString(),
+        byUid: actor.uid,
+        byRole: actor.role,
+      });
+      return res.json({ success: true });
+    } catch (error) {
+      return sendApiError(res, 500, "Failed to record activity.", error);
+    }
+  });
+
+  app.post("/api/issues/:issueId/agent-trace-plan", async (req: any, res) => {
+    if (!adminDb) return sendApiError(res, 503, "Server data layer unavailable.");
+    const actor = req.actor as RequestActor | undefined;
+    const { issueId } = req.params;
+    if (!actor || !isSafeDocumentId(issueId)) return sendApiError(res, 400, "Invalid agent update request.");
+    const issueRef = adminDb.collection("issues").doc(issueId);
+
+    try {
+      const snap = await issueRef.get();
+      if (!snap.exists) return sendApiError(res, 404, "Issue not found.");
+      if (!requireOperatorForIssue(snap.data(), actor, res)) return;
+      const updateData: any = {
+        updatedAt: new Date().toISOString(),
+      };
+      if (Array.isArray(req.body?.agentTrace)) {
+        updateData.agentTrace = req.body.agentTrace.slice(0, 30);
+      }
+      if (req.body?.resolutionPlan && typeof req.body.resolutionPlan === "object") {
+        updateData.resolutionPlan = req.body.resolutionPlan;
+      }
+      if (typeof req.body?.priorityScore === "number") {
+        updateData.priorityScore = cleanNumber(req.body.priorityScore, 0, 0, 100);
+      }
+      await issueRef.update(updateData);
+      await addServerActivity(issueRef, {
+        actorType: "ai",
+        eventType: "agent_trace_updated",
+        message: "Agent trace and draft plan saved by server.",
+        timestamp: updateData.updatedAt,
+        byUid: actor.uid,
+        byRole: actor.role,
+      });
+      return res.json({ success: true });
+    } catch (error) {
+      return sendApiError(res, 500, "Failed to save agent results.", error);
+    }
+  });
+
+  app.post("/api/issues/:issueId/closure-assessment", async (req: any, res) => {
+    if (!adminDb) return sendApiError(res, 503, "Server data layer unavailable.");
+    const actor = req.actor as RequestActor | undefined;
+    const { issueId } = req.params;
+    if (!actor || !isSafeDocumentId(issueId)) return sendApiError(res, 400, "Invalid closure request.");
+    const issueRef = adminDb.collection("issues").doc(issueId);
+    try {
+      const snap = await issueRef.get();
+      if (!snap.exists) return sendApiError(res, 404, "Issue not found.");
+      if (!requireOperatorForIssue(snap.data(), actor, res)) return;
+      const nowIso = new Date().toISOString();
+      const closureAssessment = req.body?.closureAssessment || {};
+      await issueRef.update({
+        closureAssessment,
+        closureSubmittedAt: nowIso,
+        agentTrace: Array.isArray(req.body?.agentTrace)
+          ? [...(snap.data().agentTrace || []), ...req.body.agentTrace].slice(-30)
+          : snap.data().agentTrace || [],
+        updatedAt: nowIso,
+      });
+      await addServerActivity(issueRef, {
+        actorType: "operator",
+        eventType: "closure_assessment",
+        message: "Closure assessment saved by server for human review.",
+        timestamp: nowIso,
+        byUid: actor.uid,
+        byRole: actor.role,
+      });
+      return res.json({ success: true });
+    } catch (error) {
+      return sendApiError(res, 500, "Failed to save closure assessment.", error);
+    }
+  });
+
+  app.post("/api/issues/:issueId/escalation-record", async (req: any, res) => {
+    if (!adminDb) return sendApiError(res, 503, "Server data layer unavailable.");
+    const actor = req.actor as RequestActor | undefined;
+    const { issueId } = req.params;
+    if (!actor || !isSafeDocumentId(issueId)) return sendApiError(res, 400, "Invalid escalation request.");
+    const issueRef = adminDb.collection("issues").doc(issueId);
+    try {
+      const snap = await issueRef.get();
+      if (!snap.exists) return sendApiError(res, 404, "Issue not found.");
+      if (!requireOperatorForIssue(snap.data(), actor, res)) return;
+      const nowIso = new Date().toISOString();
+      const escalation = {
+        escalatedAt: nowIso,
+        escalationLetter: cleanText(req.body?.escalationLetter, "", 8000),
+        rtiRequest: cleanText(req.body?.rtiRequest, "", 8000),
+      };
+      await issueRef.update({
+        escalation,
+        agentTrace: Array.isArray(req.body?.agentTrace)
+          ? [...(snap.data().agentTrace || []), ...req.body.agentTrace].slice(-30)
+          : snap.data().agentTrace || [],
+        updatedAt: nowIso,
+      });
+      await addServerActivity(issueRef, {
+        actorType: "operator",
+        eventType: "escalation_draft",
+        message: "Escalation and RTI drafts saved by server.",
+        timestamp: nowIso,
+        byUid: actor.uid,
+        byRole: actor.role,
+      });
+      return res.json({ success: true, data: escalation });
+    } catch (error) {
+      return sendApiError(res, 500, "Failed to save escalation draft.", error);
+    }
+  });
+
+  const demoSeedTemplates = [
+    {
+      title: "Clogged Stormwater Drain on Koramangala 80 Feet Road",
+      description: "Synthetic sample: water backs up onto the road due to plastic blocking the inlet slab.",
+      category: "drainage",
+      locationName: "80 Feet Rd, Koramangala, Bengaluru",
+      lat: 12.9348,
+      lng: 77.6251,
+      image: "https://images.unsplash.com/photo-1541888946425-d81bb19240f5?auto=format&fit=crop&w=600&q=80",
+      severity: 4,
+      status: "In Progress",
+      reportCount: 3,
+      confirmCount: 4,
+      urgency: "priority",
+    },
+    {
+      title: "Massive Crater Pothole outside Indiranagar Metro Station",
+      description: "Synthetic sample: large pothole on the main road forces two wheelers to swerve.",
+      category: "pothole",
+      locationName: "CMH Road, Indiranagar, Bengaluru",
+      lat: 12.9785,
+      lng: 77.6385,
+      image: "https://images.unsplash.com/photo-1515162305285-0293e4767cc2?auto=format&fit=crop&w=600&q=80",
+      severity: 5,
+      status: "Submitted",
+      reportCount: 1,
+      confirmCount: 0,
+      urgency: "urgent",
+    },
+    {
+      title: "Broken Streetlight Street 14 Jayanagar 4th Block",
+      description: "Synthetic sample: streetlight SL-J-98 has been broken for 10 days near the park.",
+      category: "streetlight",
+      locationName: "14th Cross Rd, Jayanagar 4th Block, Bengaluru",
+      lat: 12.9282,
+      lng: 77.5831,
+      image: "https://images.unsplash.com/photo-1509024640106-cf78faeb99b2?auto=format&fit=crop&w=600&q=80",
+      severity: 2,
+      status: "Verified",
+      reportCount: 2,
+      confirmCount: 3,
+      urgency: "routine",
+    },
+    {
+      title: "Overflowing Garbage Pile in Malleshwaram 8th Cross",
+      description: "Synthetic sample: uncollected garbage is blocking pedestrians.",
+      category: "waste",
+      locationName: "8th Cross, Malleshwaram, Bengaluru",
+      lat: 13.0031,
+      lng: 77.5694,
+      image: "https://images.unsplash.com/photo-1611284446314-60a58ac0deb9?auto=format&fit=crop&w=600&q=80",
+      severity: 3,
+      status: "Verified",
+      reportCount: 4,
+      confirmCount: 5,
+      urgency: "priority",
+    },
+    {
+      title: "Leaking Drinking Water Pipeline on ITPL Main Road",
+      description: "Synthetic sample: clean water is leaking from a main joint and flooding the street.",
+      category: "water_leak",
+      locationName: "ITPL Main Rd, Whitefield, Bengaluru",
+      lat: 12.9866,
+      lng: 77.6950,
+      image: "https://images.unsplash.com/photo-1504307651254-35680f356dfd?auto=format&fit=crop&w=600&q=80",
+      severity: 5,
+      status: "Resolved",
+      reportCount: 5,
+      confirmCount: 8,
+      urgency: "urgent",
+    },
+    {
+      title: "Clogged Sewer Line on Outer Ring Road Yeswanthpur",
+      description: "Synthetic sample: sewer line is overflowing onto a highway lane.",
+      category: "drainage",
+      locationName: "Pipeline Rd, Yeswanthpur, Bengaluru",
+      lat: 13.0232,
+      lng: 77.5550,
+      image: "https://images.unsplash.com/photo-1541888946425-d81bb19240f5?auto=format&fit=crop&w=600&q=80",
+      severity: 4,
+      status: "In Progress",
+      reportCount: 2,
+      confirmCount: 2,
+      urgency: "priority",
+    },
+    {
+      title: "Deep Pavement Cavity in HSR Layout Sector 2",
+      description: "Synthetic sample: footpath block has caved in near commercial shops.",
+      category: "pothole",
+      locationName: "24th Main, HSR Layout Sector 2, Bengaluru",
+      lat: 12.9112,
+      lng: 77.6385,
+      image: "https://images.unsplash.com/photo-1515162305285-0293e4767cc2?auto=format&fit=crop&w=600&q=80",
+      severity: 3,
+      status: "Submitted",
+      reportCount: 1,
+      confirmCount: 1,
+      urgency: "routine",
+    },
+  ];
+
+  app.post("/api/demo/seed", async (req: any, res) => {
+    if (!adminDb) return sendApiError(res, 503, "Server data layer unavailable.");
+    const actor = req.actor as RequestActor | undefined;
+    if (!actor?.isRealOperator && !actor?.isDemoOperator) {
+      return sendApiError(res, 403, "Demo operator authorization is required.");
+    }
+
+    try {
+      const existing = await adminDb.collection("issues").where("isDemoData", "==", true).limit(1).get();
+      if (!existing.empty) return res.json({ success: true, seeded: 0 });
+      const batch = adminDb.batch();
+      const now = Date.now();
+
+      for (const [index, template] of demoSeedTemplates.entries()) {
+        const ref = adminDb.collection("issues").doc();
+        const timestamp = new Date(now - (index + 2) * 6 * 60 * 60 * 1000).toISOString();
+        const report = {
+          ticketId: `#BLR-${Math.floor(10000 + Math.random() * 90000)}`,
+          image: template.image,
+          lat: template.lat,
+          lng: template.lng,
+          locationName: template.locationName,
+          category: template.category,
+          description: template.description,
+          status: template.status,
+          citizenUpvotes: template.confirmCount,
+          userId: actor.uid,
+          timestamp,
+          createdAt: timestamp,
+          updatedAt: new Date().toISOString(),
+          title: template.title,
+          summary: template.description,
+          severity: template.severity,
+          urgency: template.urgency,
+          visibleHazards: ["Synthetic sample"],
+          affectedArea: "street",
+          privacyFlags: [],
+          confidence: 0.9,
+          reportCount: template.reportCount,
+          confirmCount: template.confirmCount,
+          disputeCount: 0,
+          verificationStatus: template.confirmCount > 0 ? "community_confirmed" : "unverified",
+          isDemoData: true,
+          agentTrace: [{
+            step: "Demo Seed",
+            tool: "demo.syntheticSeed",
+            status: "done",
+            rationale: "Synthetic demo record seeded by server for workflow preview.",
+            ts: new Date().toISOString(),
+            outputSummary: "Synthetic demo only",
+          }],
+          priorityScore: serverPriorityScore(template),
+        };
+        batch.set(ref, report);
+        batch.set(ref.collection("activity").doc(), {
+          actorType: "operator",
+          eventType: "demo_seeded",
+          message: "Synthetic demo report seeded by server.",
+          timestamp: new Date().toISOString(),
+          byUid: actor.uid,
+          byRole: actor.role,
+        });
+      }
+
+      await batch.commit();
+      return res.json({ success: true, seeded: demoSeedTemplates.length });
+    } catch (error) {
+      return sendApiError(res, 500, "Failed to seed demo data.", error);
+    }
+  });
+
+  app.post("/api/demo/clear", async (req: any, res) => {
+    if (!adminDb) return sendApiError(res, 503, "Server data layer unavailable.");
+    const actor = req.actor as RequestActor | undefined;
+    if (!actor?.isRealOperator && !actor?.isDemoOperator) {
+      return sendApiError(res, 403, "Demo operator authorization is required.");
+    }
+
+    try {
+      const snap = await adminDb.collection("issues").where("isDemoData", "==", true).limit(200).get();
+      const batch = adminDb.batch();
+      snap.forEach((docSnap: any) => batch.delete(docSnap.ref));
+      await batch.commit();
+      return res.json({ success: true, cleared: snap.size });
+    } catch (error) {
+      return sendApiError(res, 500, "Failed to clear demo data.", error);
     }
   });
 

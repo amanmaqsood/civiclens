@@ -49,7 +49,7 @@ Rollback instructions:
 | 0 Baseline | Complete | Baseline commit/tag created; required commands run and recorded; route/write/auth/Gemini/Maps/claim inventory recorded above. |
 | 1 Credibility | Complete | Truth-boundary copy updated across docs/UI/server prompts; seeded traces labelled synthetic; regression test added; required commands passed. |
 | 2 Identity/API perimeter | Complete | Firebase token + App Check perimeter added for API routes; server role/session resolution added; public real-operator switching removed; focused perimeter tests added; required commands passed. |
-| 3 Server data integrity | Not started | |
+| 3 Server data integrity | Complete | Server-owned issue/evidence/support/verification/activity/trace/closure/escalation endpoints added; Firestore rules deny direct issue writes; Storage Rules added; focused data-integrity tests added; required commands passed. |
 | 4 Genuine agent | Not started | |
 | 5 Full lifecycle | Not started | |
 | 6 UX/accessibility | Not started | |
@@ -119,6 +119,36 @@ Remaining risks:
 - Quotas are in-memory and suitable only as a local/prototype perimeter; Milestone 7 should make this deployment-safe.
 - `/api/agent/run` is now authenticated but still accepts browser-supplied issue/candidate objects until Milestone 4 moves it to `{ issueId, idempotencyKey }` and persisted server-authored runs.
 
+## Milestone 3: Server-Owned Data Integrity
+Status: completed on 2026-06-26
+
+Files changed:
+- `server.ts`: added Admin SDK endpoints for issue creation, duplicate evidence attachment, support, community verification, translations, activity recording, agent trace/plan saves, closure assessment saves, escalation draft saves, and synthetic demo seed/clear.
+- `server.ts`: used Firestore transactions/idempotency for issue creation, evidence attachment, support, and verification/count updates.
+- `src/services/issues.ts`: routed report creation, evidence merge, support, verification, translations, activity, trace/plan, closure assessment, escalation draft, and demo seed/clear through server endpoints instead of direct client issue writes.
+- `firestore.rules`: rewrote rules so signed-in clients can read issue data but cannot create/update/delete issue documents or issue-owned subcollections.
+- `storage.rules`: added user-scoped image upload paths for report, evidence, and closure images with MIME and 5 MB size restrictions.
+- `src/server/data-integrity.test.ts`: added focused checks for server-owned Firestore rules, Storage Rules, and transaction endpoint coverage.
+
+Validation commands:
+- `npm ci`: passed in 42 seconds; 450 packages installed/audited; 0 vulnerabilities. Warnings: deprecated `node-domexception@1.0.0` and `glob@10.5.0`.
+- `npm run lint`: passed (`tsc --noEmit`).
+- `npm test`: passed (4 test files, 29 tests).
+- `npm run build`: passed. Warnings remain: large JS bundle (`assets/index-DVFt9RUL.js`, 1,274.37 kB / 344.08 kB gzip) and `src/services/issues.ts` dynamic import cannot create a separate chunk because it is also statically imported.
+- `npm audit --omit=dev`: passed; 0 vulnerabilities.
+
+Decisions:
+- Browser uploads are still allowed for image bytes, but only to user-scoped Storage paths; issue documents and lifecycle fields are now written by server endpoints.
+- Demo seed/clear moved to server endpoints. The old large client-side seed implementation is made unreachable by an early server call and should be deleted when the issue service is decomposed, but it no longer executes in normal flow.
+- Trace/plan, closure, and escalation saves now go through Admin SDK endpoints. Full persisted `agentRuns`/`agentSteps` is intentionally deferred to Milestone 4.
+- Firestore rules deny direct issue writes outright instead of trying to maintain a fragile client-writable allowlist.
+
+Remaining risks:
+- Emulator-backed Firestore/Storage rules tests are still missing; the current tests verify rule text and endpoint coverage only. Full emulator coverage belongs to Milestone 8.
+- Some helper code for the old demo seed remains unreachable in `src/services/issues.ts`; remove it during service decomposition.
+- `/api/verify-resolution`, `/api/escalation`, `/api/resolution-plan`, and `/api/agent/run` still accept browser-supplied issue facts for model prompts. Milestone 4/5 must load canonical issue state server-side.
+- Count recomputation is transaction-protected for new server endpoints, but existing pre-M3 data may still contain client-authored legacy fields until migrated or reseeded.
+
 ## Decision log
 - 2026-06-26: Initialized a valid project-local Git repository because the existing `.git` directory was empty/invalid and Git was resolving to `C:/Users/apexm`.
 - 2026-06-26: Captured the untouched prototype before dependency repair as commit `ffd4ebc` and tag `baseline/original-prototype`.
@@ -130,10 +160,12 @@ Remaining risks:
 - 2026-06-26: Added a server-resolved role model with verified operator allowlist/custom-claim support and explicit synthetic demo operator mode.
 - 2026-06-26: Kept demo operator mode enabled by default for local development but protected it with an explicit header and server-side `isDemoData` checks; production must opt in deliberately.
 - 2026-06-26: Removed public citizen status-transition UI and real-operator persona switching; the header now shows operator/demo desk access only when `/api/session` reports it.
+- 2026-06-26: Moved issue-owned writes behind Admin SDK endpoints and hardened Firestore rules to deny direct client writes to issue documents and subcollections.
+- 2026-06-26: Added Storage Rules for user-owned report/evidence/closure image paths rather than allowing arbitrary bucket writes.
 
 ## External blockers
 - Firebase/GCP deployment credentials and billing access are required before deployed smoke tests.
 - Public GitHub repository URL, public app URL, Google Doc URL, demo video URL, and BlockseBlock submission require user/account approval before final submission actions.
 
 ## Next milestone
-Milestone 3: move privileged writes behind authenticated Admin SDK endpoints, add transactional/idempotent server-owned data changes, tighten Firestore rules, and add Storage Rules.
+Milestone 4: change the agent workflow to accept `{ issueId, idempotencyKey }`, load canonical issue/candidate data server-side, persist `agentRuns` and `agentSteps`, and render persisted runs only.

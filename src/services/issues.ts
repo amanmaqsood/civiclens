@@ -235,7 +235,7 @@ export async function fetchRecentIssues(): Promise<IssueReport[]> {
   }
 }
 
-// Write a new Issue Report to Firestore
+// Create a new Issue Report through the server-owned data endpoint.
 export async function submitIssueReport(
   params: Omit<IssueReport, "id" | "ticketId" | "status" | "citizenUpvotes" | "userId" | "timestamp">
 ): Promise<IssueReport> {
@@ -245,15 +245,11 @@ export async function submitIssueReport(
   }
 
   const issueId = doc(collection(db, COLLECTION_NAME)).id;
-  const ticketId = generateTicketId();
-  const timestamp = new Date().toISOString();
 
-  // On submit, upload the compressed image to Firebase Storage at reports/{issueId}.jpg,
-  // get its download URL, and store that URL in the issue document's image field instead of the Base64 string.
   let finalImageUrl = params.image;
   if (params.image && params.image.startsWith("data:")) {
     try {
-      const storageRef = ref(storage, `reports/${issueId}.jpg`);
+      const storageRef = ref(storage, `reports/${currentUser.uid}/${issueId}/original.jpg`);
       await uploadString(storageRef, params.image, "data_url");
       finalImageUrl = await getDownloadURL(storageRef);
     } catch (storageErr) {
@@ -262,98 +258,33 @@ export async function submitIssueReport(
     }
   }
 
-  // Setup standard initial agent trace entries ("Perceive", "Locate", "Deduplicate")
-  const ts1 = new Date(Date.now() - 3000).toISOString();
-  const ts2 = new Date(Date.now() - 2000).toISOString();
-  const ts3 = new Date(Date.now() - 1000).toISOString();
+  const response = await apiFetch("/api/issues/create", {
+    method: "POST",
+    body: JSON.stringify({
+      idempotencyKey: issueId,
+      imageUrl: finalImageUrl,
+      category: params.category,
+      description: params.description,
+      lat: params.lat,
+      lng: params.lng,
+      locationName: params.locationName,
+      title: params.title,
+      summary: params.summary,
+      severity: params.severity,
+      urgency: params.urgency,
+      visibleHazards: params.visibleHazards,
+      affectedArea: params.affectedArea,
+      privacyFlags: params.privacyFlags,
+      confidence: params.confidence,
+    }),
+  });
 
-  const perceiveTrace: AgentTraceEntry = {
-    step: "Perceive",
-    tool: "Gemini Multimodal Vision (/api/analyze-report)",
-    status: "done",
-    rationale: `Identified visual category "${params.category || "other"}" with severity rating ${params.severity || 3}/5 and parsed visible hazards: ${(params.visibleHazards || []).join(", ") || "none"}.`,
-    ts: ts1,
-    durationMs: (params as any).perceiveMeta?.durationMs || 1200,
-    confidence: (params as any).perceiveMeta?.confidence || params.confidence || 1.0,
-    inputDigest: (params as any).perceiveMeta?.inputDigest || `Manual input category: ${params.category}`,
-    outputSummary: (params as any).perceiveMeta?.outputSummary || `Manual form saved`,
-    retried: (params as any).perceiveMeta?.retried || false,
-    fallbackUsed: (params as any).perceiveMeta?.fallbackUsed || false,
-  };
-
-  const locateTrace: AgentTraceEntry = {
-    step: "Locate",
-    tool: "GPS Geo-locator (Navigator API)",
-    status: (params.lat && params.lng) ? "done" : "skipped",
-    rationale: (params.lat && params.lng) 
-      ? `Successfully resolved geo-coordinates (${params.lat.toFixed(4)}, ${params.lng.toFixed(4)}) at "${params.locationName || "Current Location"}".`
-      : `No GPS coordinates provided. Standard fallback to local description: "${params.locationName || "Default Landmark"}".`,
-    ts: ts2,
-    durationMs: (params.lat && params.lng) ? 150 : 50,
-    confidence: 1.0,
-    inputDigest: (params.lat && params.lng) ? `lat: ${params.lat.toFixed(4)}, lng: ${params.lng.toFixed(4)}` : "No GPS",
-    outputSummary: (params.lat && params.lng) ? `Located at: ${params.locationName}` : "Local address fallback",
-  };
-
-  const deduplicateTrace: AgentTraceEntry = {
-    step: "Deduplicate",
-    tool: "Proximity & Semantic Engine (/api/check-duplicate)",
-    status: "done",
-    rationale: "Proximity analysis scanned active issues within 150m. No matching report was found, so this was saved as a standalone prototype report.",
-    ts: ts3,
-    durationMs: 320,
-    confidence: 1.0,
-    inputDigest: `Scan radius 150m`,
-    outputSummary: "0 candidates found. Standard stand-alone path.",
-  };
-
-  const report: IssueReport = {
-    id: issueId,
-    ticketId,
-    image: finalImageUrl,
-    category: params.category,
-    description: params.description,
-    locationName: params.locationName || "Default Civic Landmark",
-    status: "Submitted",
-    citizenUpvotes: 0,
-    userId: currentUser.uid,
-    timestamp,
-    
-    // AI analytical results field persistence
-    title: params.title || "Civic Incident",
-    summary: params.summary || params.description,
-    severity: params.severity || 3,
-    urgency: params.urgency || "routine",
-    visibleHazards: params.visibleHazards || [],
-    affectedArea: params.affectedArea || "unknown",
-    privacyFlags: params.privacyFlags || [],
-    confidence: params.confidence || 1.0,
-    reportCount: 1,
-    confirmCount: 0,
-    disputeCount: 0,
-    verificationStatus: "unverified",
-    agentTrace: params.agentTrace || [perceiveTrace, locateTrace, deduplicateTrace],
-    resolutionPlan: params.resolutionPlan || undefined,
-  };
-
-  if (typeof params.lat === "number" && !isNaN(params.lat)) {
-    report.lat = params.lat;
+  if (!response.ok) {
+    const err = await response.json().catch(() => ({}));
+    throw new Error(err.error || "Failed to create issue report.");
   }
-  if (typeof params.lng === "number" && !isNaN(params.lng)) {
-    report.lng = params.lng;
-  }
-
-  // Pre-calculate deterministic priority score
-  report.priorityScore = calculatePriorityScore(report);
-
-  try {
-    const docRef = doc(db, COLLECTION_NAME, issueId);
-    await setDoc(docRef, report);
-    return report;
-  } catch (err) {
-    handleFirestoreError(err, OperationType.CREATE, `${COLLECTION_NAME}/${issueId}`);
-    throw err;
-  }
+  const result = await response.json();
+  return result.data as IssueReport;
 }
 
 // Distance calculator using Haversine formula
@@ -524,8 +455,6 @@ export async function submitEvidenceForIssue(
     throw new Error("Authentication required.");
   }
 
-  const timestamp = new Date().toISOString();
-
   // Reference to canonical issue
   const canonicalRef = doc(db, COLLECTION_NAME, canonicalId);
   const canonicalSnap = await getDoc(canonicalRef);
@@ -533,15 +462,13 @@ export async function submitEvidenceForIssue(
     throw new Error("The selected original issue does not exist.");
   }
 
-  const canonicalData = canonicalSnap.data();
-
   // First upload image if it's base64 data to Storage
   let finalImageUrl = params.imageUrl;
   // Create evidence subcollection document reference to get unique ID
   const evidenceId = doc(collection(canonicalRef, "evidence")).id;
   if (params.imageUrl && params.imageUrl.startsWith("data:")) {
     try {
-      const storageRef = ref(storage, `reports/${evidenceId}.jpg`);
+      const storageRef = ref(storage, `evidence/${currentUser.uid}/${canonicalId}/${evidenceId}.jpg`);
       await uploadString(storageRef, params.imageUrl, "data_url");
       finalImageUrl = await getDownloadURL(storageRef);
     } catch (storageErr) {
@@ -550,44 +477,21 @@ export async function submitEvidenceForIssue(
     }
   }
 
-  // Create subcollection entry
-  const evidenceRef = doc(canonicalRef, "evidence", evidenceId);
-  const evidenceData: any = {
-    imageUrl: finalImageUrl,
-    description: params.description,
-    userId: currentUser.uid,
-    timestamp,
-    severity: params.severity,
-  };
-  if (typeof params.lat === "number" && !isNaN(params.lat)) {
-    evidenceData.lat = params.lat;
-  }
-  if (typeof params.lng === "number" && !isNaN(params.lng)) {
-    evidenceData.lng = params.lng;
-  }
-
-  await setDoc(evidenceRef, evidenceData);
-
-  // Sync to canonical parent and recompute priority score
-  const nextReportCount = (canonicalData.reportCount || 1) + 1;
-  const nextSeverity = Math.max(canonicalData.severity || 0, params.severity);
-
-  const nextPriorityScore = calculatePriorityScore({
-    severity: nextSeverity,
-    urgency: canonicalData.urgency,
-    timestamp: canonicalData.timestamp,
-    confirmCount: canonicalData.confirmCount || 0,
-    disputeCount: canonicalData.disputeCount || 0,
-    reportCount: nextReportCount,
+  const response = await apiFetch(`/api/issues/${canonicalId}/evidence`, {
+    method: "POST",
+    body: JSON.stringify({
+      idempotencyKey: evidenceId,
+      imageUrl: finalImageUrl,
+      description: params.description || "Supporting evidence",
+      lat: params.lat,
+      lng: params.lng,
+      severity: params.severity,
+    }),
   });
-
-  const updates: any = {
-    reportCount: nextReportCount,
-    severity: nextSeverity,
-    priorityScore: nextPriorityScore,
-  };
-
-  await updateDoc(canonicalRef, updates);
+  if (!response.ok) {
+    const err = await response.json().catch(() => ({}));
+    throw new Error(err.error || "Failed to attach evidence.");
+  }
 }
 
 // Submits verification (Confirm / Dispute)
@@ -600,60 +504,14 @@ export async function submitVerification(
     throw new Error("Authentication required to verify or dispute reports.");
   }
 
-  const userId = currentUser.uid;
-  const verificationRef = doc(db, COLLECTION_NAME, issueId, "verifications", userId);
-  const verificationSnap = await getDoc(verificationRef);
-  
-  if (verificationSnap.exists()) {
-    throw new Error("You have already verified or disputed this issue.");
-  }
-
-  const issueRef = doc(db, COLLECTION_NAME, issueId);
-  const issueSnap = await getDoc(issueRef);
-  if (!issueSnap.exists()) {
-    throw new Error("The selected issue does not exist.");
-  }
-
-  const issueData = issueSnap.data();
-  const currentConfirmCount = issueData.confirmCount || 0;
-  const currentDisputeCount = issueData.disputeCount || 0;
-  const currentReportCount = issueData.reportCount || 1;
-
-  const nextConfirmCount = currentConfirmCount + (type === "confirm" ? 1 : 0);
-  const nextDisputeCount = currentDisputeCount + (type === "dispute" ? 1 : 0);
-
-  const newScore = calculatePriorityScore({
-    severity: issueData.severity,
-    urgency: issueData.urgency,
-    timestamp: issueData.timestamp,
-    confirmCount: nextConfirmCount,
-    disputeCount: nextDisputeCount,
-    reportCount: currentReportCount,
+  const response = await apiFetch(`/api/issues/${issueId}/verification`, {
+    method: "POST",
+    body: JSON.stringify({ type }),
   });
-
-  let nextVerificationStatus = "unverified";
-  if (nextConfirmCount > nextDisputeCount) {
-    nextVerificationStatus = "confirmed";
-  } else if (nextDisputeCount > nextConfirmCount) {
-    nextVerificationStatus = "disputed";
-  } else {
-    nextVerificationStatus = "mixed";
+  if (!response.ok) {
+    const err = await response.json().catch(() => ({}));
+    throw new Error(err.error || "Failed to submit verification.");
   }
-
-  // Set the verification subdocument
-  await setDoc(verificationRef, {
-    userId,
-    type,
-    timestamp: new Date().toISOString(),
-  });
-
-  // Update original issue
-  await updateDoc(issueRef, {
-    confirmCount: nextConfirmCount,
-    disputeCount: nextDisputeCount,
-    priorityScore: newScore,
-    verificationStatus: nextVerificationStatus,
-  });
 }
 
 // Check user status for verification
@@ -698,28 +556,25 @@ export async function updateIssueTranslations(
   titleHi: string,
   summaryHi: string
 ): Promise<void> {
-  const docRef = doc(db, COLLECTION_NAME, issueId);
-  try {
-    await updateDoc(docRef, {
-      titleHi,
-      summaryHi
-    });
-  } catch (err) {
-    handleFirestoreError(err, OperationType.UPDATE, `${COLLECTION_NAME}/${issueId}`);
-    throw err;
+  const response = await apiFetch(`/api/issues/${issueId}/translations`, {
+    method: "POST",
+    body: JSON.stringify({ titleHi, summaryHi }),
+  });
+  if (!response.ok) {
+    const err = await response.json().catch(() => ({}));
+    throw new Error(err.error || "Failed to save translations.");
   }
 }
 
 // Increment citizen upvotes
 export async function upvoteIssue(issueId: string): Promise<void> {
-  const docRef = doc(db, COLLECTION_NAME, issueId);
-  try {
-    await updateDoc(docRef, {
-      citizenUpvotes: increment(1)
-    });
-  } catch (err) {
-    handleFirestoreError(err, OperationType.UPDATE, `${COLLECTION_NAME}/${issueId}`);
-    throw err;
+  const response = await apiFetch(`/api/issues/${issueId}/support`, {
+    method: "POST",
+    body: JSON.stringify({}),
+  });
+  if (!response.ok) {
+    const err = await response.json().catch(() => ({}));
+    throw new Error(err.error || "Failed to support issue.");
   }
 }
 
@@ -729,22 +584,13 @@ export async function updateIssueResolutionPlan(
   resolutionPlan: ResolutionPlan,
   extraTraces: AgentTraceEntry[]
 ): Promise<void> {
-  const docRef = doc(db, COLLECTION_NAME, issueId);
-  try {
-    const snap = await getDoc(docRef);
-    if (!snap.exists()) {
-      throw new Error("Issue not found");
-    }
-    const data = snap.data();
-    const existingTrace = data.agentTrace || [];
-    const updatedTrace = [...existingTrace, ...extraTraces];
-    await updateDoc(docRef, {
-      resolutionPlan,
-      agentTrace: updatedTrace,
-    });
-  } catch (err) {
-    handleFirestoreError(err, OperationType.UPDATE, `${COLLECTION_NAME}/${issueId}`);
-    throw err;
+  const response = await apiFetch(`/api/issues/${issueId}/agent-trace-plan`, {
+    method: "POST",
+    body: JSON.stringify({ resolutionPlan, agentTrace: extraTraces }),
+  }, { demoOperator: true });
+  if (!response.ok) {
+    const err = await response.json().catch(() => ({}));
+    throw new Error(err.error || "Failed to save resolution plan.");
   }
 }
 
@@ -755,19 +601,13 @@ export async function updateIssueAgentTraceAndPlan(
   resolutionPlan?: any,
   priorityScore?: number
 ): Promise<void> {
-  const docRef = doc(db, COLLECTION_NAME, issueId);
-  try {
-    const updateData: any = { agentTrace };
-    if (resolutionPlan) {
-      updateData.resolutionPlan = resolutionPlan;
-    }
-    if (priorityScore !== undefined) {
-      updateData.priorityScore = priorityScore;
-    }
-    await updateDoc(docRef, updateData);
-  } catch (err) {
-    handleFirestoreError(err, OperationType.UPDATE, `${COLLECTION_NAME}/${issueId}`);
-    throw err;
+  const response = await apiFetch(`/api/issues/${issueId}/agent-trace-plan`, {
+    method: "POST",
+    body: JSON.stringify({ agentTrace, resolutionPlan, priorityScore }),
+  }, { demoOperator: true });
+  if (!response.ok) {
+    const err = await response.json().catch(() => ({}));
+    throw new Error(err.error || "Failed to save agent trace.");
   }
 }
 
@@ -781,13 +621,13 @@ export async function recordIssueActivity(
     timestamp: string;
   }
 ): Promise<void> {
-  const activityCollectionRef = collection(db, COLLECTION_NAME, issueId, "activity");
-  try {
-    const docRef = doc(activityCollectionRef); // Auto ID
-    await setDoc(docRef, activity);
-  } catch (err) {
-    handleFirestoreError(err, OperationType.WRITE, `${COLLECTION_NAME}/${issueId}/activity`);
-    throw err;
+  const response = await apiFetch(`/api/issues/${issueId}/activity`, {
+    method: "POST",
+    body: JSON.stringify(activity),
+  }, { demoOperator: activity.actorType === "operator" });
+  if (!response.ok) {
+    const err = await response.json().catch(() => ({}));
+    throw new Error(err.error || "Failed to record activity.");
   }
 }
 
@@ -822,10 +662,13 @@ export async function submitClosureAssessment(
   afterImageBase64: string,
   summary: string
 ): Promise<ClosureAssessment> {
-  // 1. Upload raw afterImage state to Firebase Storage under reports/after_{issueId}.jpg
+  const currentUser = auth.currentUser;
+  if (!currentUser) throw new Error("Authentication required to submit closure evidence.");
+
+  // 1. Upload raw afterImage state to a user-scoped Storage path.
   let afterImageUrl = "";
   try {
-    const storageRef = ref(storage, `reports/after_${issueId}.jpg`);
+    const storageRef = ref(storage, `closures/${currentUser.uid}/${issueId}/after_${Date.now()}.jpg`);
     await uploadString(storageRef, afterImageBase64, "data_url");
     afterImageUrl = await getDownloadURL(storageRef);
   } catch (storageErr) {
@@ -862,16 +705,6 @@ export async function submitClosureAssessment(
     afterImage: afterImageUrl, // Persist download URL
   };
 
-  // 3. Update issue in Firestore with closureAssessment and AgentTraceEntry
-  const docRef = doc(db, COLLECTION_NAME, issueId);
-  const snap = await getDoc(docRef);
-  if (!snap.exists()) {
-    throw new Error("Issue not found");
-  }
-
-  const issueData = snap.data();
-  const existingTrace = issueData.agentTrace || [];
-
   const verifyTrace: AgentTraceEntry = {
     step: "Verify Resolution",
     tool: "Gemini Vision Integrity Inspector (/api/verify-resolution)",
@@ -885,10 +718,18 @@ export async function submitClosureAssessment(
     retried: result.retried || false,
   };
 
-  await updateDoc(docRef, {
-    closureAssessment: assessment,
-    agentTrace: [...existingTrace, verifyTrace],
-  });
+  const saveResponse = await apiFetch(`/api/issues/${issueId}/closure-assessment`, {
+    method: "POST",
+    body: JSON.stringify({
+      closureAssessment: assessment,
+      agentTrace: [verifyTrace],
+    }),
+  }, { demoOperator: true });
+
+  if (!saveResponse.ok) {
+    const err = await saveResponse.json().catch(() => ({}));
+    throw new Error(err.error || "Failed to save closure assessment.");
+  }
 
   return assessment;
 }
@@ -919,16 +760,6 @@ export async function triggerAutoEscalation(issue: IssueReport): Promise<any> {
   const { escalationLetter, rtiRequest } = result.data;
   const escalatedAt = new Date().toISOString();
 
-  // Update Firestore
-  const docRef = doc(db, COLLECTION_NAME, issue.id);
-  const snap = await getDoc(docRef);
-  if (!snap.exists()) {
-    throw new Error("Complaint report doesn't exist anymore.");
-  }
-
-  const issueData = snap.data();
-  const existingTrace = issueData.agentTrace || [];
-
   const escalationTrace: AgentTraceEntry = {
     step: "Auto-Escalation / RTI",
     tool: "Gemini 2.5 Civil Escalation Engine (/api/escalation)",
@@ -942,19 +773,34 @@ export async function triggerAutoEscalation(issue: IssueReport): Promise<any> {
     retried: result.retried || false,
   };
 
-  await updateDoc(docRef, {
-    escalation: {
-      escalatedAt,
+  const saveResponse = await apiFetch(`/api/issues/${issue.id}/escalation-record`, {
+    method: "POST",
+    body: JSON.stringify({
       escalationLetter,
       rtiRequest,
-    },
-    agentTrace: [...existingTrace, escalationTrace],
-  });
+      agentTrace: [escalationTrace],
+    }),
+  }, { demoOperator: true });
+
+  if (!saveResponse.ok) {
+    const err = await saveResponse.json().catch(() => ({}));
+    throw new Error(err.error || "Failed to save escalation draft.");
+  }
 
   return { escalatedAt, escalationLetter, rtiRequest };
 }
 
 export async function seedDemoIssuesBengaluru(): Promise<boolean> {
+  const response = await apiFetch("/api/demo/seed", {
+    method: "POST",
+    body: JSON.stringify({}),
+  }, { demoOperator: true });
+  if (!response.ok) {
+    const err = await response.json().catch(() => ({}));
+    throw new Error(err.error || "Failed to seed demo data.");
+  }
+  return true;
+
   const querySnapshot = await getDocs(collection(db, COLLECTION_NAME));
   if (querySnapshot.size >= 3) {
     throw new Error("Seeding skipped: database already has 3 or more issues.");
@@ -1310,6 +1156,16 @@ export async function seedDemoIssuesBengaluru(): Promise<boolean> {
 }
 
 export async function clearDemoIssues(): Promise<void> {
+  const response = await apiFetch("/api/demo/clear", {
+    method: "POST",
+    body: JSON.stringify({}),
+  }, { demoOperator: true });
+  if (!response.ok) {
+    const err = await response.json().catch(() => ({}));
+    throw new Error(err.error || "Failed to clear demo data.");
+  }
+  return;
+
   try {
     const q = query(collection(db, COLLECTION_NAME), where("isDemoData", "==", true));
     const querySnapshot = await getDocs(q);

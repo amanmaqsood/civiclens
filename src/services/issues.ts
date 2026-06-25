@@ -15,6 +15,7 @@ import {
 import { ref, uploadString, getDownloadURL } from "firebase/storage";
 import { db, auth, storage, handleFirestoreError, OperationType } from "../lib/firebase";
 import { IssueReport, AgentTraceEntry, ResolutionPlan, IssueActivity, ClosureAssessment } from "../types";
+import { apiFetch } from "./api";
 
 const COLLECTION_NAME = "issues";
 
@@ -450,9 +451,8 @@ export async function checkDuplicateWithAI(
   newReport: Partial<IssueReport>,
   candidates: IssueReport[]
 ): Promise<DuplicateResponse> {
-  const response = await fetch("/api/check-duplicate", {
+  const response = await apiFetch("/api/check-duplicate", {
     method: "POST",
-    headers: { "Content-Type": "application/json" },
     body: JSON.stringify({
       newReport: {
         category: newReport.category,
@@ -482,9 +482,8 @@ export async function checkDuplicateWithAI(
 
 // Client-side call to resolution plan API
 export async function generateResolutionPlan(issue: IssueReport): Promise<ResolutionPlan> {
-  const response = await fetch("/api/resolution-plan", {
+  const response = await apiFetch("/api/resolution-plan", {
     method: "POST",
-    headers: { "Content-Type": "application/json" },
     body: JSON.stringify({
       category: issue.category,
       title: issue.title || "Civic Incident",
@@ -677,16 +676,15 @@ export async function checkUserVerification(issueId: string): Promise<"confirm" 
 // Update state of lifecycle
 export async function updateIssueStatus(
   issueId: string,
-  newStatus: "Submitted" | "Verified" | "In Progress" | "Resolved"
+  newStatus: "Submitted" | "Verified" | "In Progress" | "Resolved",
+  options: { demoOperator?: boolean } = {}
 ): Promise<void> {
   const user = auth.currentUser;
   if (!user) throw new Error("You must be signed in to change status.");
-  const token = await user.getIdToken();
-  const resp = await fetch("/api/issues/update-status", {
+  const resp = await apiFetch("/api/issues/update-status", {
     method: "POST",
-    headers: { "Content-Type": "application/json", "Authorization": `Bearer ${token}` },
     body: JSON.stringify({ issueId, newStatus }),
-  });
+  }, options);
   if (!resp.ok) {
     const err = await resp.json().catch(() => ({}));
     throw new Error(err.error || "Status update failed.");
@@ -836,9 +834,8 @@ export async function submitClosureAssessment(
   }
 
   // 2. Call server-side compare endpoint
-  const response = await fetch("/api/verify-resolution", {
+  const response = await apiFetch("/api/verify-resolution", {
     method: "POST",
-    headers: { "Content-Type": "application/json" },
     body: JSON.stringify({
       beforeImageUrl,
       afterImage: afterImageBase64,
@@ -897,9 +894,8 @@ export async function submitClosureAssessment(
 }
 
 export async function triggerAutoEscalation(issue: IssueReport): Promise<any> {
-  const response = await fetch("/api/escalation", {
+  const response = await apiFetch("/api/escalation", {
     method: "POST",
-    headers: { "Content-Type": "application/json" },
     body: JSON.stringify({
       title: issue.title || issue.category,
       summary: issue.summary || issue.description,

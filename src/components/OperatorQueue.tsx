@@ -9,9 +9,10 @@ interface OperatorQueueProps {
   onSelectIssue: (id: string) => void;
   onRefresh: () => void;
   loading: boolean;
+  accessMode: "demo" | "real";
 }
 
-export default function OperatorQueue({ issues, onSelectIssue, onRefresh, loading }: OperatorQueueProps) {
+export default function OperatorQueue({ issues, onSelectIssue, onRefresh, loading, accessMode }: OperatorQueueProps) {
   const [seeding, setSeeding] = useState(false);
   const [clearing, setClearing] = useState(false);
   const [seedError, setSeedError] = useState("");
@@ -60,11 +61,13 @@ export default function OperatorQueue({ issues, onSelectIssue, onRefresh, loadin
         <div className="flex items-center gap-2">
           <ShieldCheck className="w-5 h-5 text-marigold" />
           <h2 className="text-[13px] font-display font-semibold uppercase tracking-wider text-paper">
-            Prototype Operator Desk
+            {accessMode === "real" ? "Operator Desk" : "Synthetic Demo Desk"}
           </h2>
         </div>
         <p className="text-[11px] text-paper/70 mt-1.5 leading-relaxed font-medium font-sans">
-          Review prototype cases and synthetic demo data. This desk is not connected to any government workflow.
+          {accessMode === "real"
+            ? "Review server-authorized prototype cases. This desk is not connected to any government workflow."
+            : "Preview only synthetic demo cases. Demo actions are server-limited to records marked as demo data."}
         </p>
       </div>
 

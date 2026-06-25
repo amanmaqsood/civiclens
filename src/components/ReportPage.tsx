@@ -10,6 +10,7 @@ import ReportProgressView from "./ReportProgressView";
 import ReportClarificationView from "./ReportClarificationView";
 import ReportAiEditForm from "./ReportAiEditForm";
 import ReportFallbackForm from "./ReportFallbackForm";
+import { apiFetch } from "../services/api";
 
 interface ReportPageProps {
   onBack: () => void;
@@ -72,8 +73,8 @@ export default function ReportPage({ onBack, onSubmit, prefilledLocation, prefil
 
   const stages = [
     { label: "Evidence Optimization", detail: "Compressing proof photo client-side..." },
-    { label: "Uploading evidence", detail: "Uploading evidence to Citizen Hub..." },
-    { label: "Multimodal AI Diagnosis", detail: "Running visual diagnostic scans..." },
+    { label: "Preparing evidence", detail: "Preparing evidence for the prototype report..." },
+    { label: "Multimodal AI Draft", detail: "Drafting visual summary..." },
     { label: "Assessing severity", detail: "Assessing issue severity..." },
     { label: "Validating AI response", detail: "Validating AI response..." }
   ];
@@ -162,9 +163,8 @@ export default function ReportPage({ onBack, onSubmit, prefilledLocation, prefil
     }, 1100);
 
     try {
-      const response = await fetch("/api/analyze-report", {
+      const response = await apiFetch("/api/analyze-report", {
         method: "POST",
-        headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ image, description }),
       });
       const result = await response.json();

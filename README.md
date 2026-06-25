@@ -42,7 +42,7 @@ cp .env.example .env
 npm run dev
 ```
 
-Set `GEMINI_API_KEY` for Gemini calls. Set `GOOGLE_MAPS_PLATFORM_KEY` or `VITE_GOOGLE_MAPS_PLATFORM_KEY` to render Google Maps. Firebase config in this prototype points at the configured Firebase project, but production credentials and deployment permissions are not committed.
+Set `GEMINI_API_KEY` for Gemini calls. Set `GOOGLE_MAPS_PLATFORM_KEY` or `VITE_GOOGLE_MAPS_PLATFORM_KEY` to render Google Maps. `CIVICLENS_OPERATOR_EMAILS`, `CIVICLENS_LOCAL_APP_CHECK_BYPASS`, and `CIVICLENS_DEMO_OPERATOR_ENABLED` control the current server role/API perimeter. Firebase config in this prototype points at the configured Firebase project, but production credentials and deployment permissions are not committed.
 
 ## Validation
 

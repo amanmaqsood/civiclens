@@ -5,13 +5,46 @@ import { GoogleGenAI, Type } from "@google/genai";
 import { initializeApp as initAdminApp, getApps as getAdminApps } from "firebase-admin/app";
 import { getFirestore as getAdminFirestore } from "firebase-admin/firestore";
 import { getAuth as getAdminAuth } from "firebase-admin/auth";
+import { getAppCheck as getAdminAppCheck } from "firebase-admin/app-check";
+import {
+  classifyProtectedRoute,
+  consumeQuota,
+  findOversizedStringField,
+  isDemoOperatorRequested,
+  isLocalAppCheckBypassAllowed,
+  parseCsvEnv,
+  resolveActorFromDecoded,
+  type RequestActor,
+} from "./src/server/perimeter";
 
 async function startServer() {
   const app = express();
   const PORT = 3000;
+  const isProduction = process.env.NODE_ENV === "production";
+  const localAppCheckBypassEnabled = process.env.CIVICLENS_LOCAL_APP_CHECK_BYPASS !== "false" && !isProduction;
+  const demoOperatorEnabled = process.env.CIVICLENS_DEMO_OPERATOR_ENABLED === "true" || !isProduction;
+  const operatorAllowlist = parseCsvEnv(process.env.CIVICLENS_OPERATOR_EMAILS || process.env.OPERATOR_EMAILS);
+
+  app.set("trust proxy", 1);
 
   // Set payload size limit for base64 image uploads
   app.use(express.json({ limit: "15mb" }));
+
+  app.use((err: any, req: any, res: any, next: any) => {
+    if (err?.type === "entity.too.large") {
+      return res.status(413).json({
+        success: false,
+        error: "Request payload exceeds the maximum allowed size.",
+      });
+    }
+    if (err instanceof SyntaxError && "body" in err) {
+      return res.status(400).json({
+        success: false,
+        error: "Request body must be valid JSON.",
+      });
+    }
+    next(err);
+  });
 
   // Initialize Gemini client on the server
   const ai = new GoogleGenAI({
@@ -76,35 +109,87 @@ async function startServer() {
     }
   }
 
-  // Health check endpoint (both /health and /api/health to be robust)
-  // 1. In-memory per-IP rate limiter
-  const ipLimits = new Map<string, { count: number; resetTime: number }>();
-  const RATE_LIMIT_WINDOW_MS = 60000; // 1 minute
-  const RATE_LIMIT_MAX_REQUESTS = 30; // 30 requests per minute
+  function sendApiError(res: any, status: number, error: string, logError?: any) {
+    if (logError) {
+      console.error(error, logError);
+    }
+    return res.status(status).json({ success: false, error });
+  }
 
-  app.use("/api/*", (req, res, next) => {
-    const ip = req.ip || req.headers["x-forwarded-for"] || "unknown";
-    const ipStr = Array.isArray(ip) ? ip[0] : String(ip);
-    const now = Date.now();
+  function clientIp(req: any): string {
+    const forwarded = String(req.headers["x-forwarded-for"] || "").split(",")[0].trim();
+    return forwarded || String(req.ip || "unknown");
+  }
 
-    let limit = ipLimits.get(ipStr);
-    if (!limit || now > limit.resetTime) {
-      limit = { count: 1, resetTime: now + RATE_LIMIT_WINDOW_MS };
-      ipLimits.set(ipStr, limit);
-    } else {
-      limit.count++;
+  function apiPath(req: any): string {
+    return String(req.originalUrl || req.url || "").split("?")[0];
+  }
+
+  async function verifyApiAppCheck(req: any, res: any, next: any) {
+    const routeKind = classifyProtectedRoute(req.method, apiPath(req));
+    if (routeKind === "health") return next();
+
+    if (isLocalAppCheckBypassAllowed(req, { nodeEnv: process.env.NODE_ENV, bypassEnabled: localAppCheckBypassEnabled })) {
+      res.setHeader("X-CivicLens-AppCheck", "local-bypass");
+      return next();
     }
 
-    if (limit.count > RATE_LIMIT_MAX_REQUESTS) {
-      return res.status(429).json({
-        success: false,
-        error: "Too many requests. Please try again later.",
-      });
+    const appCheckToken = String(req.headers["x-firebase-appcheck"] || req.headers["x-firebase-appcheck-token"] || "");
+    if (!appCheckToken) {
+      return sendApiError(res, 401, "App Check token is required.");
     }
-    next();
-  });
 
-  // 2. Security headers for all API routes
+    try {
+      await getAdminAppCheck().verifyToken(appCheckToken);
+      return next();
+    } catch (error) {
+      return sendApiError(res, 401, "Invalid App Check token.", error);
+    }
+  }
+
+  async function attachActor(req: any, res: any, next: any) {
+    const routeKind = classifyProtectedRoute(req.method, apiPath(req));
+    if (routeKind === "health") return next();
+
+    const authHeader = String(req.headers.authorization || "");
+    const token = authHeader.startsWith("Bearer ") ? authHeader.slice(7) : "";
+    if (!token) {
+      return sendApiError(res, 401, "Firebase ID token is required.");
+    }
+
+    try {
+      const decoded = await getAdminAuth().verifyIdToken(token);
+      req.actor = resolveActorFromDecoded(
+        decoded,
+        operatorAllowlist,
+        isDemoOperatorRequested(req),
+        demoOperatorEnabled
+      );
+      return next();
+    } catch (error) {
+      return sendApiError(res, 401, "Invalid Firebase ID token.", error);
+    }
+  }
+
+  function requireOperatorForIssue(issueData: any, actor: RequestActor | undefined, res: any): boolean {
+    if (actor?.isRealOperator) return true;
+    if (actor?.isDemoOperator && issueData?.isDemoData === true) return true;
+    if (actor?.isDemoOperator) {
+      sendApiError(res, 403, "Demo operator actions are limited to synthetic demo cases.");
+      return false;
+    }
+    sendApiError(res, 403, "Operator authorization is required.");
+    return false;
+  }
+
+  const quotaBuckets = new Map<string, { count: number; resetTime: number }>();
+  const quotaConfig = {
+    session: { limit: 60, windowMs: 60_000 },
+    gemini: { limit: 20, windowMs: 60_000 },
+    mutation: { limit: 30, windowMs: 60_000 },
+  } as const;
+
+  // Security headers for all API routes
   app.use("/api/*", (req, res, next) => {
     res.setHeader("X-Content-Type-Options", "nosniff");
     res.setHeader("X-Frame-Options", "DENY");
@@ -112,27 +197,37 @@ async function startServer() {
     next();
   });
 
-  // 3. Request size/oversized fields validation for all API routes
+  // Shared request size/oversized fields validation for all API routes
   app.use("/api/*", (req, res, next) => {
     if (["POST", "PUT", "PATCH"].includes(req.method)) {
-      const body = req.body;
-      if (body && typeof body === "object") {
-        for (const key of Object.keys(body)) {
-          const val = body[key];
-          if (typeof val === "string") {
-            const isImage = key === "image" || key === "afterImage";
-            const maxLen = isImage ? 15 * 1024 * 1024 : 15000; // 15k characters limit for text fields
-            if (val.length > maxLen) {
-              return res.status(400).json({
-                success: false,
-                error: `Request field '${key}' exceeds the maximum allowed size.`,
-              });
-            }
-          }
-        }
+      const oversizedPath = findOversizedStringField(req.body, {
+        maxTextLength: 15_000,
+        maxImageLength: 15 * 1024 * 1024,
+      });
+      if (oversizedPath) {
+        return sendApiError(res, 400, `Request field '${oversizedPath}' exceeds the maximum allowed size.`);
       }
     }
     next();
+  });
+
+  app.use("/api/*", verifyApiAppCheck);
+  app.use("/api/*", attachActor);
+
+  app.use("/api/*", (req: any, res, next) => {
+    const routeKind = classifyProtectedRoute(req.method, apiPath(req));
+    if (routeKind === "health") return next();
+    const config = routeKind === "gemini" ? quotaConfig.gemini : routeKind === "session" ? quotaConfig.session : quotaConfig.mutation;
+    const actorKey = req.actor?.uid || "anonymous";
+    const key = `${routeKind}:${actorKey}:${clientIp(req)}`;
+    const quota = consumeQuota(quotaBuckets, key, config);
+    res.setHeader("X-RateLimit-Limit", String(config.limit));
+    res.setHeader("X-RateLimit-Remaining", String(quota.remaining));
+    res.setHeader("X-RateLimit-Reset", new Date(quota.resetTime).toISOString());
+    if (!quota.allowed) {
+      return sendApiError(res, 429, "Too many requests. Please try again later.");
+    }
+    return next();
   });
 
   app.get("/health", (req, res) => {
@@ -143,16 +238,43 @@ async function startServer() {
     res.json({ status: "ok" });
   });
 
+  app.get("/api/session", (req: any, res) => {
+    const actor = req.actor as RequestActor | undefined;
+    if (!actor) {
+      return sendApiError(res, 401, "Firebase ID token is required.");
+    }
+    res.json({
+      success: true,
+      actor: {
+        uid: actor.uid,
+        email: actor.email,
+        role: actor.role,
+        isAnonymous: actor.isAnonymous,
+        isDemoOperator: actor.isDemoOperator,
+        isRealOperator: actor.isRealOperator,
+      },
+      config: {
+        demoOperatorEnabled,
+        operatorAllowlistConfigured: operatorAllowlist.length > 0,
+        localAppCheckBypass: !isProduction && localAppCheckBypassEnabled,
+      },
+    });
+  });
+
   // Admin SDK health probe (STEP 19a)
-  app.get("/api/admin/health", async (req, res) => {
+  app.get("/api/admin/health", async (req: any, res) => {
+    const actor = req.actor as RequestActor | undefined;
+    if (!actor?.isRealOperator) {
+      return sendApiError(res, 403, "Operator authorization is required.");
+    }
     if (!adminDb) {
-      return res.status(500).json({ ok: false, stage: "init", error: adminInitError });
+      return sendApiError(res, 500, "Server data layer unavailable.", adminInitError);
     }
     try {
       const snap = await adminDb.collection("issues").limit(1).get();
       res.json({ ok: true, adminSdk: "initialized", sampleDocsRead: snap.size });
     } catch (e: any) {
-      res.status(500).json({ ok: false, stage: "read", error: e?.message || String(e) });
+      sendApiError(res, 500, "Server data layer health check failed.", e);
     }
   });
 
@@ -175,32 +297,24 @@ async function startServer() {
   }
 
     // Server-authoritative status transition (Admin SDK + auth + state machine) — STEP 19b
-  app.post("/api/issues/update-status", async (req, res) => {
-    if (!adminDb) return res.status(503).json({ success: false, error: "Server data layer unavailable." });
-    const authHeader = String(req.headers.authorization || "");
-    const token = authHeader.startsWith("Bearer ") ? authHeader.slice(7) : null;
-    if (!token) return res.status(401).json({ success: false, error: "Missing auth token." });
-
-    let uid: string;
-    try {
-      const decoded = await getAdminAuth().verifyIdToken(token);
-      uid = decoded.uid;
-    } catch {
-      return res.status(401).json({ success: false, error: "Invalid auth token." });
-    }
+  app.post("/api/issues/update-status", async (req: any, res) => {
+    if (!adminDb) return sendApiError(res, 503, "Server data layer unavailable.");
+    const actor = req.actor as RequestActor | undefined;
 
     const { issueId, newStatus } = req.body || {};
     const VALID = ["Submitted", "Verified", "In Progress", "Resolved"];
     if (!issueId || typeof issueId !== "string" || !VALID.includes(newStatus)) {
-      return res.status(400).json({ success: false, error: "Invalid issueId or status." });
+      return sendApiError(res, 400, "Invalid issueId or status.");
     }
 
     try {
       const ref = adminDb.collection("issues").doc(issueId);
       const snap = await ref.get();
-      if (!snap.exists) return res.status(404).json({ success: false, error: "Issue not found." });
+      if (!snap.exists) return sendApiError(res, 404, "Issue not found.");
+      const issueData = snap.data();
+      if (!requireOperatorForIssue(issueData, actor, res)) return;
 
-      const current = snap.data().status;
+      const current = issueData.status;
       const allowed: Record<string, string[]> = {
         "Submitted": ["Verified"],
         "Verified": ["In Progress"],
@@ -208,7 +322,7 @@ async function startServer() {
         "Resolved": ["In Progress"],
       };
       if (!(allowed[current] || []).includes(newStatus)) {
-        return res.status(409).json({ success: false, error: `Illegal transition: ${current} -> ${newStatus}.` });
+        return sendApiError(res, 409, `Illegal transition: ${current} -> ${newStatus}.`);
       }
 
       const nowIso = new Date().toISOString();
@@ -221,12 +335,13 @@ async function startServer() {
         eventType: "status_changed",
         message: `Status advanced to ${newStatus} (server-authorized).`,
         timestamp: nowIso,
-        byUid: uid,
+        byUid: actor?.uid,
+        byRole: actor?.role,
       });
 
       res.json({ success: true, status: newStatus, resolvedAt: updates.resolvedAt || null });
     } catch (e: any) {
-      res.status(500).json({ success: false, error: e?.message || "Status update failed." });
+      sendApiError(res, 500, "Status update failed.", e);
     }
   });
 
@@ -423,10 +538,7 @@ Respond ONLY with the corrected, valid JSON object.`;
       }
     } catch (error: any) {
       console.error("Gemini analysis error:", error);
-      return res.status(500).json({
-        success: false,
-        error: error.message || "An error occurred during Gemini multimodal analysis.",
-      });
+      return sendApiError(res, 500, "An error occurred during Gemini multimodal analysis.");
     }
   });
 
@@ -516,10 +628,7 @@ Output STRICT, VALID JSON conforming exactly to the response schema.`;
       });
     } catch (error: any) {
       console.error("Duplicate detection error:", error);
-      return res.status(500).json({
-        success: false,
-        error: error.message || "An error occurred during Gemini duplicate analysis.",
-      });
+      return sendApiError(res, 500, "An error occurred during Gemini duplicate analysis.");
     }
   });
 
@@ -630,10 +739,7 @@ Output ONLY valid JSON and nothing else.`;
       });
     } catch (error: any) {
       console.error("Resolution plan generation error:", error);
-      return res.status(500).json({
-        success: false,
-        error: error.message || "An error occurred during Gemini resolution plan generation.",
-      });
+      return sendApiError(res, 500, "An error occurred during Gemini resolution plan generation.");
     }
   });
 
@@ -753,10 +859,7 @@ Return a STRICT JSON response adhering precisely to this schema. Do not include 
       });
     } catch (error: any) {
       console.error("verify-resolution error:", error);
-      return res.status(500).json({
-        success: false,
-        error: error.message || "An error occurred during Gemini multimodal verification.",
-      });
+      return sendApiError(res, 500, "An error occurred during Gemini multimodal verification.");
     }
   });
 
@@ -836,10 +939,7 @@ Return a STRICT JSON response adhering precisely to this schema:
       });
     } catch (error: any) {
       console.error("escalation generation error:", error);
-      return res.status(500).json({
-        success: false,
-        error: error.message || "An error occurred during Gemini escalation generation.",
-      });
+      return sendApiError(res, 500, "An error occurred during Gemini escalation generation.");
     }
   });
 
@@ -890,7 +990,7 @@ Output ONLY valid JSON and nothing else.`;
       // Fallback: return the original English strings
       return res.json({
         success: false,
-        error: error.message || "Translation failed",
+        error: "Translation failed.",
         data: { titleHi: title, summaryHi: summary }
       });
     }
@@ -1197,10 +1297,7 @@ Output ONLY valid JSON and nothing else.`;
       });
     } catch (error: any) {
       console.error("Agent run error:", error);
-      return res.status(500).json({
-        success: false,
-        error: error.message || "An unexpected error occurred during the agent triage run."
-      });
+      return sendApiError(res, 500, "An unexpected error occurred during the agent triage run.");
     }
   });
 

@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from "react";
-import { ThumbsUp, ThumbsDown, CheckCircle, RefreshCw, AlertCircle } from "lucide-react";
+import { ThumbsUp, ThumbsDown, AlertCircle } from "lucide-react";
 import { IssueReport } from "../types";
-import { submitVerification, checkUserVerification, updateIssueStatus } from "../services/issues";
+import { submitVerification, checkUserVerification } from "../services/issues";
 
 interface VerificationPanelProps {
   issue: IssueReport;
@@ -11,7 +11,6 @@ interface VerificationPanelProps {
 export default function VerificationPanel({ issue, onRefresh }: VerificationPanelProps) {
   const [userVote, setUserVote] = useState<"confirm" | "dispute" | null>(null);
   const [loading, setLoading] = useState(false);
-  const [statusLoading, setStatusLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
   useEffect(() => {
@@ -39,35 +38,6 @@ export default function VerificationPanel({ issue, onRefresh }: VerificationPane
       setLoading(false);
     }
   };
-
-  const handleStatusTransition = async () => {
-    const STATUS_FLOW = {
-      "Submitted": "Verified",
-      "Verified": "In Progress",
-      "In Progress": "Resolved",
-      "Resolved": "Resolved"
-    } as const;
-
-    const nextStatus = STATUS_FLOW[issue.status as keyof typeof STATUS_FLOW];
-    if (nextStatus === issue.status) return;
-
-    setStatusLoading(true);
-    setError(null);
-    try {
-      await updateIssueStatus(issue.id, nextStatus as any);
-      onRefresh();
-    } catch (err: any) {
-      setError(err.message || "Failed to progress issue status.");
-    } finally {
-      setStatusLoading(false);
-    }
-  };
-
-  const statusNextLabel = {
-    "Submitted": "Verify Report Quality",
-    "Verified": "Mark Work In Progress",
-    "In Progress": "Request Closure Review"
-  }[issue.status] || null;
 
   return (
     <div id="verification-panel" className="bg-white border border-hairline rounded-2xl p-4 flex flex-col gap-4 shadow-[0_4px_16px_-4px_rgba(14,26,43,0.05)] font-sans">
@@ -126,25 +96,6 @@ export default function VerificationPanel({ issue, onRefresh }: VerificationPane
           </div>
         )}
       </div>
-
-      {/* 2. Interactive Status Transition Section */}
-      {statusNextLabel && issue.status !== "Resolved" && (
-        <div className="border-t border-hairline pt-3 flex flex-col gap-2">
-          <div className="flex items-center justify-between">
-            <span className="text-[9pt] font-mono text-slate uppercase">Prototype case flow</span>
-            <span className="text-[9px] text-slate/60">Prototype action</span>
-          </div>
-          <button
-            onClick={handleStatusTransition}
-            disabled={statusLoading}
-            className="w-full flex items-center justify-center gap-1.5 border border-hairline bg-white hover:bg-paper text-ink text-[10px] py-2 px-3 rounded-xl font-bold cursor-pointer transition-all shadow-2xs disabled:opacity-60"
-            style={{ minHeight: "36px" }}
-          >
-            {statusLoading ? <RefreshCw className="w-3.5 h-3.5 animate-spin text-slate" /> : <CheckCircle className="w-3.5 h-3.5 text-verify" />}
-            <span>{statusLoading ? "Processing..." : statusNextLabel}</span>
-          </button>
-        </div>
-      )}
 
       {/* Errors output */}
       {error && (

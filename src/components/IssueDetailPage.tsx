@@ -9,6 +9,7 @@ import AgentTraceTimeline from "./AgentTraceTimeline";
 import ResolutionPlanWidget from "./ResolutionPlanWidget";
 import AutoEscalationPanel from "./AutoEscalationPanel";
 import { humanizeCategory, humanizeUrgency } from "../utils/humanize";
+import { apiFetch } from "../services/api";
 
 interface IssueDetailPageProps {
   issue: IssueReport;
@@ -86,9 +87,8 @@ export default function IssueDetailPage({
     try {
       const localCandidates = await findDuplicateCandidates(issue);
 
-      const agentRunResponse = await fetch("/api/agent/run", {
+      const agentRunResponse = await apiFetch("/api/agent/run", {
         method: "POST",
-        headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
           issue: {
             category: issue.category || "other",
@@ -182,9 +182,8 @@ export default function IssueDetailPage({
       setTranslating(true);
       const translateContent = async () => {
         try {
-          const res = await fetch("/api/translate", {
+          const res = await apiFetch("/api/translate", {
             method: "POST",
-            headers: { "Content-Type": "application/json" },
             body: JSON.stringify({
               title: issue.title || "Geotagged Civic Incident",
               summary: issue.summary || issue.description || ""

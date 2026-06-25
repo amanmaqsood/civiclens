@@ -2,12 +2,15 @@
 
 This document records the current baseline security posture and the target rebuild boundary. It is intentionally conservative: it does not claim protections that are not yet enforced by code and tests.
 
-## Current Baseline
+## Current Milestone 2 Posture
 
 - Firebase Auth signs visitors in anonymously for low-friction citizen access.
-- Google sign-in exists, but real operator authorization is not yet enforced by a server-side role source.
-- `POST /api/issues/update-status` verifies a Firebase ID token and writes through the Admin SDK, but it does not yet prove an operator role or demo-only boundary.
-- Most Gemini endpoints are unauthenticated and trust browser-supplied issue facts.
+- Google sign-in is exposed in the header. Real operator authorization is resolved on the server from verified allowlist email, custom claim, or configured role source.
+- Public real-operator switching is removed from the header. The server-reported session can expose a real operator desk or a synthetic demo desk.
+- Demo operator mode is explicit and request-marked; server status transitions allow demo operators to mutate only documents marked `isDemoData == true`.
+- `POST /api/issues/update-status` verifies Firebase ID token, resolves role, checks demo boundary, writes through the Admin SDK, and records a server-authored status activity.
+- Gemini and mutation endpoints require Firebase identity, App Check or the explicit local-only App Check bypass header, shared payload size checks, stable public errors, and in-memory per-user/IP quotas.
+- `GET /api/admin/health` is restricted to real operators.
 - The browser can currently write or update issue fields that should become server-owned, including counts, priority, agent traces, activity records, resolution plans, escalation records, and closure assessments.
 - Firestore rules allow signed-in users to broadly update issue documents if `userId` and `ticketId` remain unchanged.
 - Activity entries under `/issues/{issueId}/activity` can currently be written by signed-in clients.

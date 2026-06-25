@@ -23,7 +23,7 @@ Validation commands:
 - `npm run build` after dependency fix: passed with the same bundle/code-splitting warnings.
 - `npm audit --omit=dev` after dependency fix: passed; 0 vulnerabilities.
 
-Current architecture and data-ownership map:
+Baseline architecture and data-ownership map captured before Milestone 2:
 - Express server endpoints: `GET /health`, `GET /api/health`, `GET /api/admin/health`, `POST /api/issues/update-status`, `POST /api/analyze-report`, `POST /api/check-duplicate`, `POST /api/resolution-plan`, `POST /api/verify-resolution`, `POST /api/escalation`, `POST /api/translate`, `POST /api/agent/run`, and production static `GET *`.
 - Auth: `FirebaseContext` automatically signs visitors in anonymously and creates `/users/{uid}` from the browser. Google sign-in exists, but operator capability is still a public UI persona toggle in `Header`/`App`, not a server-authorized role.
 - Server-owned data today: `/api/issues/update-status` verifies a Firebase ID token and writes status/activity through Admin SDK, but it does not yet enforce operator role or demo-only boundaries.
@@ -48,7 +48,7 @@ Rollback instructions:
 |---|---|---|
 | 0 Baseline | Complete | Baseline commit/tag created; required commands run and recorded; route/write/auth/Gemini/Maps/claim inventory recorded above. |
 | 1 Credibility | Complete | Truth-boundary copy updated across docs/UI/server prompts; seeded traces labelled synthetic; regression test added; required commands passed. |
-| 2 Identity/API perimeter | Not started | |
+| 2 Identity/API perimeter | Complete | Firebase token + App Check perimeter added for API routes; server role/session resolution added; public real-operator switching removed; focused perimeter tests added; required commands passed. |
 | 3 Server data integrity | Not started | |
 | 4 Genuine agent | Not started | |
 | 5 Full lifecycle | Not started | |
@@ -82,9 +82,42 @@ Decisions:
 
 Remaining risks:
 - Browser code still writes privileged fields, traces, activity, demo data, and closure/escalation records. This is the primary Milestone 3 target.
-- Public operator persona switching and unauthenticated Gemini endpoints remain open until Milestone 2.
+- Public operator persona switching and unauthenticated Gemini endpoints were addressed in Milestone 2, but real server-owned lifecycle writes remain for Milestone 3.
 - Demo traces are now labelled synthetic, but the UI still renders client-authored traces until the persisted server-agent workflow lands in Milestone 4.
 - Bundle size and `src/services/issues.ts` chunking warnings remain for Milestone 7.
+
+## Milestone 2: Identity, Roles, API Perimeter
+Status: completed on 2026-06-26
+
+Files changed:
+- `server.ts`: added shared API perimeter middleware for security headers, JSON parse/body-size failures, nested oversized-field checks, App Check verification, explicit local-only App Check bypass, Firebase ID-token verification, server-side actor/role resolution, per-user/IP quotas, and stable public error responses.
+- `server.ts`: added `GET /api/session` so the browser learns its server-resolved role; restricted `GET /api/admin/health` to real operators; changed `POST /api/issues/update-status` to require real operator role or demo operator role plus `isDemoData == true`.
+- `src/server/perimeter.ts`: added testable helpers for operator claim/allowlist resolution, demo operator request handling, local App Check bypass checks, quota buckets, route classification, and nested string-size validation.
+- `src/services/api.ts`: added a shared browser API client that attaches Firebase ID tokens, the Vite dev local App Check bypass header, and explicit demo-operator headers.
+- `src/App.tsx`, `src/components/Header.tsx`, `src/components/OperatorQueue.tsx`, and `src/components/OperatorDetailView.tsx`: removed public real-operator switching, exposed Google sign-in, and limited demo desk views/actions to synthetic demo cases.
+- `src/components/VerificationPanel.tsx`: removed the public citizen status-transition control.
+- `.env.example`, `README.md`, and `security_spec.md`: documented operator allowlist, local App Check bypass, and demo operator switches.
+- `src/server/perimeter.test.ts`: added focused perimeter tests.
+
+Validation commands:
+- `npm ci`: passed in 57 seconds; 450 packages installed/audited; 0 vulnerabilities. Warnings: deprecated `node-domexception@1.0.0` and `glob@10.5.0`.
+- `npm run lint`: passed (`tsc --noEmit`).
+- `npm test`: passed (3 test files, 26 tests).
+- `npm run build`: passed. Warnings remain: large JS bundle (`assets/index-CckJ1GGY.js`, 1,287.60 kB / 348.22 kB gzip) and `src/services/issues.ts` dynamic import cannot create a separate chunk because it is also statically imported.
+- `npm audit --omit=dev`: passed; 0 vulnerabilities.
+
+Decisions:
+- Local development App Check bypass requires the explicit `X-CivicLens-Local-AppCheck-Bypass: true` request header, is restricted to local non-production requests, and is documented by `CIVICLENS_LOCAL_APP_CHECK_BYPASS`.
+- Real operator status changes require a verified Firebase ID token plus a server role source: custom claim/role or verified allowlisted email.
+- Demo operator mode is separate from real operator mode and can only change issue status after the server loads the issue and confirms `isDemoData == true`.
+- The operator queue now shows real cases only for real operators and synthetic demo cases for demo operators.
+
+Remaining risks:
+- The browser still creates issues, support/verification docs, issue counts, evidence records, translations, agent traces/plans, closure assessments, escalation records, demo seed records, and some activity entries directly. Milestone 3 must move these writes behind Admin SDK endpoints and Firestore transactions.
+- Firestore rules are still too broad and no `storage.rules` file exists.
+- The App Check production path is implemented server-side but needs Firebase App Check token wiring before deployed production smoke tests.
+- Quotas are in-memory and suitable only as a local/prototype perimeter; Milestone 7 should make this deployment-safe.
+- `/api/agent/run` is now authenticated but still accepts browser-supplied issue/candidate objects until Milestone 4 moves it to `{ issueId, idempotencyKey }` and persisted server-authored runs.
 
 ## Decision log
 - 2026-06-26: Initialized a valid project-local Git repository because the existing `.git` directory was empty/invalid and Git was resolving to `C:/Users/apexm`.
@@ -94,10 +127,13 @@ Remaining risks:
 - 2026-06-26: Chose not to change product behavior in Milestone 0 beyond dependency hygiene required to make the baseline validation gate pass.
 - 2026-06-26: Chose prototype/draft/human-review language for all unsupported government, routing, SLA, and autonomous claims; kept explicit negative disclaimers where useful.
 - 2026-06-26: Added a targeted truth-boundary regression test to prevent reintroducing the highest-risk removed claim phrases.
+- 2026-06-26: Added a server-resolved role model with verified operator allowlist/custom-claim support and explicit synthetic demo operator mode.
+- 2026-06-26: Kept demo operator mode enabled by default for local development but protected it with an explicit header and server-side `isDemoData` checks; production must opt in deliberately.
+- 2026-06-26: Removed public citizen status-transition UI and real-operator persona switching; the header now shows operator/demo desk access only when `/api/session` reports it.
 
 ## External blockers
 - Firebase/GCP deployment credentials and billing access are required before deployed smoke tests.
 - Public GitHub repository URL, public app URL, Google Doc URL, demo video URL, and BlockseBlock submission require user/account approval before final submission actions.
 
 ## Next milestone
-Milestone 2: implement identity, roles, API perimeter, shared validation, quota checks, safe errors, and local-only App Check bypass boundaries before moving privileged writes server-side.
+Milestone 3: move privileged writes behind authenticated Admin SDK endpoints, add transactional/idempotent server-owned data changes, tighten Firestore rules, and add Storage Rules.

@@ -22,6 +22,9 @@ import OperatorQueue from "./components/OperatorQueue";
 import OperatorDetailView from "./components/OperatorDetailView";
 import ImpactDashboard from "./components/ImpactDashboard";
 import AgentTraceTimeline from "./components/AgentTraceTimeline";
+import { fetchApiSession, type ApiSession } from "./services/api";
+
+type OperatorAccess = "none" | "demo" | "real";
 
 export default function App() {
   const { user } = useFirebase();
@@ -40,6 +43,7 @@ export default function App() {
   // Operator Simulation Persona States
   const [persona, setPersona] = useState<"citizen" | "operator">("citizen");
   const [operatorSelectedIssueId, setOperatorSelectedIssueId] = useState<string | null>(null);
+  const [apiSession, setApiSession] = useState<ApiSession | null>(null);
 
   // Duplicate Check States
   const [pendingReportData, setPendingReportData] = useState<Partial<IssueReport> | null>(null);
@@ -69,6 +73,33 @@ export default function App() {
   useEffect(() => {
     loadIssues();
   }, [currentView]);
+
+  useEffect(() => {
+    let active = true;
+    async function loadSession() {
+      if (!user) {
+        setApiSession(null);
+        return;
+      }
+      const session = await fetchApiSession({ demoOperator: true }).catch(() => null);
+      if (active) setApiSession(session);
+    }
+    loadSession();
+    return () => {
+      active = false;
+    };
+  }, [user?.uid]);
+
+  const operatorAccess: OperatorAccess = apiSession?.isRealOperator ? "real" : apiSession?.isDemoOperator ? "demo" : "none";
+
+  useEffect(() => {
+    if (persona === "operator" && operatorAccess === "none") {
+      setPersona("citizen");
+      setOperatorSelectedIssueId(null);
+    }
+  }, [operatorAccess, persona]);
+
+  const operatorIssues = operatorAccess === "real" ? issues : issues.filter((issue) => issue.isDemoData);
 
   const handleNavigate = (view: ActiveView) => {
     setErrorNotice(null);
@@ -106,7 +137,7 @@ export default function App() {
   const handleReportSubmit = async (reportData: Partial<IssueReport>) => {
     setErrorNotice(null);
     if (!user) {
-      setErrorNotice("Authentication required to file complaints. Please verify identity below.");
+      setErrorNotice("Authentication required to save a report. Please verify identity below.");
       return;
     }
 
@@ -130,7 +161,7 @@ export default function App() {
         durationMs: perceiveMeta?.durationMs || 1200,
         confidence: perceiveMeta?.confidence || 1.0,
         inputDigest: perceiveMeta?.inputDigest || `Manual input category: ${reportData.category}`,
-        outputSummary: perceiveMeta?.outputSummary || `Manual form verified`,
+        outputSummary: perceiveMeta?.outputSummary || `Manual form saved`,
         retried: perceiveMeta?.retried || false,
         fallbackUsed: perceiveMeta?.fallbackUsed || false,
       };
@@ -338,11 +369,13 @@ export default function App() {
         onNavigate={handleNavigate} 
         persona={persona}
         onTogglePersona={(p) => {
+          if (p === "operator" && operatorAccess === "none") return;
           setPersona(p);
           if (p === "operator") {
             setOperatorSelectedIssueId(null);
           }
         }}
+        operatorAccess={operatorAccess}
       />
 
       {/* Global Toast Error Notice */}
@@ -384,10 +417,10 @@ export default function App() {
               </button>
             </div>
           </div>
-        ) : persona === "operator" ? (
+        ) : persona === "operator" && operatorAccess !== "none" ? (
           operatorSelectedIssueId ? (
             (() => {
-              const selectedIssue = issues.find((issue) => issue.id === operatorSelectedIssueId);
+              const selectedIssue = operatorIssues.find((issue) => issue.id === operatorSelectedIssueId);
               if (!selectedIssue) {
                 return (
                   <div className="p-4 text-center text-xs font-semibold text-slate-500 font-sans">
@@ -403,15 +436,17 @@ export default function App() {
                   issue={selectedIssue}
                   onBack={() => setOperatorSelectedIssueId(null)}
                   onRefresh={loadIssues}
+                  demoOperator={operatorAccess === "demo"}
                 />
               );
             })()
           ) : (
             <OperatorQueue
-              issues={issues}
+              issues={operatorIssues}
               onSelectIssue={(id) => setOperatorSelectedIssueId(id)}
               onRefresh={loadIssues}
               loading={issuesLoading}
+              accessMode={operatorAccess}
             />
           )
         ) : (

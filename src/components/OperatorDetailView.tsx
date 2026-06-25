@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from "react";
 import { IssueReport, IssueActivity, ClosureAssessment } from "../types";
-import { fetchIssueActivities, recordIssueActivity, updateIssueStatus } from "../services/issues";
+import { fetchIssueActivities, updateIssueStatus } from "../services/issues";
 import { ArrowLeft, Clock, ShieldCheck, CheckSquare, RefreshCw, Lock } from "lucide-react";
 import ClosureVerificationPanel from "./ClosureVerificationPanel";
 import AutoEscalationPanel from "./AutoEscalationPanel";
@@ -10,9 +10,10 @@ interface OperatorDetailViewProps {
   issue: IssueReport;
   onBack: () => void;
   onRefresh: () => void;
+  demoOperator: boolean;
 }
 
-export default function OperatorDetailView({ issue, onBack, onRefresh }: OperatorDetailViewProps) {
+export default function OperatorDetailView({ issue, onBack, onRefresh, demoOperator }: OperatorDetailViewProps) {
   const [activities, setActivities] = useState<IssueActivity[]>([]);
   const [loadingAct, setLoadingAct] = useState(true);
   const [confirmingStatus, setConfirmingStatus] = useState<"Verified" | "In Progress" | "Resolved" | null>(null);
@@ -38,15 +39,7 @@ export default function OperatorDetailView({ issue, onBack, onRefresh }: Operato
   const handleAdvanceStatus = async (nextStatus: "Verified" | "In Progress" | "Resolved") => {
     setActionPending(true);
     try {
-      await updateIssueStatus(issue.id, nextStatus);
-      await recordIssueActivity(issue.id, {
-        actorType: "operator",
-        eventType: "status_changed",
-        message: `Incident status moved to '${nextStatus}' by prototype operator.${
-          nextStatus === "Resolved" && !issue.closureAssessment ? " (Manual prototype override recorded)" : ""
-        }`,
-        timestamp: new Date().toISOString(),
-      });
+      await updateIssueStatus(issue.id, nextStatus, { demoOperator });
       setConfirmingStatus(null);
       if (nextStatus === "Resolved") {
         confetti({
@@ -92,7 +85,7 @@ export default function OperatorDetailView({ issue, onBack, onRefresh }: Operato
 
         {isResolved ? (
           <div className="bg-emerald-50 text-emerald-800 border p-3 rounded-xl text-center text-xs font-bold flex items-center justify-center gap-1.5">
-            <Lock className="w-3.5 h-3.5" /> Lifecycle resolved & locked.
+            <Lock className="w-3.5 h-3.5" /> Prototype lifecycle marked resolved.
           </div>
         ) : (
           <div className="flex flex-col gap-3">
@@ -106,7 +99,7 @@ export default function OperatorDetailView({ issue, onBack, onRefresh }: Operato
                 onClick={() => setConfirmingStatus("Verified")}
                 className="w-full text-left bg-slate-50 disabled:opacity-40 hover:bg-slate-100/50 cursor-pointer border py-2.5 px-3 rounded-xl flex items-center justify-between font-semibold"
               >
-                <span>1. Acknowledge & Route</span>
+                <span>1. Acknowledge Draft</span>
                 <span className="text-[9px] bg-sky-100 text-sky-800 px-2 py-0.5 rounded-md">To Verified</span>
               </button>
 

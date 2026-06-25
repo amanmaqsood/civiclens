@@ -1,5 +1,5 @@
 import React from "react";
-import { ArrowLeft, UserCircle, BarChart3 } from "lucide-react";
+import { ArrowLeft, UserCircle, BarChart3, LogIn, LogOut } from "lucide-react";
 import { ActiveView } from "../types";
 import { useFirebase } from "../context/FirebaseContext";
 import { useLanguage } from "../context/LanguageContext";
@@ -9,11 +9,14 @@ interface HeaderProps {
   onNavigate: (view: ActiveView) => void;
   persona: "citizen" | "operator";
   onTogglePersona: (persona: "citizen" | "operator") => void;
+  operatorAccess: "none" | "demo" | "real";
 }
 
-export default function Header({ currentView, onNavigate, persona, onTogglePersona }: HeaderProps) {
+export default function Header({ currentView, onNavigate, persona, onTogglePersona, operatorAccess }: HeaderProps) {
   const { user, signInWithGoogle, signOutUser, loading } = useFirebase();
   const { language, setLanguage } = useLanguage();
+  const signedInWithGoogle = !!user && !user.isAnonymous;
+  const canShowOperatorDesk = operatorAccess !== "none";
 
   return (
     <header 
@@ -47,7 +50,11 @@ export default function Header({ currentView, onNavigate, persona, onTogglePerso
               Civic<span className="text-marigold">Lens</span>
             </h1>
             <p className="text-[10px] font-mono font-medium text-[#94a3b8] uppercase tracking-widest leading-none">
-              {persona === "citizen" ? "India · Prototype Reports" : "Prototype Operator Desk"}
+              {persona === "citizen"
+                ? "India · Prototype Reports"
+                : operatorAccess === "real"
+                  ? "Server-Authorized Operator"
+                  : "Synthetic Demo Desk"}
             </p>
           </div>
         </div>
@@ -80,7 +87,7 @@ export default function Header({ currentView, onNavigate, persona, onTogglePerso
           </button>
         </div>
 
-        {/* Switch segmented pill */}
+        {/* View segmented pill. Operator access is server-reported, not a public privilege toggle. */}
         <div className="flex bg-white/5 p-0.5 rounded-lg border border-white/10 text-[9.5px] font-sans font-bold select-none">
           <button
             id="persona-citizen-pill"
@@ -93,17 +100,19 @@ export default function Header({ currentView, onNavigate, persona, onTogglePerso
           >
             Citizen
           </button>
-          <button
-            id="persona-operator-pill"
-            onClick={() => onTogglePersona("operator")}
-            className={`px-2 py-1 rounded-md cursor-pointer transition-all ${
-              persona === "operator" 
-                ? "bg-marigold text-ink shadow-sm" 
-                : "text-[#94a3b8] hover:text-white"
-            }`}
-          >
-            Operator
-          </button>
+          {canShowOperatorDesk && (
+            <button
+              id="persona-operator-pill"
+              onClick={() => onTogglePersona("operator")}
+              className={`px-2 py-1 rounded-md cursor-pointer transition-all ${
+                persona === "operator"
+                  ? "bg-marigold text-ink shadow-sm"
+                  : "text-[#94a3b8] hover:text-white"
+              }`}
+            >
+              {operatorAccess === "real" ? "Operator" : "Demo"}
+            </button>
+          )}
         </div>
 
         {persona === "citizen" && (
@@ -125,9 +134,15 @@ export default function Header({ currentView, onNavigate, persona, onTogglePerso
         {loading ? (
           <div className="w-6 h-6 rounded-full bg-white/10 animate-pulse" />
         ) : (
-          <div className="flex items-center">
-            <UserCircle className="w-6 h-6 text-marigold" />
-          </div>
+          <button
+            type="button"
+            onClick={() => signedInWithGoogle ? signOutUser() : signInWithGoogle()}
+            className="flex items-center gap-1 text-paper hover:text-white bg-white/5 hover:bg-white/10 border border-white/10 rounded-lg px-2 py-1 transition-colors"
+            title={signedInWithGoogle ? "Sign out" : "Sign in with Google"}
+          >
+            {signedInWithGoogle ? <LogOut className="w-3.5 h-3.5 text-marigold" /> : <LogIn className="w-3.5 h-3.5 text-marigold" />}
+            <UserCircle className="w-5 h-5 text-marigold" />
+          </button>
         )}
       </div>
     </header>

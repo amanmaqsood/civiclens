@@ -16,8 +16,8 @@ export default function ReportProgressView({ stages, currentStageIndex }: Report
             <Sparkles className="w-7 h-7 animate-pulse text-marigold" />
           </div>
         </div>
-        <p className="text-xs font-display font-bold uppercase tracking-wider text-ink mt-2">AI Analysis Active</p>
-        <p className="text-[9px] text-slate font-mono uppercase tracking-widest font-semibold">Running analysis...</p>
+        <p className="text-xs font-display font-bold uppercase tracking-wider text-ink mt-2">Prototype Analysis</p>
+        <p className="text-[9px] text-slate font-mono uppercase tracking-widest font-semibold">Preparing draft report...</p>
       </div>
 
       {/* Progress Timeline Checklist */}

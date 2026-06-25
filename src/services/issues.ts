@@ -275,7 +275,7 @@ export async function submitIssueReport(
     durationMs: (params as any).perceiveMeta?.durationMs || 1200,
     confidence: (params as any).perceiveMeta?.confidence || params.confidence || 1.0,
     inputDigest: (params as any).perceiveMeta?.inputDigest || `Manual input category: ${params.category}`,
-    outputSummary: (params as any).perceiveMeta?.outputSummary || `Manual form verified`,
+    outputSummary: (params as any).perceiveMeta?.outputSummary || `Manual form saved`,
     retried: (params as any).perceiveMeta?.retried || false,
     fallbackUsed: (params as any).perceiveMeta?.fallbackUsed || false,
   };
@@ -298,7 +298,7 @@ export async function submitIssueReport(
     step: "Deduplicate",
     tool: "Proximity & Semantic Engine (/api/check-duplicate)",
     status: "done",
-    rationale: "Proximity analysis scanned active issues within 150m. None matching: approved new standalone report.",
+    rationale: "Proximity analysis scanned active issues within 150m. No matching report was found, so this was saved as a standalone prototype report.",
     ts: ts3,
     durationMs: 320,
     confidence: 1.0,
@@ -937,7 +937,7 @@ export async function triggerAutoEscalation(issue: IssueReport): Promise<any> {
     step: "Auto-Escalation / RTI",
     tool: "Gemini 2.5 Civil Escalation Engine (/api/escalation)",
     status: "done",
-    rationale: `Formed official higher-authority appeal and Section 6(1) RTI under RTI Act 2005. Escalated at ${new Date(escalatedAt).toLocaleString()}`,
+    rationale: `Drafted higher-authority appeal and Section 6(1) RTI text for human review. Nothing was submitted outside CivicLens. Drafted at ${new Date(escalatedAt).toLocaleString()}`,
     ts: escalatedAt,
     durationMs: result.durationMs || 1200,
     confidence: result.confidence || 0.90,
@@ -1083,7 +1083,7 @@ export async function seedDemoIssuesBengaluru(): Promise<boolean> {
       category: t.category,
       description: t.description,
       status: "Submitted",
-      citizenUpvotes: t.confirmCount || 0, // start with real upvotes matching confirm count
+      citizenUpvotes: t.confirmCount || 0, // seed display count for synthetic sample
       userId,
       timestamp,
       title: t.title,
@@ -1113,19 +1113,19 @@ export async function seedDemoIssuesBengaluru(): Promise<boolean> {
     // Dynamic rationales tailored using issue's category, title, severity, and location
     const categoryLabel = t.category.replace(/_/g, " ");
     const rationales = {
-      perceive: `Classified as ${categoryLabel} at severity ${t.severity}/5; detected "${t.title}" from user photograph.`,
-      locate: `Geographical reference verified at "${t.locationName}" (${t.lat.toFixed(4)} N, ${t.lng.toFixed(4)} E).`,
-      deduplicate: `Scanned spatial proximity grid around ${t.locationName} and confirmed as a unique incident report.`,
-      prioritize: `Evaluated priority score to ${t.severity * 12} using multi-factor citizen impact index. Formula: severity (${t.severity}/5) * 12 + urgency bonus.`,
-      decide: `Autonomous routing decision: Passed validation check for category "${categoryLabel}" at ${t.urgency} urgency. Routed directly to active ledger.`,
-      findAuthority: `Identified and routed report to Bruhat Bengaluru Mahanagara Palike (BBMP) ward officers.`,
-      draftActionPacket: `Generated official complaint summary for "${t.title}" and compiled for rapid contractor dispatch.`
+      perceive: `Synthetic demo trace: sample classified as ${categoryLabel} at severity ${t.severity}/5 for "${t.title}".`,
+      locate: `Synthetic demo trace: sample location set to "${t.locationName}" (${t.lat.toFixed(4)} N, ${t.lng.toFixed(4)} E).`,
+      deduplicate: `Synthetic demo trace: no duplicate sample linked around ${t.locationName}.`,
+      prioritize: `Synthetic demo trace: priority score set to ${t.severity * 12} using the prototype display formula.`,
+      decide: `Synthetic demo trace: marked ready for prototype operator review at ${t.urgency} urgency.`,
+      findAuthority: `Synthetic demo trace: suggested Bruhat Bengaluru Mahanagara Palike (BBMP) for human review.`,
+      draftActionPacket: `Synthetic demo trace: draft complaint summary prepared for manual review of "${t.title}".`
     };
 
     const blrAgentTrace: AgentTraceEntry[] = [
       {
         step: "Perceive",
-        tool: "geminiVision.analyzeImage",
+        tool: "demo.syntheticVisionTrace",
         status: "done",
         rationale: rationales.perceive,
         ts: capTimestamp(baseMs + 5 * 1000),
@@ -1136,7 +1136,7 @@ export async function seedDemoIssuesBengaluru(): Promise<boolean> {
       },
       {
         step: "Locate",
-        tool: "geocode.reverseLookup",
+        tool: "demo.syntheticGeocode",
         status: "done",
         rationale: rationales.locate,
         ts: capTimestamp(baseMs + 10 * 1000),
@@ -1147,7 +1147,7 @@ export async function seedDemoIssuesBengaluru(): Promise<boolean> {
       },
       {
         step: "Deduplicate",
-        tool: "graph.findDuplicateCandidates",
+        tool: "demo.syntheticDuplicateScan",
         status: "done",
         rationale: rationales.deduplicate,
         ts: capTimestamp(baseMs + 15 * 1000),
@@ -1158,7 +1158,7 @@ export async function seedDemoIssuesBengaluru(): Promise<boolean> {
       },
       {
         step: "Prioritize",
-        tool: "scoring.priorityEngine",
+        tool: "demo.syntheticPriorityScore",
         status: "done",
         rationale: rationales.prioritize,
         ts: capTimestamp(baseMs + 20 * 1000),
@@ -1169,18 +1169,18 @@ export async function seedDemoIssuesBengaluru(): Promise<boolean> {
       },
       {
         step: "Decide",
-        tool: "routing.autonomousDecision",
+        tool: "demo.syntheticReviewGate",
         status: "done",
         rationale: rationales.decide,
         ts: capTimestamp(baseMs + 25 * 1000),
         durationMs: 180,
         confidence: 0.95,
         inputDigest: `severity >= 4 or urgency: ${t.urgency}`,
-        outputSummary: `Action: Route to active ledger`
+        outputSummary: `Action: Ready for prototype review`
       },
       {
         step: "Find Authority",
-        tool: "googleSearch.findAuthority",
+        tool: "demo.syntheticAuthoritySuggestion",
         status: "done",
         rationale: rationales.findAuthority,
         ts: capTimestamp(baseMs + 30 * 1000),
@@ -1191,7 +1191,7 @@ export async function seedDemoIssuesBengaluru(): Promise<boolean> {
       },
       {
         step: "Draft Action Packet",
-        tool: "drafting.createActionPacket",
+        tool: "demo.syntheticDraftPacket",
         status: "done",
         rationale: rationales.draftActionPacket,
         ts: capTimestamp(baseMs + 35 * 1000),
@@ -1221,7 +1221,7 @@ export async function seedDemoIssuesBengaluru(): Promise<boolean> {
 
     await updateDoc(docRef, demoUpdates);
 
-    // Seeding highly realistic activity history to subcollection
+    // Seeding synthetic activity history to preview the workflow.
     const activityCollectionRef = collection(db, COLLECTION_NAME, issueId, "activity");
     const activitiesToSeed: {
       actorType: "citizen" | "ai" | "operator";
@@ -1232,13 +1232,13 @@ export async function seedDemoIssuesBengaluru(): Promise<boolean> {
       {
         actorType: "citizen" as const,
         eventType: "created",
-        message: `Report submitted for "${t.title}".`,
+        message: `Synthetic demo report saved for "${t.title}".`,
         timestamp: capTimestamp(baseMs)
       },
       {
         actorType: "ai" as const,
         eventType: "triage",
-        message: `AI triage completed: assigned severity ${t.severity}/5 and urgency level as ${t.urgency}.`,
+        message: `Synthetic demo triage note: severity ${t.severity}/5 and urgency ${t.urgency}.`,
         timestamp: capTimestamp(baseMs + 2 * 60 * 1000)
       }
     ];
@@ -1248,14 +1248,14 @@ export async function seedDemoIssuesBengaluru(): Promise<boolean> {
         activitiesToSeed.push({
           actorType: "citizen" as const,
           eventType: "verification",
-          message: `Community verification: ${t.confirmCount} confirmations registered by citizen accounts.`,
+          message: `Synthetic demo community signal: ${t.confirmCount} confirmations shown for sample data.`,
           timestamp: capTimestamp(baseMs + 3 * 60 * 60 * 1000)
         });
       }
       activitiesToSeed.push({
         actorType: "operator" as const,
         eventType: "status_changed",
-        message: "Status advanced to Verified following automated review.",
+        message: "Synthetic demo status set to Verified for workflow preview.",
         timestamp: capTimestamp(baseMs + 28 * 60 * 60 * 1000)
       });
     } else if (t.status === "In Progress") {
@@ -1263,14 +1263,14 @@ export async function seedDemoIssuesBengaluru(): Promise<boolean> {
         activitiesToSeed.push({
           actorType: "citizen" as const,
           eventType: "verification",
-          message: `Community verification: ${t.confirmCount} confirmations registered by citizen accounts.`,
+          message: `Synthetic demo community signal: ${t.confirmCount} confirmations shown for sample data.`,
           timestamp: capTimestamp(baseMs + 3 * 60 * 60 * 1000)
         });
       }
       activitiesToSeed.push({
         actorType: "operator" as const,
         eventType: "status_changed",
-        message: "Status advanced to In Progress. Work order dispatched to local ward engineers.",
+        message: "Synthetic demo status set to In Progress for workflow preview.",
         timestamp: capTimestamp(baseMs + 6 * 60 * 60 * 1000)
       });
     } else if (t.status === "Resolved") {
@@ -1278,20 +1278,20 @@ export async function seedDemoIssuesBengaluru(): Promise<boolean> {
         activitiesToSeed.push({
           actorType: "citizen" as const,
           eventType: "verification",
-          message: `Community verification: ${t.confirmCount} confirmations registered by citizen accounts.`,
+          message: `Synthetic demo community signal: ${t.confirmCount} confirmations shown for sample data.`,
           timestamp: capTimestamp(baseMs + 3 * 60 * 60 * 1000)
         });
       }
       activitiesToSeed.push({
         actorType: "operator" as const,
         eventType: "status_changed",
-        message: "Status advanced to In Progress. Contractors dispatched to location.",
+        message: "Synthetic demo status set to In Progress for workflow preview.",
         timestamp: capTimestamp(baseMs + 6 * 60 * 60 * 1000)
       });
       activitiesToSeed.push({
         actorType: "operator" as const,
         eventType: "status_changed",
-        message: "Resolution certified: visual proof of closure verified and approved.",
+        message: "Synthetic demo closure marked resolved for sample data only.",
         timestamp: capTimestamp(baseMs + 28 * 60 * 60 * 1000)
       });
     } else {
@@ -1299,7 +1299,7 @@ export async function seedDemoIssuesBengaluru(): Promise<boolean> {
       activitiesToSeed.push({
         actorType: "operator" as const,
         eventType: "status_changed",
-        message: "Report successfully published to active ledger.",
+        message: "Synthetic demo report added to prototype ledger.",
         timestamp: capTimestamp(baseMs + 5 * 1000)
       });
     }
@@ -1325,4 +1325,3 @@ export async function clearDemoIssues(): Promise<void> {
     throw handleFirestoreError(err, OperationType.DELETE, COLLECTION_NAME);
   }
 }
-

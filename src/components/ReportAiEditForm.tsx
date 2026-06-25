@@ -37,7 +37,7 @@ export default function ReportAiEditForm({
       <div className="bg-marigold/10 border border-marigold/15 p-3 rounded-xl flex items-start gap-2.5">
         <Info className="w-4 h-4 text-marigold shrink-0 mt-0.5" />
         <p className="text-[10px] text-ink/90 font-medium font-sans leading-snug">
-          Gemini has calibrated this draft ticket. You can fine-tune text details before filing to our portal.
+          Gemini drafted this report summary. Review and edit it before saving it to the CivicLens prototype.
         </p>
       </div>
 
@@ -142,7 +142,7 @@ export default function ReportAiEditForm({
         className="w-full flex items-center justify-center gap-2 bg-marigold border border-hairline text-ink font-bold text-xs py-3 px-5 rounded-xl shadow-xs cursor-pointer hover:bg-marigold/90 active:scale-[0.99] transition-all"
         style={{ minHeight: "44px" }}
       >
-        <span>Confirm & Publish Ticket</span>
+        <span>Confirm & Save Report</span>
         <ChevronRight className="w-4 h-4" />
       </button>
     </form>

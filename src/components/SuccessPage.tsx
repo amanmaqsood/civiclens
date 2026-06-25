@@ -76,7 +76,7 @@ export default function SuccessPage({ report, onNavigate, isMerged }: SuccessPag
               <p className="text-slate font-medium">Status</p>
               <p className="font-semibold text-verify inline-flex items-center gap-1 mt-0.5">
                 <span className="w-2 h-2 rounded-full bg-verify inline-block animate-pulse"></span>
-                {isMerged ? "Linked File" : "Submitted"}
+                {isMerged ? "Linked File" : "Saved"}
               </p>
             </div>
           </div>
@@ -115,7 +115,7 @@ export default function SuccessPage({ report, onNavigate, isMerged }: SuccessPag
         <p className="text-xs text-ink leading-relaxed font-semibold">
           {isMerged 
             ? "By gathering additional proof on this item, you prevent bureaucratic overhead. Multiple active reports for a single issue prioritize prompt verification & remediation."
-            : "Your report is now on the public map and the operator queue. In this prototype an operator reviews and advances it — no government system is contacted. Track it with this ticket."}
+            : "Your report is now saved on the prototype map and review queue. No government system was contacted. Track it with this ticket."}
         </p>
       </div>
 

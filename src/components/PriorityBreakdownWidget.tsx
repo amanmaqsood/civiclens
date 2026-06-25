@@ -32,7 +32,7 @@ export default function PriorityBreakdownWidget({ issue }: PriorityBreakdownWidg
           </span>
         </div>
         <span className="font-mono text-[9px] uppercase text-slate bg-paper px-2 py-0.5 rounded-full border border-hairline">
-          AUTO-CALCULATED
+          CALCULATED
         </span>
       </div>
 
@@ -76,7 +76,7 @@ export default function PriorityBreakdownWidget({ issue }: PriorityBreakdownWidg
             Case Priority Score
           </p>
           <p className="text-slate text-[10.5px] leading-snug">
-            Calculated autonomously from citizen feedback, proximity deduplication, and regulatory urgency.
+            Calculated from stored severity, report age, community feedback, duplicate count, and disputes in this prototype dataset.
           </p>
         </div>
       </div>
@@ -93,7 +93,7 @@ export default function PriorityBreakdownWidget({ issue }: PriorityBreakdownWidg
 
         {/* Urgency */}
         <div className="flex justify-between items-center text-ink/80">
-          <span className="text-slate">Urgent dispatch bonus</span>
+          <span className="text-slate">Urgency bonus</span>
           <span className="font-mono text-ink text-xs">
             +{breakdown.urgencyComponent} <span className="text-slate/60 text-xs">({humanizeUrgency(issue.urgency)})</span>
           </span>

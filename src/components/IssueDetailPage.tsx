@@ -323,7 +323,7 @@ export default function IssueDetailPage({
               : (issue.summary || issue.description)}
           </p>
 
-          {/* Severity & SLA Widgets */}
+          {/* Severity and follow-up widgets */}
           <div className="grid grid-cols-2 gap-2 mt-0.5">
             <div className={`border p-2.5 rounded-xl flex flex-col gap-0.5 ${severityInfo.classes}`}>
               <span className="text-xs font-mono uppercase tracking-wider opacity-75">AI Severity</span>
@@ -352,7 +352,7 @@ export default function IssueDetailPage({
         </div>
 
         <p className="text-xs text-slate leading-relaxed">
-          Run the full server-side agentic function-calling triage loop. The agent will calculate deterministic priority, detect duplicates in the neighborhood, consult live municipal records to locate the responsible authority, and draft official complaint packets with translations.
+          Run the current server-side Gemini tool loop. It can calculate priority, compare nearby prototype cases, suggest a possible authority, and draft complaint text for human review. It does not file or route anything outside CivicLens.
         </p>
 
         {/* Error message */}
@@ -541,7 +541,7 @@ export default function IssueDetailPage({
         <AutoEscalationPanel issue={issue} onUpdated={onRefresh} />
       )}
 
-      {/* Resolution Plan SLA builder */}
+      {/* Draft resolution plan builder */}
       <ResolutionPlanWidget issue={issue} onRefresh={onRefresh} lang={lang} />
 
       {/* Priority scale score breakdown */}
@@ -589,7 +589,7 @@ export default function IssueDetailPage({
         </div>
       </div>
 
-      {/* Official Audit Trail list */}
+      {/* Prototype activity trail list */}
       <div className="bg-white border border-hairline rounded-2xl p-4 flex flex-col gap-3.5 shadow-[0_4px_16px_-4px_rgba(14,26,43,0.05)]">
         <h3 className="text-xs font-display font-bold text-ink uppercase tracking-tight flex items-center gap-1.5 border-b border-hairline pb-2.5">
           <Clock className="w-3.5 h-3.5 text-slate" />
@@ -611,10 +611,10 @@ export default function IssueDetailPage({
                 <div className="absolute -left-[19px] top-1.5 w-1.5 h-1.5 rounded-full bg-slate border border-white" />
                 <span className="text-[10px] font-mono font-bold text-slate uppercase tracking-wider">
                   {{
-                    operator: "🏛️ Operator",
-                    ai: "🤖 CivicLens Agent",
-                    citizen: "👤 Citizen",
-                  }[act.actorType] || "👤 Citizen"}
+                    operator: "Prototype Operator",
+                    ai: "CivicLens Agent",
+                    citizen: "Citizen",
+                  }[act.actorType] || "Citizen"}
                 </span>
                 <p className="text-[11px] text-ink leading-relaxed font-sans font-medium">
                   {act.message}

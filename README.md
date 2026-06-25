@@ -1,74 +1,63 @@
-<!-- Drop into the exported GitHub repo as README.md. Replace [bracketed] items. -->
+# CivicLens
 
-<h1 align="center">🔎 CivicLens</h1>
-<p align="center"><b>From a citizen's photo to a verified resolution — an autonomous civic-issue resolution agent.</b></p>
-<p align="center">
-  <a href="https://civiclens-802067002365.asia-southeast1.run.app">🌐 Live App</a> ·
-  <a href="[demo video]">🎬 Demo</a> ·
-  <a href="[Google Doc]">📄 Project Doc</a>
-</p>
-<p align="center"><i>Vibe2Ship — Coding Ninjas × Google for Developers · PS2: Community Hero</i></p>
+CivicLens is a hackathon prototype for reporting, grouping, reviewing, and tracking hyperlocal civic issues. It is not a government portal, does not file complaints with authorities, and does not receive official acknowledgements.
 
----
+The current app demonstrates the intended Community Hero workflow:
 
-## The problem
-Civic issues are reported into a void — **fragmented, duplicated, opaque, rarely resolved.** Citizens never see ownership, the responsible authority, status, or proof of a fix.
+- Citizens can capture a photo, location, and description for a civic issue.
+- Gemini can help summarize the report, estimate severity, and suggest clarifying questions.
+- Nearby reports can be compared for possible duplicates.
+- Community members can confirm or dispute a case in the prototype dataset.
+- The app can draft authority recommendations, complaint text, escalation letters, RTI text, and closure assessments for human review.
+- Demo cases are synthetic samples and must not be treated as live government records or live agent executions.
 
-## The solution
-CivicLens turns scattered citizen reports into **one canonical, community-verified, action-ready case** and drives it to a **verified resolution** — with every AI step visible and every consequential action human-approved.
+## Prototype Boundary
 
-## 🤖 The agent pipeline
-A server-side orchestrator runs a multi-step loop; a deterministic **state machine authorizes** transitions (the model only *recommends*).
-```
-Perceive (Vision) → Deduplicate (canonical graph) → Community Verify → Priority Score
-   → Find Authority (Search grounding) → Draft Complaint → Operator Routing
-   → Before/After Verify (Vision) → Auto-Escalate + RTI
-```
-| Agent step | Endpoint | Google tech |
-|---|---|---|
-| Triage | `/api/analyze-report` | Gemini Vision + structured output |
-| Deduplicate | `/api/check-duplicate` | Haversine + Gemini similarity |
-| Resolution Coordinator | `/api/resolution-plan` | Gemini + **Google Search grounding** |
-| Before/After Verify | `/api/verify-resolution` | Gemini Vision (multimodal compare) |
-| Escalation + RTI | `/api/escalation` | Gemini (legal drafting) |
+CivicLens only recommends and drafts. A human operator or citizen must review any draft before acting on it outside the app. No current code proves government submission, government routing, authority acceptance, statutory SLA enforcement, digital signatures, immutable audit logs, or official case status.
 
-A live **Agent Trace** timeline exposes every step + rationale.
+## Current Architecture
 
-## ✨ Key features
-- Multimodal AI triage (category, severity, hazards, confidence) — with voice input + English/हिन्दी
-- Canonical issue graph: geo-deduplication merges duplicates into one verified case (evidence preserved)
-- Community confirm/dispute (one vote/user) + **deterministic, explainable priority score**
-- Grounded authority lookup (e.g. **BBMP / BWSSB**) + auto-drafted formal complaint
-- Authority Operator Console: priority queue, status pipeline, immutable audit log
-- AI before/after resolution verification (resolve / reopen)
-- Auto-escalation letter + **RTI petition (RTI Act 2005)** when past SLA
-- Impact dashboard + seeded demo data
-
-## 🧱 Architecture
-```
-React + TS + Tailwind (Google AI Studio)
-        │
-   Cloud Run (server: holds GEMINI_API_KEY, runs agent endpoints + state machine)
-        ├── Gemini 2.5 Flash (vision · structured output · search grounding)
-        ├── Firebase (Firestore · Storage · Anonymous Auth)
-        └── Google Maps Platform
+```text
+React 19 + TypeScript + Vite
+Express server bundled with esbuild
+Gemini through @google/genai
+Firebase Auth, Firestore, Storage, and Admin SDK
+Google Maps Platform
+Target deployment path: Google Cloud Run
 ```
 
-## 🛡️ Security
-Server-side API keys · server-side validation · EXIF stripping (canvas re-encode) · Firestore security rules · signed Storage URLs · no secrets in localStorage.
+Google AI Studio provenance is preserved through the project setup and server Gemini integration. A final public deployment URL, demo video, and Google Doc must be recorded only after they are actually produced and verified.
 
-## 🚀 Run locally
+## Current API Surface
+
+The server currently exposes Gemini and workflow helper endpoints for report analysis, duplicate comparison, draft resolution plans, closure-image comparison, escalation/RTI drafting, translation, and an early function-calling agent loop.
+
+Important limitation: several privileged records are still written by the browser in this baseline. The rebuild plan moves lifecycle fields, audit events, agent traces, counts, closure assessments, escalation records, and operator actions behind authenticated server endpoints.
+
+## Run Locally
+
 ```bash
-git clone https://github.com/amanmaqsood/civiclens && cd civiclens && npm install
-cp .env.example .env   # set GEMINI_API_KEY (server), GOOGLE_MAPS_PLATFORM_KEY; Firebase config is bundled
+npm ci
+cp .env.example .env
 npm run dev
 ```
 
-## 🧰 Google technologies
-Google AI Studio · Gemini 2.5 Flash (multimodal, structured output, function-calling, Search grounding) · Google Cloud Run · Firebase (Firestore + Storage + Auth) · Google Maps Platform.
+Set `GEMINI_API_KEY` for Gemini calls. Set `GOOGLE_MAPS_PLATFORM_KEY` or `VITE_GOOGLE_MAPS_PLATFORM_KEY` to render Google Maps. Firebase config in this prototype points at the configured Firebase project, but production credentials and deployment permissions are not committed.
 
-## ⚠️ Prototype boundary
-Government filing/routing is simulated via the authority operator console; all AI reasoning, dedup, drafting, escalation, RTI, and before/after verification are real.
+## Validation
 
-## 📜 License
-[MIT] · Built solo for Vibe2Ship 2026.
+Baseline Milestone 0 validation:
+
+```bash
+npm ci
+npm run lint
+npm test
+npm run build
+npm audit --omit=dev
+```
+
+See `docs/CODEX_PROGRESS.md` for actual command results, known risks, and milestone status.
+
+## License and Attribution
+
+License and full attribution files are part of the release-readiness milestone and must be completed before public submission.

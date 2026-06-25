@@ -11,17 +11,17 @@ export default function Onboarding({ onDismiss }: OnboardingProps) {
   const cards = [
     {
       title: "Snap a photo of a civic issue",
-      desc: "Take a clear picture of potholes, streetlights, or waste. Our system instantly captures the location metadata.",
+      desc: "Take a clear picture of potholes, streetlights, or waste. CivicLens saves a prototype report with your location when available.",
       icon: <Camera className="w-12 h-12 text-marigold animate-bounce" />,
     },
     {
-      title: "AI triages, dedupes & finds the right authority",
-      desc: "Gemini AI analyzes the issue, filters out duplicate reports, and routes a formal compliant packet directly to responsible public authorities.",
+      title: "AI drafts triage and authority suggestions",
+      desc: "Gemini can summarize the issue, compare possible duplicates, and draft an authority recommendation for human review. Nothing is filed automatically.",
       icon: <Brain className="w-12 h-12 text-blue-400 animate-pulse" />,
     },
     {
-      title: "Track it to a verified fix",
-      desc: "Monitor live status updates, verify closure with before/after photos, and file automatic escalation letters & RTI requests if there is a delay.",
+      title: "Track review and closure evidence",
+      desc: "Follow prototype status updates, compare before/after photos, and copy draft escalation or RTI text when a human decides to use it.",
       icon: <ShieldCheck className="w-12 h-12 text-verify" />,
     },
   ];
@@ -70,6 +70,10 @@ export default function Onboarding({ onDismiss }: OnboardingProps) {
           <p className="text-xs text-slate px-4 leading-relaxed">
             {cards[step].desc}
           </p>
+        </div>
+
+        <div className="bg-marigold/10 border border-marigold/25 rounded-xl px-3 py-2 text-[11px] text-ink font-semibold leading-relaxed">
+          Prototype only: CivicLens is not affiliated with, connected to, or submitting records to any government system.
         </div>
 
         {/* Navigation & Dots */}

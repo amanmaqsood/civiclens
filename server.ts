@@ -439,13 +439,13 @@ Respond ONLY with the corrected, valid JSON object.`;
     }
 
     try {
-      const promptText = `Compare this newly submitted civic issue report with these potential candidate duplicate issues located in close proximity.
+      const promptText = `Compare this newly saved CivicLens prototype issue report with these potential candidate duplicate issues located in close proximity.
 New Report details:
 - Category: ${newReport.category}
 - AI Title: ${newReport.title}
 - AI Summary: ${newReport.summary}
 
-Candidate reports currently active:
+Candidate prototype reports:
 ${candidates.map((c: any, index: number) => `${index + 1}. Candidate ID: ${c.id}\n - Category: ${c.category}\n - Title: ${c.title || "Untitled"}\n - Summary: ${c.summary || c.description}`).join("\n\n")}
 
 Your goal is to recommend whether the new report is a duplicate of one of the existing candidates and should be merged, or if it is a separate distinct issue that warrants a brand new incident report, or if there is some ambiguity so we should ask the user to decide.
@@ -533,26 +533,26 @@ Output STRICT, VALID JSON conforming exactly to the response schema.`;
 
     try {
       const todayStr = new Date().toLocaleDateString("en-US", { year: "numeric", month: "long", day: "numeric" });
-      const promptText = `Determine the responsible Indian municipal authority or department and draft a formal compliance complaint (an action packet) for this reported civic issue.
+      const promptText = `Suggest a likely responsible Indian municipal authority or department and draft a complaint packet for human review for this reported civic issue.
 Use Google Search grounding to lookup the real-world departments, municipal corporations, or utility boards that govern this category of issues in this specific Indian city or state (based on the location/address description: "${locationName || "India"}", and coordinates if provided: lat: ${lat || "unknown"}, lng: ${lng || "unknown"}).
 
 Issue details:
 - Category: ${category}
 - Title: ${title}
 - Summary: ${summary}
-- Official Ticket ID / Reference ID: ${ticketId || "N/A"}
+- CivicLens prototype ticket ID: ${ticketId || "N/A"}
 - Reporting Date (Today): ${todayStr}
 
 Perform a ground-truth lookup for this Indian location. If the city or municipality is identified (e.g. Bangalore/Bengaluru -> BBMP/BWSSB, Mumbai -> BMC, Delhi -> MCD/DJB, Pune -> PMC, Chennai -> GCC, etc.), determine:
 1. The actual municipal corporation or government board responsible (recommendedAuthority).
 2. The exact citizen grievance portal, email, app name, or citizen helpline toll-free number (contactChannel).
-3. The official or typical citizen SLA (Service Level Agreement) in days for resolving such issue in that region (slaDays, integer).
-4. A drafted formal complaint email or letter:
+3. A published or typical citizen follow-up window in days for resolving such issue in that region (slaDays, integer). If uncertain, provide a conservative estimate and make that uncertainty clear.
+4. A drafted complaint email or letter for human review:
    - subject: A concise professional subject line
-   - body: The full body of the formal letter, starting with a polite salutation (e.g., "To the Public Grievance Officer / Commissioner..."), laying out the ticket summary, citing safety concerns, precise location, and concluding with a call-to-action to resolve within the SLA.
-   - bodyHindi: A translated version of the complaint body in fluent official Hindi (हिन्दी), starting with official greetings, outlining the grievance clearly, and appealing for swift remedial action.
+   - body: The full body of a draft letter, starting with a polite salutation (e.g., "To the Public Grievance Officer / Commissioner..."), laying out the ticket summary, citing safety concerns, precise location, and asking for review within the suggested follow-up window.
+   - bodyHindi: A translated version of the draft complaint body in fluent Hindi (हिन्दी), starting with polite greetings, outlining the grievance clearly, and asking for remedial action.
    - summaryHindi: A brief 1-2 sentence Hindi (हिन्दी) summary of the problem, suitable for the complainant to read.
-   - nextActions: 3 actionable steps for the citizen (e.g., "Post on Twitter tagging Commissioner", "Initiate phone escalation at civic helpline", "Follow up via Ward Committee").
+   - nextActions: 3 actionable steps for the citizen to verify before acting (e.g., "Check the ward contact page", "Call the civic helpline", "Follow up via Ward Committee").
 
 CRITICAL COMPLIANCE DIRECTIVE:
 You MUST use ONLY the actual ticketId ('${ticketId || "N/A"}') and the actual current date ('${todayStr}') for any reference numbers, complaint IDs, or reporting dates in the drafted emails/documents.
@@ -617,7 +617,7 @@ Output ONLY valid JSON and nothing else.`;
       parsedData.groundingSources = uniqueSources;
 
       const inputDigest = `${category}: "${title}"`;
-      const outputSummary = `Auth: ${parsedData.recommendedAuthority} · SLA: ${parsedData.slaDays} days`;
+      const outputSummary = `Suggested authority: ${parsedData.recommendedAuthority} · follow-up: ${parsedData.slaDays} days`;
 
       return res.json({ 
         success: true, 
@@ -695,7 +695,7 @@ Inspect and evaluate the repair/clearance work. Determine:
 1. Is the issue completely resolved (resolved = true/false)?
 2. Confidence score (number from 0.0 to 1.0).
 3. Detailed observedChanges (array of strings, e.g. ["Pothole filled with fresh asphalt", "Worker tools removed"]).
-4. Official recommendation. Must be exactly one of: "resolve" (fully completed), "request_more_evidence" (need clearer zoom/angle), or "reopen" (incomplete or failed repair).
+4. Draft recommendation. Must be exactly one of: "resolve" (appears fully completed), "request_more_evidence" (need clearer zoom/angle), or "reopen" (appears incomplete or failed repair).
 5. Comprehensive structural explanation of your findings in a friendly/professional engineering tone.
 
 Return a STRICT JSON response adhering precisely to this schema. Do not include markdown wraps or code fences in the JSON structure.`;
@@ -766,23 +766,23 @@ Return a STRICT JSON response adhering precisely to this schema. Do not include 
 
     try {
       const todayStr = new Date().toLocaleDateString("en-US", { year: "numeric", month: "long", day: "numeric" });
-      const promptText = `Under the provisions of Indian municipal governance and the Right to Information (RTI) Act 2005, draft a formal public grievance escalation letter and a formal RTI request for this unresolved civic complaint.
+      const promptText = `Draft a public grievance escalation letter and a draft RTI request for this unresolved civic complaint. The output is for human review only and is not submitted by CivicLens.
       
 Complaint Title: ${title || "Civic Grievance"}
 Category: ${category || "General"}
 Context Summary: ${summary || "Unresolved infrastructure/civic problem"}
 Location description: ${locationName || "India"}
 Recommended Initial Department: ${recommendedAuthority || "Municipal Corporation"}
-Official Ticket ID / Reference ID: ${ticketId || "N/A"}
+CivicLens prototype ticket ID: ${ticketId || "N/A"}
 Reporting Reference Date (Today): ${todayStr}
 
 Draft two separate documents:
-1. escalationLetter: A professional, strongly-worded formal grievance escalation letter directed to the next-higher administrative authority (such as the Municipal Commissioner, District Magistrate, or Department Secretary). It should cite the initial delay, impact on public safety/sanity, and demand urgent intervention.
-2. rtiRequest: An official RTI request formulated precisely under Section 6(1) of the RTI Act 2005 to the Public Information Officer (PIO) of the municipal corporation/department. It must request details regarding:
+1. escalationLetter: A professional draft grievance escalation letter directed to a plausible next-higher administrative authority (such as the Municipal Commissioner, District Magistrate, or Department Secretary). It should cite the initial delay, impact on public safety/sanity, and ask for urgent intervention.
+2. rtiRequest: A draft RTI request under Section 6(1) of the RTI Act 2005 to the Public Information Officer (PIO) of the municipal corporation/department. It should request details regarding:
    - The current daily tracking status of the complaint.
    - The names, designations, and contact numbers of the officers responsible for addressing this grievance.
-   - Any comments, reports, or file notes recorded in the official grievance register by the inspecting authorities.
-   - The official timeframe/SLA allotted for this category of work and explanation for the delay.
+   - Any comments, reports, or file notes recorded by the inspecting authorities.
+   - The published timeframe or expected follow-up period for this category of work and explanation for the delay.
 
 CRITICAL COMPLIANCE DIRECTIVE:
 You MUST use ONLY the actual ticketId ('${ticketId || "N/A"}') and the actual current date ('${todayStr}') for any reference numbers, complaint IDs, or reporting dates in the letters/petitions. 
@@ -854,7 +854,7 @@ Return a STRICT JSON response adhering precisely to this schema:
 Title: "${title}"
 Summary: "${summary}"
 
-Ensure the translation is natural, official, and easy for Indian citizens to understand.
+Ensure the translation is natural and easy for Indian citizens to understand.
 Output STRICT, VALID JSON conforming exactly to this schema:
 {
   "titleHi": "string",
@@ -899,22 +899,22 @@ Output ONLY valid JSON and nothing else.`;
   // Helper to generate the structured action packet & native Hindi translations
   async function generateActionPacket(aiClient: any, issue: any, authority: string, channel: string, slaDays: number): Promise<any> {
     const todayStr = new Date().toLocaleDateString("en-US", { year: "numeric", month: "long", day: "numeric" });
-    const promptText = `Draft a formal compliance complaint (an action packet) for this reported civic issue in India.
+    const promptText = `Draft a complaint packet for human review for this reported civic issue in India.
 Responsible Authority: ${authority}
 Contact Channel: ${channel}
-Official SLA: ${slaDays} days
+Suggested follow-up window: ${slaDays} days
 Issue details:
 - Category: ${issue.category}
 - Title: ${issue.title}
 - Summary: ${issue.summary}
 - Reference Date (Today): ${todayStr}
 
-Output a drafted formal complaint email/letter:
+Output a drafted complaint email/letter:
 - subject: A concise professional subject line
-- body: The full body of the formal letter, starting with a polite salutation (e.g., "To the Public Grievance Officer / Commissioner..."), laying out the ticket summary, citing safety concerns, precise location, and concluding with a call-to-action to resolve within the SLA.
-- bodyHindi: A translated version of the complaint body in fluent official Hindi (हिन्दी).
+- body: The full body of a draft letter, starting with a polite salutation (e.g., "To the Public Grievance Officer / Commissioner..."), laying out the ticket summary, citing safety concerns, precise location, and asking for review within the suggested follow-up window.
+- bodyHindi: A translated version of the draft complaint body in fluent Hindi (हिन्दी).
 - summaryHindi: A brief 1-2 sentence Hindi (हिन्दी) summary of the problem, suitable for the complainant to read.
-- nextActions: 3 actionable steps for the citizen.
+- nextActions: 3 actionable steps for the citizen to verify before acting.
 
 Output STRICT, VALID JSON conforming exactly to this schema:
 {
@@ -995,7 +995,7 @@ Output ONLY valid JSON and nothing else.`;
           },
           {
             name: "find_authority",
-            description: "Find the responsible municipal authority and typical SLA for this category and location (uses live web knowledge).",
+            description: "Suggest a responsible municipal authority and typical follow-up window for this category and location.",
             parameters: {
               type: Type.OBJECT,
               properties: {
@@ -1041,12 +1041,12 @@ Output ONLY valid JSON and nothing else.`;
         }
         if (name === "find_authority") {
           try {
-            const searchPrompt = `Determine the responsible Indian municipal authority/department, a contact channel (helpline/portal/email), and the official SLA in days for category: "${args.category || "general"}" in location: "${args.locationName || "India"}".
+            const searchPrompt = `Suggest the likely responsible Indian municipal authority/department, a public contact channel (helpline/portal/email), and a published or typical follow-up window in days for category: "${args.category || "general"}" in location: "${args.locationName || "India"}".
             
             You must output a strict JSON object conforming exactly to this schema:
             {
               "authority": "string (e.g. BBMP, BMC, MCD, etc.)",
-              "sla": number (SLA in days, e.g. 7),
+              "sla": number (follow-up window in days, e.g. 7),
               "channel": "string (contact portal/helpline/email)"
             }
             
@@ -1076,12 +1076,12 @@ Output ONLY valid JSON and nothing else.`;
             const parsed = JSON.parse(cleanText);
             const authVal = parsed.authority || "Municipal Corporation";
             const slaVal = typeof parsed.sla === "number" ? parsed.sla : parseInt(parsed.sla) || 7;
-            const chanVal = parsed.channel || "State Grievance Portal";
+            const chanVal = parsed.channel || "Public grievance channel";
             
             return { authority: authVal, sla: slaVal, channel: chanVal };
           } catch (searchErr: any) {
             console.warn("find_authority grounded search failed, returning fallback:", searchErr);
-            return { authority: "Municipal Corporation", sla: 7, channel: "State Grievance Portal" };
+            return { authority: "Municipal Corporation", sla: 7, channel: "Public grievance channel" };
           }
         }
         if (name === "finalize") {
@@ -1099,7 +1099,7 @@ Output ONLY valid JSON and nothing else.`;
       let guard = 0;
 
       let authority = "Municipal Corporation";
-      let channel = "State Grievance Portal";
+      let channel = "Public grievance channel";
       let slaDays = 7;
 
       let duplicateCandidateId: string | null = null;
@@ -1172,8 +1172,8 @@ Output ONLY valid JSON and nothing else.`;
           contactChannel: channel,
           slaDays,
           actionPacket: {
-            subject: `Formal Grievance: ${issue.title || "Civic Incident"}`,
-            body: `To the Commissioner / Officer,\n\nWe would like to formally report a civic grievance regarding ${issue.category} at ${issue.locationName || "the location"}.\nSummary: ${issue.summary || "No details provided."}\n\nPlease resolve this issue within the typical SLA of ${slaDays} days.\n\nSincerely,\nCivicLens Agent`,
+            subject: `Draft Civic Grievance: ${issue.title || "Civic Incident"}`,
+            body: `To the Commissioner / Officer,\n\nWe would like to share a civic grievance draft regarding ${issue.category} at ${issue.locationName || "the location"}.\nSummary: ${issue.summary || "No details provided."}\n\nPlease review and advise on next steps within the suggested follow-up window of ${slaDays} days.\n\nSincerely,\nCivicLens Prototype`,
             bodyHindi: `आयुक्त / अधिकारी के लिए,\n\nहम औपचारिक रूप से ${issue.locationName || "स्थान"} पर ${issue.category} के संबंध में एक नागरिक शिकायत दर्ज करना चाहते हैं।\nसारांश: ${issue.summary || "कोई विवरण प्रदान नहीं किया गया।"}\n\nकृपया इस मुद्दे को ${slaDays} दिनों के सामान्य एसएलए के भीतर हल करें।\n\nसादर,\nसिविक लेंस एजेंट`,
             summaryHindi: `${issue.category} की शिकायत दर्ज की गई है।`,
             nextActions: [

@@ -35,7 +35,7 @@ export default function ResolutionPlanWidget({ issue, onRefresh, lang = "en" }: 
         step: "Find Authority",
         tool: "Gemini 2.5 Google Search Grounding (/api/resolution-plan)",
         status: "done",
-        rationale: `Discovered and verified "${plan.recommendedAuthority}" as responsible agency. Channel route prescribed: "${plan.contactChannel}".`,
+        rationale: `Drafted "${plan.recommendedAuthority}" as a possible responsible agency. Contact suggestion for human review: "${plan.contactChannel}".`,
         ts: now
       };
 
@@ -43,7 +43,7 @@ export default function ResolutionPlanWidget({ issue, onRefresh, lang = "en" }: 
         step: "Draft Action Packet",
         tool: "Gemini Structured Compliance Compiler (/api/resolution-plan)",
         status: "done",
-        rationale: `Drafted case packet titled "${plan.actionPacket.subject}" with SLA threshold of ${plan.slaDays} days.`,
+        rationale: `Drafted review packet titled "${plan.actionPacket.subject}" with an estimated ${plan.slaDays}-day follow-up window.`,
         ts: new Date(Date.now() + 500).toISOString()
       };
 
@@ -51,7 +51,7 @@ export default function ResolutionPlanWidget({ issue, onRefresh, lang = "en" }: 
       onRefresh();
     } catch (err: any) {
       console.error(err);
-      setErrorMsg(err.message || "Failed to formulate compliance SLA plan.");
+      setErrorMsg(err.message || "Failed to draft the authority plan.");
     } finally {
       setLoading(false);
     }
@@ -82,7 +82,7 @@ export default function ResolutionPlanWidget({ issue, onRefresh, lang = "en" }: 
               RESOLUTION PLAN
             </h4>
             <p className="text-[10.5px] text-slate max-w-xs leading-relaxed">
-              Identify responsible agencies, typical SLA resolution thresholds, and structure official petitions using web-grounded research.
+              Draft a possible authority contact, follow-up window, and complaint text for a human to verify before use.
             </p>
           </div>
 
@@ -95,12 +95,12 @@ export default function ResolutionPlanWidget({ issue, onRefresh, lang = "en" }: 
             {loading ? (
               <>
                 <RefreshCw className="w-3.5 h-3.5 animate-spin" />
-                <span className="font-mono text-[10.5px]">Extracting Jurisdictions...</span>
+                <span className="font-mono text-[10.5px]">Researching options...</span>
               </>
             ) : (
               <>
                 <Sparkles className="w-3.5 h-3.5" />
-                <span>Generate Resolution Plan</span>
+                <span>Generate Draft Plan</span>
               </>
             )}
           </button>
@@ -109,10 +109,10 @@ export default function ResolutionPlanWidget({ issue, onRefresh, lang = "en" }: 
       ) : (
         <div className="flex flex-col gap-3.5">
           <div className="flex items-center justify-between border-b border-hairline pb-3">
-            <span className="text-[9pt] font-mono uppercase text-slate">Government SLA Routing</span>
+            <span className="text-[9pt] font-mono uppercase text-slate">Draft authority plan</span>
             <span className="text-[9px] font-mono font-semibold text-verify bg-verify/5 px-2 py-0.5 rounded border border-verify/20 flex items-center gap-1">
               <ShieldCheck className="w-3 h-3 text-verify" />
-              SLA Locked
+              Needs review
             </span>
           </div>
 
@@ -121,16 +121,16 @@ export default function ResolutionPlanWidget({ issue, onRefresh, lang = "en" }: 
             <div className="bg-paper border border-hairline p-3 rounded-xl flex items-start gap-2.5 text-xs">
               <MapPin className="w-4 h-4 text-marigold shrink-0 mt-0.5" />
               <div className="flex flex-col min-w-0">
-                <span className="text-[8px] font-mono text-slate uppercase tracking-wider">Department Contact</span>
+                <span className="text-[8px] font-mono text-slate uppercase tracking-wider">Suggested contact</span>
                 <span className="text-ink font-semibold mt-0.5 truncate">{plan.recommendedAuthority}</span>
-                <span className="text-[9.5px] text-slate mt-1">Route: <span className="font-mono font-bold text-ink underline">{plan.contactChannel}</span></span>
+                <span className="text-[9.5px] text-slate mt-1">Draft channel: <span className="font-mono font-bold text-ink underline">{plan.contactChannel}</span></span>
               </div>
             </div>
 
             <div className="bg-paper border border-hairline p-3 rounded-xl flex items-center justify-between text-xs">
               <div className="flex items-center gap-2">
                 <Clock className="w-4 h-4 text-slate shrink-0" />
-                <span className="text-slate font-medium text-[10.5px]">Resolution threshold window:</span>
+                <span className="text-slate font-medium text-[10.5px]">Suggested follow-up window:</span>
               </div>
               <span className="font-mono font-extrabold text-marigold text-[11.5px] bg-white border border-hairline px-2.5 py-0.5 rounded-full">
                 {plan.slaDays} Days
@@ -141,13 +141,13 @@ export default function ResolutionPlanWidget({ issue, onRefresh, lang = "en" }: 
           {/* Drafted Complaint Body */}
           <div className="flex flex-col gap-1.5">
             <div className="flex items-center justify-between">
-              <span className="text-[9pt] font-mono uppercase text-slate">Official Compliance Form</span>
+              <span className="text-[9pt] font-mono uppercase text-slate">Draft complaint text</span>
               <button
                 onClick={copyToClipboard}
                 className="flex items-center gap-1 bg-paper hover:bg-white border border-hairline text-ink px-2.5 py-1 rounded-lg cursor-pointer text-[9.5px] transition-colors"
               >
                 {copied ? <Check className="w-3 h-3 text-verify" /> : <Copy className="w-3 h-3" />}
-                <span className="font-medium">{copied ? "Copied" : "Copy Form"}</span>
+                <span className="font-medium">{copied ? "Copied" : "Copy Draft"}</span>
               </button>
             </div>
             <div className="bg-ink p-3.5 rounded-xl border border-white/5 text-paper">
@@ -160,7 +160,7 @@ export default function ResolutionPlanWidget({ issue, onRefresh, lang = "en" }: 
             </div>
           </div>
 
-          {/* SLA Next steps */}
+          {/* Suggested next steps */}
           <div className="flex flex-col gap-1.5 mt-0.5">
             <span className="text-[9pt] font-mono uppercase text-slate">Action Items List</span>
             <div className="flex flex-col gap-2">
@@ -175,13 +175,13 @@ export default function ResolutionPlanWidget({ issue, onRefresh, lang = "en" }: 
             </div>
           </div>
 
-          {/* SLA Research footnotes */}
+          {/* Research footnotes */}
           {plan.groundingSources && plan.groundingSources.length > 0 && (
             <div className="border-t border-hairline pt-3 flex flex-col gap-1.5">
               <span className="text-[8px] font-mono uppercase tracking-wider text-slate">Grounding reference links</span>
               <div className="flex flex-wrap gap-1.5">
                 {plan.groundingSources.map((src, i) => {
-                  let domain = "Government Portal";
+                  let domain = "Reference link";
                   try {
                     domain = new URL(src).hostname.replace("www.", "");
                   } catch(e) {}

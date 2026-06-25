@@ -42,8 +42,8 @@ export default function OperatorDetailView({ issue, onBack, onRefresh }: Operato
       await recordIssueActivity(issue.id, {
         actorType: "operator",
         eventType: "status_changed",
-        message: `Incident status moved to '${nextStatus}' by simulated Operator.${
-          nextStatus === "Resolved" && !issue.closureAssessment ? " (Manual Override Triggered)" : ""
+        message: `Incident status moved to '${nextStatus}' by prototype operator.${
+          nextStatus === "Resolved" && !issue.closureAssessment ? " (Manual prototype override recorded)" : ""
         }`,
         timestamp: new Date().toISOString(),
       });
@@ -76,7 +76,7 @@ export default function OperatorDetailView({ issue, onBack, onRefresh }: Operato
         </button>
         <div>
           <span className="text-[9px] font-black uppercase bg-indigo-100 text-[#4F46E5] px-2 py-0.5 rounded-sm">
-            Control Ticket: {issue.ticketId}
+            Prototype Ticket: {issue.ticketId}
           </span>
           <h2 className="text-sm font-bold text-slate-900 line-clamp-1">{issue.title || "Civic Incident"}</h2>
         </div>
@@ -97,7 +97,7 @@ export default function OperatorDetailView({ issue, onBack, onRefresh }: Operato
         ) : (
           <div className="flex flex-col gap-3">
             <span className="text-[10px] text-slate-400 font-bold uppercase tracking-wider block">
-              Current step: <span className="text-indigo-600 font-extrabold">{issue.status}</span>
+              Current prototype step: <span className="text-indigo-600 font-extrabold">{issue.status}</span>
             </span>
 
             <div className="grid grid-cols-1 gap-2 text-xs">
@@ -137,7 +137,7 @@ export default function OperatorDetailView({ issue, onBack, onRefresh }: Operato
                       onChange={(e) => setManualOverride(e.target.checked)}
                       className="rounded border-slate-300 text-[#4F46E5] focus:ring-[#4F46E5] w-3.5 h-3.5"
                     />
-                    <span>Manual Override (Confirm verification bypass)</span>
+                    <span>Manual prototype override (requires rationale in final rebuild)</span>
                   </label>
                 )}
               </div>
@@ -153,7 +153,7 @@ export default function OperatorDetailView({ issue, onBack, onRefresh }: Operato
       <div className="bg-white border rounded-2xl p-4 shadow-3xs flex flex-col gap-3">
         <h3 className="text-xs font-bold text-slate-800 uppercase tracking-tight flex items-center gap-1.5 border-b pb-2">
           <Clock className="w-4 h-4 text-slate-500" />
-          Audit History Trail (Subcollection)
+          Activity History (Prototype)
         </h3>
         {loadingAct ? (
           <div className="flex justify-center py-4"><RefreshCw className="w-4 h-4 animate-spin text-slate-300" /></div>
@@ -164,7 +164,7 @@ export default function OperatorDetailView({ issue, onBack, onRefresh }: Operato
             {activities.map((act) => (
               <div key={act.id} className="relative flex flex-col">
                 <div className="absolute -left-[20px] top-1 w-2.5 h-2.5 rounded-full bg-indigo-500 border border-white" />
-                <span className="text-[9px] text-slate-400 font-bold uppercase">{act.actorType === "operator" ? "👨‍✈️ Operator" : "👤 Citizen"}</span>
+                <span className="text-[9px] text-slate-400 font-bold uppercase">{act.actorType === "operator" ? "Prototype Operator" : "Citizen"}</span>
                 <p className="text-slate-700 font-semibold mt-0.5">{act.message}</p>
                 <span className="text-[8.5px] text-slate-400 font-mono mt-0.5">{new Date(act.timestamp).toLocaleString()}</span>
               </div>

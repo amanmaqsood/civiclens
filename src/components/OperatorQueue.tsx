@@ -55,16 +55,16 @@ export default function OperatorQueue({ issues, onSelectIssue, onRefresh, loadin
 
   return (
     <div id="operator-queue-container" className="flex flex-col gap-4 p-4 font-sans bg-paper min-h-screen text-ink">
-      {/* Simulation Header */}
+      {/* Prototype operator header */}
       <div className="bg-ink text-paper p-4.5 rounded-2xl shadow-xs border border-white/5">
         <div className="flex items-center gap-2">
           <ShieldCheck className="w-5 h-5 text-marigold" />
           <h2 className="text-[13px] font-display font-semibold uppercase tracking-wider text-paper">
-            Authority Control Desk
+            Prototype Operator Desk
           </h2>
         </div>
         <p className="text-[11px] text-paper/70 mt-1.5 leading-relaxed font-medium font-sans">
-          Developer panel to verify, purge, and seed test data. Simulated authority actions only.
+          Review prototype cases and synthetic demo data. This desk is not connected to any government workflow.
         </p>
       </div>
 
@@ -113,7 +113,7 @@ export default function OperatorQueue({ issues, onSelectIssue, onRefresh, loadin
             <div>
               <h4 className="text-[13px] font-semibold text-ink">Demo Data Control</h4>
               <p className="text-[13px] text-slate mt-0.5 leading-relaxed max-w-xs">
-                Seed 7 high-fidelity Bengaluru reports to preview municipal status cycles, or clear active demo data cleanly.
+                Seed 7 synthetic Bengaluru reports to preview the workflow, or clear only demo records.
               </p>
             </div>
             {seedError && <p className="text-xs text-alert font-mono">{seedError}</p>}
@@ -158,7 +158,7 @@ export default function OperatorQueue({ issues, onSelectIssue, onRefresh, loadin
 
         {sortedIssues.length === 0 ? (
           <div className="text-center py-8 text-[13px] text-slate italic">
-            No issues filed in this municipality range.
+            No prototype reports saved yet.
           </div>
         ) : (
           <div className="flex flex-col gap-2.5">

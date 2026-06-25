@@ -1,7 +1,7 @@
 {
   "name": "CivicLens",
   "short_name": "CivicLens",
-  "description": "From a citizen's photo to a verified civic-issue resolution.",
+  "description": "Prototype civic reporting and human-reviewed draft resolution workflow.",
   "start_url": "/",
   "display": "standalone",
   "background_color": "#0E1A2B",

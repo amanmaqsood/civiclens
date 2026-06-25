@@ -1,6 +1,6 @@
 {
   "name": "CivicLens",
-  "description": "Civic issue reporting and resolution platform for India",
+  "description": "Prototype civic issue reporting and draft-resolution assistant for India",
   "requestFramePermissions": [
     "geolocation"
   ],

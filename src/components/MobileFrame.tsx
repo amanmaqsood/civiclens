@@ -8,7 +8,7 @@ export default function MobileFrame({ children }: MobileFrameProps) {
   return (
     <div className="h-full w-full bg-paper sm:bg-[#E5E3DB] flex items-center justify-center py-0 sm:py-8 font-sans antialiased text-ink overflow-hidden">
       <div className="w-full h-full sm:h-[840px] max-w-md bg-paper sm:rounded-3xl sm:shadow-[0_20px_60px_-15px_rgba(14,26,43,0.35)] overflow-hidden flex flex-col border-0 sm:border-[8px] sm:border-slate-800 relative">
-        {/* Mobile Status Bar Simulation (only visible on sm screen bezel wraps) */}
+        {/* Prototype shell status bar; removed in the responsive rebuild milestone. */}
         <div className="hidden sm:flex bg-ink text-paper text-[11px] px-6 py-1.5 items-center justify-between font-mono font-medium tracking-tight border-b border-white/5">
           <span>09:41 AM</span>
           <div className="w-20 h-4 bg-ink rounded-full absolute left-1/2 -translate-x-1/2 top-1.5 flex items-center justify-center">
@@ -35,7 +35,7 @@ export default function MobileFrame({ children }: MobileFrameProps) {
           </main>
         </div>
 
-        {/* simulated home bar on sm screen displays */}
+        {/* Prototype shell home bar; removed in the responsive rebuild milestone. */}
         <div className="hidden sm:block bg-paper pb-2.5 pt-1 text-center border-t border-hairline/60">
           <div className="w-32 h-1 bg-slate/30 rounded-full mx-auto" />
         </div>

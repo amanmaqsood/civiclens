@@ -13,8 +13,8 @@ export default function AgentTraceTimeline({ trace = [] }: AgentTraceTimelinePro
     { step: "Locate", label: "Geolocational Check" },
     { step: "Deduplicate", label: "Deduplication Graph Search" },
     { step: "Prioritize", label: "Priority & Severity Scoring" },
-    { step: "Decide", label: "Autonomous Routing Decision" },
-    { step: "Find Authority", label: "Indian Grounded Authority Lookup" },
+    { step: "Decide", label: "Review Gate Recommendation" },
+    { step: "Find Authority", label: "Suggested Authority Lookup" },
     { step: "Draft Action Packet", label: "Draft Resolution Case Packet" }
   ];
 
@@ -34,7 +34,7 @@ export default function AgentTraceTimeline({ trace = [] }: AgentTraceTimelinePro
           </span>
         </div>
         <p className="text-[13px] text-slate leading-relaxed">
-          Agent trace will appear after the live agent run.
+          Agent trace will appear after the server agent run.
         </p>
       </div>
     );

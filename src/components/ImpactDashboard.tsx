@@ -12,7 +12,7 @@ export default function ImpactDashboard({ issues, onBack }: ImpactDashboardProps
   const totalResolved = issues.filter((i) => i.status === "Resolved").length;
   const percentResolved = totalReported > 0 ? Math.round((totalResolved / totalReported) * 100) : 0;
 
-  // Compute average resolution time based on actual report age & SLAs
+  // Compute average resolution time based on persisted report age.
   const resolvedIssues = issues.filter((i) => i.status === "Resolved");
   const avgResTime = resolvedIssues.length > 0
     ? (resolvedIssues.reduce((acc, curr) => {

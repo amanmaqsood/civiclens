@@ -508,9 +508,9 @@ export default function App() {
                         <Loader2 className="w-6 h-6 text-marigold animate-spin" />
                       </div>
                     </div>
-                    <h2 className="text-base font-bold text-ink font-display mt-2">Agent Running Autonomously...</h2>
+                    <h2 className="text-base font-bold text-ink font-display mt-2">Preparing Prototype Report...</h2>
                     <p className="text-[11px] text-slate max-w-xs leading-normal font-medium">
-                      Verifying, geocoding, checking duplication integrity, scoring, and routing your complaint.
+                      Analyzing the image, checking location, comparing nearby reports, and preparing a draft case record.
                     </p>
                   </div>
                   <div className="max-h-[50vh] overflow-y-auto pr-1">
@@ -528,9 +528,9 @@ export default function App() {
         <div className="fixed inset-0 bg-slate-900/60 backdrop-blur-xs flex flex-col items-center justify-center z-50 px-6">
           <div className="bg-white p-6 rounded-2xl shadow-xl flex flex-col items-center gap-3 max-w-xs text-center border border-slate-100">
             <Loader2 className="w-8 h-8 text-[#4F46E5] animate-spin" />
-            <p className="text-xs font-bold text-slate-800">Checking Duplication Integrity</p>
+            <p className="text-xs font-bold text-slate-800">Checking Nearby Reports</p>
             <p className="text-[10px] text-slate-400 font-medium leading-normal">
-              Analyzing active tickets using real-time geometric and semantic matching.
+              Comparing saved prototype cases with distance and semantic signals.
             </p>
           </div>
         </div>

@@ -65,8 +65,8 @@ export default function VerificationPanel({ issue, onRefresh }: VerificationPane
 
   const statusNextLabel = {
     "Submitted": "Verify Report Quality",
-    "Verified": "SLA In-Progress Action",
-    "In Progress": "Mark as Resolved"
+    "Verified": "Mark Work In Progress",
+    "In Progress": "Request Closure Review"
   }[issue.status] || null;
 
   return (
@@ -101,7 +101,7 @@ export default function VerificationPanel({ issue, onRefresh }: VerificationPane
         {/* Voting triggers */}
         {userVote ? (
           <div className="bg-paper p-2.5 rounded-xl text-center border border-hairline text-[10px] text-slate font-medium leading-relaxed select-none">
-             Fact verification submitted: audit category is marked as <span className="font-semibold text-ink">{userVote === "confirm" ? "Accurate" : "Disputed"}</span>.
+             Community feedback saved: this report is marked as <span className="font-semibold text-ink">{userVote === "confirm" ? "Confirmed" : "Disputed"}</span> in CivicLens.
           </div>
         ) : (
           <div className="flex gap-2">
@@ -131,8 +131,8 @@ export default function VerificationPanel({ issue, onRefresh }: VerificationPane
       {statusNextLabel && issue.status !== "Resolved" && (
         <div className="border-t border-hairline pt-3 flex flex-col gap-2">
           <div className="flex items-center justify-between">
-            <span className="text-[9pt] font-mono text-slate uppercase">Case advancement flow</span>
-            <span className="text-[9px] text-slate/60">Simulate official action</span>
+            <span className="text-[9pt] font-mono text-slate uppercase">Prototype case flow</span>
+            <span className="text-[9px] text-slate/60">Prototype action</span>
           </div>
           <button
             onClick={handleStatusTransition}

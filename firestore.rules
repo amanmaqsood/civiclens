@@ -22,7 +22,8 @@ service cloud.firestore {
         && request.resource.data.keys().size() <= 35;
       allow update: if isSignedIn()
         && request.resource.data.userId == resource.data.userId
-        && request.resource.data.ticketId == resource.data.ticketId;
+        && request.resource.data.ticketId == resource.data.ticketId
+        && (request.resource.data.status == resource.data.status || resource.data.isDemoData == true);
       allow delete: if isSignedIn() && resource.data.isDemoData == true;
       match /evidence/{eid} {
         allow get, list: if isSignedIn();

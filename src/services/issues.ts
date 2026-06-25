@@ -679,16 +679,20 @@ export async function updateIssueStatus(
   issueId: string,
   newStatus: "Submitted" | "Verified" | "In Progress" | "Resolved"
 ): Promise<void> {
-  const docRef = doc(db, COLLECTION_NAME, issueId);
-  try {
-    await updateDoc(docRef, {
-      status: newStatus
-    });
-  } catch (err) {
-    handleFirestoreError(err, OperationType.UPDATE, `${COLLECTION_NAME}/${issueId}`);
-    throw err;
+  const user = auth.currentUser;
+  if (!user) throw new Error("You must be signed in to change status.");
+  const token = await user.getIdToken();
+  const resp = await fetch("/api/issues/update-status", {
+    method: "POST",
+    headers: { "Content-Type": "application/json", "Authorization": `Bearer ${token}` },
+    body: JSON.stringify({ issueId, newStatus }),
+  });
+  if (!resp.ok) {
+    const err = await resp.json().catch(() => ({}));
+    throw new Error(err.error || "Status update failed.");
   }
 }
+
 
 // Update cached translations
 export async function updateIssueTranslations(
@@ -1094,7 +1098,7 @@ export async function seedDemoIssuesBengaluru(): Promise<boolean> {
       confirmCount: 0,
       disputeCount: 0,
       verificationStatus: "unverified",
-      isDemoData: false,
+      isDemoData: true,
     };
 
     initialReport.priorityScore = calculatePriorityScore(initialReport);

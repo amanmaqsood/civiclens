@@ -4,6 +4,7 @@ import { createServer as createViteServer } from "vite";
 import { GoogleGenAI, Type } from "@google/genai";
 import { initializeApp as initAdminApp, getApps as getAdminApps } from "firebase-admin/app";
 import { getFirestore as getAdminFirestore } from "firebase-admin/firestore";
+import { getAuth as getAdminAuth } from "firebase-admin/auth";
 
 async function startServer() {
   const app = express();
@@ -172,6 +173,63 @@ async function startServer() {
     if (typeof data.confidence !== "number") return false;
     return true;
   }
+
+    // Server-authoritative status transition (Admin SDK + auth + state machine) — STEP 19b
+  app.post("/api/issues/update-status", async (req, res) => {
+    if (!adminDb) return res.status(503).json({ success: false, error: "Server data layer unavailable." });
+    const authHeader = String(req.headers.authorization || "");
+    const token = authHeader.startsWith("Bearer ") ? authHeader.slice(7) : null;
+    if (!token) return res.status(401).json({ success: false, error: "Missing auth token." });
+
+    let uid: string;
+    try {
+      const decoded = await getAdminAuth().verifyIdToken(token);
+      uid = decoded.uid;
+    } catch {
+      return res.status(401).json({ success: false, error: "Invalid auth token." });
+    }
+
+    const { issueId, newStatus } = req.body || {};
+    const VALID = ["Submitted", "Verified", "In Progress", "Resolved"];
+    if (!issueId || typeof issueId !== "string" || !VALID.includes(newStatus)) {
+      return res.status(400).json({ success: false, error: "Invalid issueId or status." });
+    }
+
+    try {
+      const ref = adminDb.collection("issues").doc(issueId);
+      const snap = await ref.get();
+      if (!snap.exists) return res.status(404).json({ success: false, error: "Issue not found." });
+
+      const current = snap.data().status;
+      const allowed: Record<string, string[]> = {
+        "Submitted": ["Verified"],
+        "Verified": ["In Progress"],
+        "In Progress": ["Resolved", "Submitted"],
+        "Resolved": ["In Progress"],
+      };
+      if (!(allowed[current] || []).includes(newStatus)) {
+        return res.status(409).json({ success: false, error: `Illegal transition: ${current} -> ${newStatus}.` });
+      }
+
+      const nowIso = new Date().toISOString();
+      const updates: any = { status: newStatus, updatedAt: nowIso };
+      if (newStatus === "Resolved") updates.resolvedAt = nowIso;
+      await ref.update(updates);
+
+      await ref.collection("activity").add({
+        actorType: "operator",
+        eventType: "status_changed",
+        message: `Status advanced to ${newStatus} (server-authorized).`,
+        timestamp: nowIso,
+        byUid: uid,
+      });
+
+      res.json({ success: true, status: newStatus, resolvedAt: updates.resolvedAt || null });
+    } catch (e: any) {
+      res.status(500).json({ success: false, error: e?.message || "Status update failed." });
+    }
+  });
+
 
   // Server-side Gemini Multimodal Report Analysis Endpoint
   app.post("/api/analyze-report", async (req, res) => {

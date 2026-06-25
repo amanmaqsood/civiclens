@@ -51,7 +51,7 @@ Rollback instructions:
 | 2 Identity/API perimeter | Complete | Firebase token + App Check perimeter added for API routes; server role/session resolution added; public real-operator switching removed; focused perimeter tests added; required commands passed. |
 | 3 Server data integrity | Complete | Server-owned issue/evidence/support/verification/activity/trace/closure/escalation endpoints added; Firestore rules deny direct issue writes; Storage Rules added; focused data-integrity tests added; required commands passed. |
 | 4 Genuine agent | Complete | `/api/agent/run` now accepts `{ issueId, idempotencyKey }`, loads Firestore issue/candidates server-side, persists `agentRuns` and `agentSteps`, and UI renders persisted steps; focused agent tests added; required commands passed. |
-| 5 Full lifecycle | Not started | |
+| 5 Full lifecycle | Complete | Status transitions now require operator rationale and approval docs; resolve requires closure assessment; routing and escalation finalization approvals added; focused lifecycle tests added; required commands passed. |
 | 6 UX/accessibility | Not started | |
 | 7 Metrics/performance | Not started | |
 | 8 Tests/security | Not started | |
@@ -177,6 +177,34 @@ Remaining risks:
 - The Gemini loop still depends on model tool-call compliance. More deterministic fallback sequencing and retry telemetry should be added in Milestone 8.
 - Existing legacy documents may still have old `agentTrace` arrays; the UI now favors persisted runs where present.
 
+## Milestone 5: Civic Lifecycle and Human Approvals
+Status: completed on 2026-06-26
+
+Files changed:
+- `server.ts`: lifecycle status transitions now require an operator rationale, create issue approval records, and populate lifecycle timestamps (`triagedAt`, `assignedAt`, `workStartedAt`, `resolvedAt`, `reopenedAt`) where applicable.
+- `server.ts`: resolving now requires existing closure evidence/assessment; closure recommendation still does not auto-resolve.
+- `server.ts`: added explicit routing/action-packet approval and escalation-finalization endpoints that create approval records and activity entries.
+- `firestore.rules`: added read-only client access for `approvals` and `agentSteps`; writes remain server-only.
+- `src/services/issues.ts` and `src/components/OperatorDetailView.tsx`: threaded operator rationale into status changes and added UI actions for routing approval and escalation finalization.
+- `src/server/lifecycle.test.ts`: added focused tests for closure-before-resolve, approval records, rationale threading, and rules ownership.
+
+Validation commands:
+- `npm ci`: passed in 48 seconds; 450 packages installed/audited; 0 vulnerabilities. Warnings: deprecated `node-domexception@1.0.0` and `glob@10.5.0`.
+- `npm run lint`: passed (`tsc --noEmit`).
+- `npm test`: passed (6 test files, 34 tests).
+- `npm run build`: passed. Warnings remain: large JS bundle (`assets/index-CFr-BE-_.js`, 1,276.27 kB / 344.36 kB gzip) and `src/services/issues.ts` dynamic import cannot create a separate chunk because it is also statically imported.
+- `npm audit --omit=dev`: passed; 0 vulnerabilities.
+
+Decisions:
+- Used approval subcollection documents for human decisions instead of treating activity messages as approvals.
+- Kept the existing four status enum keys for now; reopen is represented by server-owned `reopenedAt` and approval records until canonical enum migration is tackled.
+- Routing and escalation approvals record human approval for manual outside-app use; they still do not submit anything externally.
+
+Remaining risks:
+- The UI exposes basic approval buttons, but a richer approval workspace with rationale templates and approval history belongs to Milestone 6.
+- Duplicate merge is still represented through server-owned evidence attachment rather than a dedicated merge approval document. This should be expanded in Milestone 8 release tests or a follow-up lifecycle hardening pass.
+- Existing legacy documents may lack closure/timestamp fields until they move through the new lifecycle endpoints or are reseeded.
+
 ## Decision log
 - 2026-06-26: Initialized a valid project-local Git repository because the existing `.git` directory was empty/invalid and Git was resolving to `C:/Users/apexm`.
 - 2026-06-26: Captured the untouched prototype before dependency repair as commit `ffd4ebc` and tag `baseline/original-prototype`.
@@ -191,10 +219,11 @@ Remaining risks:
 - 2026-06-26: Moved issue-owned writes behind Admin SDK endpoints and hardened Firestore rules to deny direct client writes to issue documents and subcollections.
 - 2026-06-26: Added Storage Rules for user-owned report/evidence/closure image paths rather than allowing arbitrary bucket writes.
 - 2026-06-26: Changed the agent API contract from browser-supplied issue/candidates to server-loaded `issueId` plus idempotent persisted run records.
+- 2026-06-26: Added human approval records for lifecycle transitions, routing/action packets, and escalation finalization; resolving requires closure evidence.
 
 ## External blockers
 - Firebase/GCP deployment credentials and billing access are required before deployed smoke tests.
 - Public GitHub repository URL, public app URL, Google Doc URL, demo video URL, and BlockseBlock submission require user/account approval before final submission actions.
 
 ## Next milestone
-Milestone 5: complete the civic lifecycle with server approval records for merge, routing/action packet, escalation finalization, closure evidence, resolve, and reopen.
+Milestone 6: replace the fake mobile shell with a real responsive app/operator workspace and improve accessibility states, targets, labels, and layout.

@@ -355,6 +355,7 @@ async function startServer() {
     const actor = req.actor as RequestActor | undefined;
 
     const { issueId, newStatus } = req.body || {};
+    const rationale = cleanText(req.body?.rationale, "", 1200);
     const VALID = ["Submitted", "Verified", "In Progress", "Resolved"];
     if (!issueId || typeof issueId !== "string" || !VALID.includes(newStatus)) {
       return sendApiError(res, 400, "Invalid issueId or status.");
@@ -380,13 +381,40 @@ async function startServer() {
 
       const nowIso = new Date().toISOString();
       const updates: any = { status: newStatus, updatedAt: nowIso };
-      if (newStatus === "Resolved") updates.resolvedAt = nowIso;
+      if (!rationale || rationale.length < 8) {
+        return sendApiError(res, 400, "Operator rationale is required for lifecycle transitions.");
+      }
+      if (newStatus === "Verified") updates.triagedAt = nowIso;
+      if (newStatus === "In Progress") {
+        updates.workStartedAt = nowIso;
+        if (!issueData.assignedAt) updates.assignedAt = nowIso;
+      }
+      if (newStatus === "Resolved") {
+        if (!issueData.closureAssessment) {
+          return sendApiError(res, 409, "Closure evidence and assessment are required before resolving.");
+        }
+        updates.resolvedAt = nowIso;
+      }
+      if (current === "Resolved" || newStatus === "Submitted") {
+        updates.reopenedAt = nowIso;
+      }
       await ref.update(updates);
+
+      await ref.collection("approvals").add({
+        type: newStatus === "Resolved" ? "closure_resolution" : current === "Resolved" ? "reopen" : "status_transition",
+        fromStatus: current,
+        toStatus: newStatus,
+        rationale,
+        humanApproved: true,
+        createdAt: nowIso,
+        byUid: actor?.uid,
+        byRole: actor?.role,
+      });
 
       await ref.collection("activity").add({
         actorType: "operator",
         eventType: "status_changed",
-        message: `Status advanced to ${newStatus} (server-authorized).`,
+        message: `Status advanced to ${newStatus} by server-authorized operator. Rationale: ${rationale}`,
         timestamp: nowIso,
         byUid: actor?.uid,
         byRole: actor?.role,
@@ -751,6 +779,93 @@ async function startServer() {
       return res.json({ success: true, data: escalation });
     } catch (error) {
       return sendApiError(res, 500, "Failed to save escalation draft.", error);
+    }
+  });
+
+  app.post("/api/issues/:issueId/routing-approval", async (req: any, res) => {
+    if (!adminDb) return sendApiError(res, 503, "Server data layer unavailable.");
+    const actor = req.actor as RequestActor | undefined;
+    const { issueId } = req.params;
+    const rationale = cleanText(req.body?.rationale, "", 1200);
+    if (!actor || !isSafeDocumentId(issueId)) return sendApiError(res, 400, "Invalid routing approval request.");
+    if (!rationale || rationale.length < 8) return sendApiError(res, 400, "Operator rationale is required.");
+    const issueRef = adminDb.collection("issues").doc(issueId);
+    try {
+      const snap = await issueRef.get();
+      if (!snap.exists) return sendApiError(res, 404, "Issue not found.");
+      const data = snap.data();
+      if (!requireOperatorForIssue(data, actor, res)) return;
+      if (!data.resolutionPlan) return sendApiError(res, 409, "A draft resolution plan is required before routing approval.");
+      const nowIso = new Date().toISOString();
+      await issueRef.collection("approvals").add({
+        type: "routing_action_packet",
+        rationale,
+        humanApproved: true,
+        recommendedAuthority: data.resolutionPlan.recommendedAuthority || null,
+        contactChannel: data.resolutionPlan.contactChannel || null,
+        createdAt: nowIso,
+        byUid: actor.uid,
+        byRole: actor.role,
+      });
+      await issueRef.update({
+        routingApprovedAt: nowIso,
+        routingApprovedBy: actor.uid,
+        assignedAt: data.assignedAt || nowIso,
+        updatedAt: nowIso,
+      });
+      await addServerActivity(issueRef, {
+        actorType: "operator",
+        eventType: "routing_approved",
+        message: `Draft routing/action packet approved for human follow-up. Rationale: ${rationale}`,
+        timestamp: nowIso,
+        byUid: actor.uid,
+        byRole: actor.role,
+      });
+      return res.json({ success: true });
+    } catch (error) {
+      return sendApiError(res, 500, "Failed to approve routing plan.", error);
+    }
+  });
+
+  app.post("/api/issues/:issueId/escalation-finalize", async (req: any, res) => {
+    if (!adminDb) return sendApiError(res, 503, "Server data layer unavailable.");
+    const actor = req.actor as RequestActor | undefined;
+    const { issueId } = req.params;
+    const rationale = cleanText(req.body?.rationale, "", 1200);
+    if (!actor || !isSafeDocumentId(issueId)) return sendApiError(res, 400, "Invalid escalation finalization request.");
+    if (!rationale || rationale.length < 8) return sendApiError(res, 400, "Operator rationale is required.");
+    const issueRef = adminDb.collection("issues").doc(issueId);
+    try {
+      const snap = await issueRef.get();
+      if (!snap.exists) return sendApiError(res, 404, "Issue not found.");
+      const data = snap.data();
+      if (!requireOperatorForIssue(data, actor, res)) return;
+      if (!data.escalation) return sendApiError(res, 409, "Escalation draft is required before finalization.");
+      const nowIso = new Date().toISOString();
+      await issueRef.collection("approvals").add({
+        type: "escalation_finalization",
+        rationale,
+        humanApproved: true,
+        createdAt: nowIso,
+        byUid: actor.uid,
+        byRole: actor.role,
+      });
+      await issueRef.update({
+        "escalation.finalizedAt": nowIso,
+        "escalation.finalizedBy": actor.uid,
+        updatedAt: nowIso,
+      });
+      await addServerActivity(issueRef, {
+        actorType: "operator",
+        eventType: "escalation_finalized",
+        message: `Escalation/RTI draft finalized for manual use. Rationale: ${rationale}`,
+        timestamp: nowIso,
+        byUid: actor.uid,
+        byRole: actor.role,
+      });
+      return res.json({ success: true });
+    } catch (error) {
+      return sendApiError(res, 500, "Failed to finalize escalation.", error);
     }
   });
 

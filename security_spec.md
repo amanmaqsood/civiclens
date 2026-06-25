@@ -13,6 +13,8 @@ This document records the current baseline security posture and the target rebui
 - `GET /api/admin/health` is restricted to real operators.
 - Issue creation, evidence attachment, support, verification, translations, activity, trace/plan, closure assessment, escalation draft, and demo seed/clear now route through Admin SDK endpoints.
 - `POST /api/agent/run` accepts `issueId` plus an idempotency key, loads canonical issue/candidate data server-side, and persists `agentRuns` plus issue-linked `agentSteps`.
+- Lifecycle transitions require server-authorized operator identity, a rationale, and server-created approval records. Resolve requires closure assessment evidence.
+- Routing/action-packet approval and escalation finalization are separate server endpoints that record human approval but do not submit anything externally.
 - Firestore Rules deny direct client create/update/delete access to `/issues/{issueId}` and its issue-owned subcollections.
 - Storage Rules allow signed-in users to upload image files only under their own `reports/{uid}`, `evidence/{uid}`, and `closures/{uid}` paths with MIME and size checks.
 - Legacy pre-Milestone-3 data may still contain browser-authored fields until reseeded or migrated.

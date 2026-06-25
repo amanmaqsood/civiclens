@@ -535,17 +535,39 @@ export async function checkUserVerification(issueId: string): Promise<"confirm" 
 export async function updateIssueStatus(
   issueId: string,
   newStatus: "Submitted" | "Verified" | "In Progress" | "Resolved",
-  options: { demoOperator?: boolean } = {}
+  options: { demoOperator?: boolean; rationale?: string } = {}
 ): Promise<void> {
   const user = auth.currentUser;
   if (!user) throw new Error("You must be signed in to change status.");
   const resp = await apiFetch("/api/issues/update-status", {
     method: "POST",
-    body: JSON.stringify({ issueId, newStatus }),
+    body: JSON.stringify({ issueId, newStatus, rationale: options.rationale }),
   }, options);
   if (!resp.ok) {
     const err = await resp.json().catch(() => ({}));
     throw new Error(err.error || "Status update failed.");
+  }
+}
+
+export async function approveRoutingPlan(issueId: string, rationale: string, options: { demoOperator?: boolean } = {}): Promise<void> {
+  const response = await apiFetch(`/api/issues/${issueId}/routing-approval`, {
+    method: "POST",
+    body: JSON.stringify({ rationale }),
+  }, options);
+  if (!response.ok) {
+    const err = await response.json().catch(() => ({}));
+    throw new Error(err.error || "Failed to approve routing plan.");
+  }
+}
+
+export async function finalizeEscalation(issueId: string, rationale: string, options: { demoOperator?: boolean } = {}): Promise<void> {
+  const response = await apiFetch(`/api/issues/${issueId}/escalation-finalize`, {
+    method: "POST",
+    body: JSON.stringify({ rationale }),
+  }, options);
+  if (!response.ok) {
+    const err = await response.json().catch(() => ({}));
+    throw new Error(err.error || "Failed to finalize escalation.");
   }
 }
 

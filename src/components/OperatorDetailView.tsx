@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from "react";
 import { IssueReport, IssueActivity, ClosureAssessment } from "../types";
-import { fetchIssueActivities, updateIssueStatus } from "../services/issues";
+import { approveRoutingPlan, fetchIssueActivities, finalizeEscalation, updateIssueStatus } from "../services/issues";
 import { ArrowLeft, Clock, ShieldCheck, CheckSquare, RefreshCw, Lock } from "lucide-react";
 import ClosureVerificationPanel from "./ClosureVerificationPanel";
 import AutoEscalationPanel from "./AutoEscalationPanel";
@@ -19,6 +19,7 @@ export default function OperatorDetailView({ issue, onBack, onRefresh, demoOpera
   const [confirmingStatus, setConfirmingStatus] = useState<"Verified" | "In Progress" | "Resolved" | null>(null);
   const [actionPending, setActionPending] = useState(false);
   const [manualOverride, setManualOverride] = useState(false);
+  const [approvalRationale, setApprovalRationale] = useState("");
 
   const loadActivities = async () => {
     setLoadingAct(true);
@@ -39,8 +40,10 @@ export default function OperatorDetailView({ issue, onBack, onRefresh, demoOpera
   const handleAdvanceStatus = async (nextStatus: "Verified" | "In Progress" | "Resolved") => {
     setActionPending(true);
     try {
-      await updateIssueStatus(issue.id, nextStatus, { demoOperator });
+      const rationale = approvalRationale.trim() || `Operator reviewed the case and approved transition to ${nextStatus}.`;
+      await updateIssueStatus(issue.id, nextStatus, { demoOperator, rationale });
       setConfirmingStatus(null);
+      setApprovalRationale("");
       if (nextStatus === "Resolved") {
         confetti({
           particleCount: 150,
@@ -52,6 +55,40 @@ export default function OperatorDetailView({ issue, onBack, onRefresh, demoOpera
       onRefresh();
     } catch (e) {
       alert("Failed updating incident status state.");
+    } finally {
+      setActionPending(false);
+    }
+  };
+
+  const handleApproveRouting = async () => {
+    setActionPending(true);
+    try {
+      await approveRoutingPlan(
+        issue.id,
+        `Operator approved the draft routing/action packet for ${issue.resolutionPlan?.recommendedAuthority || "the suggested authority"}.`,
+        { demoOperator }
+      );
+      await loadActivities();
+      onRefresh();
+    } catch (e: any) {
+      alert(e.message || "Failed approving routing plan.");
+    } finally {
+      setActionPending(false);
+    }
+  };
+
+  const handleFinalizeEscalation = async () => {
+    setActionPending(true);
+    try {
+      await finalizeEscalation(
+        issue.id,
+        "Operator reviewed and finalized the escalation/RTI draft for manual use outside CivicLens.",
+        { demoOperator }
+      );
+      await loadActivities();
+      onRefresh();
+    } catch (e: any) {
+      alert(e.message || "Failed finalizing escalation draft.");
     } finally {
       setActionPending(false);
     }
@@ -143,6 +180,34 @@ export default function OperatorDetailView({ issue, onBack, onRefresh, demoOpera
         <AutoEscalationPanel issue={issue} onUpdated={onRefresh} />
       )}
 
+      {(issue.resolutionPlan || issue.escalation) && (
+        <div className="bg-white border rounded-2xl p-4 shadow-3xs flex flex-col gap-3">
+          <h3 className="text-xs font-extrabold text-slate-800 uppercase tracking-tight border-b pb-2">
+            Human Approval Records
+          </h3>
+          {issue.resolutionPlan && (
+            <button
+              onClick={handleApproveRouting}
+              disabled={actionPending}
+              className="w-full text-left bg-slate-50 disabled:opacity-50 hover:bg-slate-100/50 cursor-pointer border py-2.5 px-3 rounded-xl flex items-center justify-between font-semibold text-xs"
+            >
+              <span>Approve draft routing/action packet</span>
+              <span className="text-[9px] bg-sky-100 text-sky-800 px-2 py-0.5 rounded-md">Record</span>
+            </button>
+          )}
+          {issue.escalation && (
+            <button
+              onClick={handleFinalizeEscalation}
+              disabled={actionPending}
+              className="w-full text-left bg-slate-50 disabled:opacity-50 hover:bg-slate-100/50 cursor-pointer border py-2.5 px-3 rounded-xl flex items-center justify-between font-semibold text-xs"
+            >
+              <span>Finalize escalation/RTI draft</span>
+              <span className="text-[9px] bg-violet-100 text-violet-800 px-2 py-0.5 rounded-md">Record</span>
+            </button>
+          )}
+        </div>
+      )}
+
       <div className="bg-white border rounded-2xl p-4 shadow-3xs flex flex-col gap-3">
         <h3 className="text-xs font-bold text-slate-800 uppercase tracking-tight flex items-center gap-1.5 border-b pb-2">
           <Clock className="w-4 h-4 text-slate-500" />
@@ -173,8 +238,14 @@ export default function OperatorDetailView({ issue, onBack, onRefresh, demoOpera
             <p className="text-[10.5px] text-slate-500 font-medium">
               Transition this complaint status to <span className="font-extrabold text-[#4F46E5]">"{confirmingStatus}"</span>?
             </p>
+            <textarea
+              value={approvalRationale}
+              onChange={(event) => setApprovalRationale(event.target.value)}
+              className="w-full min-h-20 border rounded-xl p-2 text-xs text-left"
+              placeholder="Operator rationale"
+            />
             <div className="flex gap-2 justify-center">
-              <button onClick={() => setConfirmingStatus(null)} className="bg-slate-100 text-slate-700 text-xs font-bold py-1.5 px-3 rounded-lg cursor-pointer border">No</button>
+              <button onClick={() => { setConfirmingStatus(null); setApprovalRationale(""); }} className="bg-slate-100 text-slate-700 text-xs font-bold py-1.5 px-3 rounded-lg cursor-pointer border">No</button>
               <button onClick={() => handleAdvanceStatus(confirmingStatus)} disabled={actionPending} className="bg-[#4F46E5] text-white text-xs font-bold py-1.5 px-3 rounded-lg cursor-pointer">Yes</button>
             </div>
           </div>

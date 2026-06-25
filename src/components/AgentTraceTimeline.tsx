@@ -8,15 +8,26 @@ interface AgentTraceTimelineProps {
 }
 
 export default function AgentTraceTimeline({ trace = [] }: AgentTraceTimelineProps) {
-  const stepsList = [
-    { step: "Perceive", label: "Perceive & Triage" },
-    { step: "Locate", label: "Geolocational Check" },
-    { step: "Deduplicate", label: "Deduplication Graph Search" },
-    { step: "Prioritize", label: "Priority & Severity Scoring" },
-    { step: "Decide", label: "Review Gate Recommendation" },
-    { step: "Find Authority", label: "Suggested Authority Lookup" },
-    { step: "Draft Action Packet", label: "Draft Resolution Case Packet" }
-  ];
+  const labelMap: Record<string, string> = {
+    Perceive: "Perceive & Triage",
+    Locate: "Geolocational Check",
+    Deduplicate: "Deduplication Graph Search",
+    Prioritize: "Priority & Severity Scoring",
+    Decide: "Review Gate Recommendation",
+    "Find Authority": "Suggested Authority Lookup",
+    "Draft Action Packet": "Draft Resolution Case Packet",
+    nearby_search: "Nearby Search",
+    assess_duplicate: "Duplicate Assessment",
+    calculate_priority: "Priority Calculation",
+    find_authority: "Suggested Authority Lookup",
+    request_human_approval: "Human Approval Gate",
+    finalize: "Draft Recommendation",
+  };
+
+  const stepsList = trace.map((entry) => ({
+    step: entry.step,
+    label: labelMap[entry.step] || entry.step.replace(/_/g, " "),
+  }));
 
   // For issues genuinely missing a trace, show a clean single-line empty state
   if (!trace || trace.length === 0) {

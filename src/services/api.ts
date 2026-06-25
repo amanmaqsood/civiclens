@@ -48,3 +48,29 @@ export async function fetchApiSession(options: ApiFetchOptions = {}): Promise<Ap
   const result = await response.json();
   return result.actor || null;
 }
+
+export async function runAgentForIssue(issueId: string) {
+  const idempotencyKey = typeof crypto !== "undefined" && "randomUUID" in crypto
+    ? crypto.randomUUID()
+    : `${Date.now()}-${Math.random().toString(36).slice(2)}`;
+  const response = await apiFetch("/api/agent/run", {
+    method: "POST",
+    body: JSON.stringify({ issueId, idempotencyKey }),
+  }, { demoOperator: true });
+  const result = await response.json().catch(() => ({}));
+  if (!response.ok || !result.success) {
+    throw new Error(result.error || "Failed to run the agent workflow.");
+  }
+  return result;
+}
+
+export async function fetchLatestAgentRun(issueId: string) {
+  const response = await apiFetch(`/api/issues/${issueId}/agent-runs/latest`, {
+    method: "GET",
+  }, { demoOperator: true });
+  const result = await response.json().catch(() => ({}));
+  if (!response.ok || !result.success) {
+    throw new Error(result.error || "Failed to load the latest agent run.");
+  }
+  return result;
+}

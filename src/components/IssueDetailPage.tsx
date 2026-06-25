@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from "react";
 import { ArrowLeft, ArrowUp, MapPin, ShieldAlert, Clock, RefreshCw, Sparkles } from "lucide-react";
 import { IssueReport, IssueActivity } from "../types";
-import { fetchIssueActivities, updateIssueAgentTraceAndPlan, findDuplicateCandidates } from "../services/issues";
+import { fetchIssueActivities } from "../services/issues";
 import { useLanguage } from "../context/LanguageContext";
 import PriorityBreakdownWidget from "./PriorityBreakdownWidget";
 import VerificationPanel from "./VerificationPanel";
@@ -9,7 +9,7 @@ import AgentTraceTimeline from "./AgentTraceTimeline";
 import ResolutionPlanWidget from "./ResolutionPlanWidget";
 import AutoEscalationPanel from "./AutoEscalationPanel";
 import { humanizeCategory, humanizeUrgency } from "../utils/humanize";
-import { apiFetch } from "../services/api";
+import { apiFetch, fetchLatestAgentRun, runAgentForIssue } from "../services/api";
 
 interface IssueDetailPageProps {
   issue: IssueReport;
@@ -78,6 +78,7 @@ export default function IssueDetailPage({
   const [triageRunning, setTriageRunning] = useState(false);
   const [triageError, setTriageError] = useState<string | null>(null);
   const [liveTraceSteps, setLiveTraceSteps] = useState<any[]>([]);
+  const [persistedAgentSteps, setPersistedAgentSteps] = useState<any[]>([]);
 
   const handleRunTriage = async () => {
     setTriageRunning(true);
@@ -85,88 +86,15 @@ export default function IssueDetailPage({
     setLiveTraceSteps([]);
 
     try {
-      const localCandidates = await findDuplicateCandidates(issue);
-
-      const agentRunResponse = await apiFetch("/api/agent/run", {
-        method: "POST",
-        body: JSON.stringify({
-          issue: {
-            category: issue.category || "other",
-            severity: issue.severity || 3,
-            urgency: issue.urgency || "routine",
-            title: issue.title || "Civic Incident",
-            summary: issue.summary || issue.description || "No description",
-            locationName: issue.locationName || "Default Civic Landmark",
-            confirmCount: issue.citizenUpvotes || 0,
-            reportCount: 1,
-          },
-          candidates: localCandidates.map(c => ({
-            id: c.issue.id,
-            title: c.issue.title,
-            category: c.issue.category,
-            locationName: c.issue.locationName,
-            distanceM: c.distance || 0,
-          })),
-        }),
-      });
-
-      if (!agentRunResponse.ok) {
-        const errText = await agentRunResponse.text().catch(() => "Unknown error");
-        throw new Error(errText || "Failed to call AI Triage Agent.");
-      }
-
-      const agentResult = await agentRunResponse.json();
-      if (!agentResult.success) {
-        throw new Error(agentResult.error || "Server-side agent triage returned unsuccessful.");
-      }
-
-      const baseSteps = (issue.agentTrace || []).filter(
-        (step: any) => step.step === "Perceive" || step.step === "Locate" || step.step === "Deduplicate"
-      );
-      if (baseSteps.length === 0) {
-        baseSteps.push({
-          step: "Perceive",
-          tool: "Manual form input: the citizen entered issue category, title, and description manually.",
-          status: "done",
-          ts: new Date().toISOString(),
-          rationale: "Initial visual/text input registered."
-        }, {
-          step: "Locate",
-          tool: "GPS Geo-locator (Navigator API)",
-          status: "done",
-          ts: new Date().toISOString(),
-          rationale: `Located at ${issue.locationName || "specified landmark"}`
-        });
-      }
-
-      let currentTrace = [...baseSteps];
-      for (const step of agentResult.steps) {
+      const agentResult = await runAgentForIssue(issue.id);
+      let currentTrace: any[] = [];
+      for (const step of agentResult.steps || []) {
         currentTrace = [...currentTrace, step];
         setLiveTraceSteps(currentTrace);
         await new Promise(resolve => setTimeout(resolve, 800));
       }
 
-      let finalPriorityScore = agentResult.final?.priorityScore;
-      if (!finalPriorityScore) {
-        const scoreStep = agentResult.steps.find((s: any) => s.step === "calculate_priority" || s.step === "Prioritize");
-        if (scoreStep) {
-          try {
-            const parsedScore = JSON.parse(scoreStep.outputSummary);
-            finalPriorityScore = parsedScore.score || parsedScore.priorityScore;
-          } catch (e) {
-            const match = String(scoreStep.outputSummary).match(/score"?:\s*([0-9.]+)/i);
-            if (match) finalPriorityScore = parseFloat(match[1]);
-          }
-        }
-      }
-
-      await updateIssueAgentTraceAndPlan(
-        issue.id,
-        currentTrace,
-        agentResult.resolutionPlan || null,
-        finalPriorityScore !== undefined ? finalPriorityScore : undefined
-      );
-
+      setPersistedAgentSteps(agentResult.steps || []);
       onRefresh();
 
     } catch (err: any) {
@@ -205,6 +133,22 @@ export default function IssueDetailPage({
       translateContent();
     }
   }, [lang, issue.id, issue.title, issue.summary, issue.description, issue.titleHi, issue.summaryHi, translating, onRefresh]);
+
+  useEffect(() => {
+    let active = true;
+    async function loadLatestRun() {
+      try {
+        const result = await fetchLatestAgentRun(issue.id);
+        if (active) setPersistedAgentSteps(result.steps || []);
+      } catch {
+        if (active) setPersistedAgentSteps([]);
+      }
+    }
+    loadLatestRun();
+    return () => {
+      active = false;
+    };
+  }, [issue.id]);
 
   useEffect(() => {
     let active = true;
@@ -390,7 +334,7 @@ export default function IssueDetailPage({
       </div>
 
       {/* vertical timeline audit trace */}
-      <AgentTraceTimeline trace={triageRunning ? liveTraceSteps : issue.agentTrace} />
+      <AgentTraceTimeline trace={triageRunning ? liveTraceSteps : persistedAgentSteps} />
 
       {/* Visual risk diagnosis */}
       <div className="bg-white border border-hairline rounded-2xl p-4 flex flex-col gap-3 shadow-[0_4px_16px_-4px_rgba(14,26,43,0.05)]">

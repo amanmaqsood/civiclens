@@ -50,7 +50,7 @@ Rollback instructions:
 | 1 Credibility | Complete | Truth-boundary copy updated across docs/UI/server prompts; seeded traces labelled synthetic; regression test added; required commands passed. |
 | 2 Identity/API perimeter | Complete | Firebase token + App Check perimeter added for API routes; server role/session resolution added; public real-operator switching removed; focused perimeter tests added; required commands passed. |
 | 3 Server data integrity | Complete | Server-owned issue/evidence/support/verification/activity/trace/closure/escalation endpoints added; Firestore rules deny direct issue writes; Storage Rules added; focused data-integrity tests added; required commands passed. |
-| 4 Genuine agent | Not started | |
+| 4 Genuine agent | Complete | `/api/agent/run` now accepts `{ issueId, idempotencyKey }`, loads Firestore issue/candidates server-side, persists `agentRuns` and `agentSteps`, and UI renders persisted steps; focused agent tests added; required commands passed. |
 | 5 Full lifecycle | Not started | |
 | 6 UX/accessibility | Not started | |
 | 7 Metrics/performance | Not started | |
@@ -146,8 +146,36 @@ Decisions:
 Remaining risks:
 - Emulator-backed Firestore/Storage rules tests are still missing; the current tests verify rule text and endpoint coverage only. Full emulator coverage belongs to Milestone 8.
 - Some helper code for the old demo seed remains unreachable in `src/services/issues.ts`; remove it during service decomposition.
-- `/api/verify-resolution`, `/api/escalation`, `/api/resolution-plan`, and `/api/agent/run` still accept browser-supplied issue facts for model prompts. Milestone 4/5 must load canonical issue state server-side.
+- `/api/verify-resolution`, `/api/escalation`, and `/api/resolution-plan` still accept browser-supplied issue facts for model prompts. `/api/agent/run` was moved to server-loaded issue state in Milestone 4.
 - Count recomputation is transaction-protected for new server endpoints, but existing pre-M3 data may still contain client-authored legacy fields until migrated or reseeded.
+
+## Milestone 4: Genuine Persisted Agent Workflow
+Status: completed on 2026-06-26
+
+Files changed:
+- `server.ts`: changed `POST /api/agent/run` to accept `{ issueId, idempotencyKey }`, load canonical issue data from Firestore, load nearby candidate issues server-side, execute bounded Gemini function calls, and persist top-level `agentRuns/{runId}` plus issue-linked/run-linked step documents.
+- `server.ts`: added `GET /api/issues/{issueId}/agent-runs/latest` for persisted run retrieval and updated issue `latestAgentRunId`, `agentTrace`, `resolutionPlan`, and `priorityScore` from server-side run output.
+- `src/services/api.ts`: added `runAgentForIssue` and `fetchLatestAgentRun`.
+- `src/components/IssueDetailPage.tsx`: removed browser-supplied issue/candidate payloads and client trace/plan saves; the page now requests server runs and renders returned/latest persisted steps.
+- `src/components/AgentTraceTimeline.tsx`: renders persisted server tool-step names in order instead of assuming only the old client-synthesized trace labels.
+- `src/server/agent-workflow.test.ts`: added focused checks that the server loads by `issueId`, persists `agentRuns`/`agentSteps`, and the UI no longer sends candidates or saves traces itself.
+
+Validation commands:
+- `npm ci`: passed in 49 seconds; 450 packages installed/audited; 0 vulnerabilities. Warnings: deprecated `node-domexception@1.0.0` and `glob@10.5.0`.
+- `npm run lint`: passed (`tsc --noEmit`).
+- `npm test`: passed (5 test files, 31 tests).
+- `npm run build`: passed. Warnings remain: large JS bundle (`assets/index-CPJmvn2w.js`, 1,273.77 kB / 343.82 kB gzip) and `src/services/issues.ts` dynamic import cannot create a separate chunk because it is also statically imported.
+- `npm audit --omit=dev`: passed; 0 vulnerabilities.
+
+Decisions:
+- Persisted `agentRuns` are top-level documents for easy audit lookup; steps are also written under both `agentRuns/{runId}/steps` and `issues/{issueId}/agentSteps` to keep the issue-linked evidence path explicit.
+- The agent still returns a draft resolution plan to support the existing UI, but consequential actions remain labelled as human-approval-gated.
+- The UI intentionally ignores legacy `issue.agentTrace` when rendering the detail-page agent timeline and loads the latest persisted run instead.
+
+Remaining risks:
+- The tool loop is persisted and server-loaded, but approval/action packet documents are not yet a full lifecycle contract. Milestone 5 must add approval records and enforce merge/routing/escalation/resolve/reopen decisions.
+- The Gemini loop still depends on model tool-call compliance. More deterministic fallback sequencing and retry telemetry should be added in Milestone 8.
+- Existing legacy documents may still have old `agentTrace` arrays; the UI now favors persisted runs where present.
 
 ## Decision log
 - 2026-06-26: Initialized a valid project-local Git repository because the existing `.git` directory was empty/invalid and Git was resolving to `C:/Users/apexm`.
@@ -162,10 +190,11 @@ Remaining risks:
 - 2026-06-26: Removed public citizen status-transition UI and real-operator persona switching; the header now shows operator/demo desk access only when `/api/session` reports it.
 - 2026-06-26: Moved issue-owned writes behind Admin SDK endpoints and hardened Firestore rules to deny direct client writes to issue documents and subcollections.
 - 2026-06-26: Added Storage Rules for user-owned report/evidence/closure image paths rather than allowing arbitrary bucket writes.
+- 2026-06-26: Changed the agent API contract from browser-supplied issue/candidates to server-loaded `issueId` plus idempotent persisted run records.
 
 ## External blockers
 - Firebase/GCP deployment credentials and billing access are required before deployed smoke tests.
 - Public GitHub repository URL, public app URL, Google Doc URL, demo video URL, and BlockseBlock submission require user/account approval before final submission actions.
 
 ## Next milestone
-Milestone 4: change the agent workflow to accept `{ issueId, idempotencyKey }`, load canonical issue/candidate data server-side, persist `agentRuns` and `agentSteps`, and render persisted runs only.
+Milestone 5: complete the civic lifecycle with server approval records for merge, routing/action packet, escalation finalization, closure evidence, resolve, and reopen.

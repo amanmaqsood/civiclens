@@ -1652,19 +1652,123 @@ Output ONLY valid JSON and nothing else.`;
     return JSON.parse(clean);
   }
 
-  // Real Gemini Function-Calling Agentic Triage Loop
-  app.post("/api/agent/run", async (req, res) => {
-    const { issue, candidates } = req.body;
+  function distanceMeters(lat1: number, lon1: number, lat2: number, lon2: number): number {
+    const radius = 6371000;
+    const dLat = ((lat2 - lat1) * Math.PI) / 180;
+    const dLon = ((lon2 - lon1) * Math.PI) / 180;
+    const a =
+      Math.sin(dLat / 2) * Math.sin(dLat / 2) +
+      Math.cos((lat1 * Math.PI) / 180) *
+        Math.cos((lat2 * Math.PI) / 180) *
+        Math.sin(dLon / 2) *
+        Math.sin(dLon / 2);
+    return radius * (2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a)));
+  }
 
-    if (!issue || typeof issue !== "object") {
-      return res.status(400).json({ success: false, error: "Missing or invalid issue." });
+  async function loadNearbyCandidates(issueId: string, issue: any): Promise<any[]> {
+    if (typeof issue.lat !== "number" || typeof issue.lng !== "number") return [];
+    const snap = await adminDb.collection("issues").orderBy("timestamp", "desc").limit(80).get();
+    const candidates: any[] = [];
+    snap.forEach((docSnap: any) => {
+      if (docSnap.id === issueId) return;
+      const data = docSnap.data();
+      if (typeof data.lat !== "number" || typeof data.lng !== "number") return;
+      const distanceM = distanceMeters(issue.lat, issue.lng, data.lat, data.lng);
+      if (distanceM <= 250) {
+        candidates.push({
+          id: docSnap.id,
+          title: data.title,
+          category: data.category,
+          summary: data.summary || data.description,
+          locationName: data.locationName,
+          status: data.status,
+          distanceM: Math.round(distanceM),
+        });
+      }
+    });
+    return candidates.slice(0, 8);
+  }
+
+  async function persistAgentRun(issueRef: any, runRef: any, run: any, steps: any[], resolutionPlan: any, final: any) {
+    const batch = adminDb.batch();
+    batch.set(runRef, run, { merge: true });
+    for (const step of steps) {
+      batch.set(issueRef.collection("agentSteps").doc(step.id), step);
+      batch.set(runRef.collection("steps").doc(step.id), step);
     }
+    batch.update(issueRef, {
+      latestAgentRunId: run.id,
+      agentTrace: steps.map(({ id, runId, issueId, order, model, ...trace }) => trace),
+      resolutionPlan,
+      priorityScore: typeof final?.priorityScore === "number" ? cleanNumber(final.priorityScore, 0, 0, 100) : FieldValue.delete(),
+      updatedAt: new Date().toISOString(),
+    });
+    await batch.commit();
+  }
 
-    const safeCandidates = Array.isArray(candidates) ? candidates : [];
+  app.get("/api/issues/:issueId/agent-runs/latest", async (req, res) => {
+    if (!adminDb) return sendApiError(res, 503, "Server data layer unavailable.");
+    const { issueId } = req.params;
+    if (!isSafeDocumentId(issueId)) return sendApiError(res, 400, "Invalid issue id.");
 
     try {
+      const runSnap = await adminDb.collection("agentRuns")
+        .where("issueId", "==", issueId)
+        .orderBy("startedAt", "desc")
+        .limit(1)
+        .get();
+      if (runSnap.empty) return res.json({ success: true, run: null, steps: [] });
+      const runDoc = runSnap.docs[0];
+      const stepsSnap = await runDoc.ref.collection("steps").orderBy("order", "asc").get();
+      const steps = stepsSnap.docs.map((docSnap: any) => docSnap.data());
+      return res.json({ success: true, run: runDoc.data(), steps });
+    } catch (error) {
+      return sendApiError(res, 500, "Failed to load agent run.", error);
+    }
+  });
+
+  // Real Gemini Function-Calling Agentic Triage Loop
+  app.post("/api/agent/run", async (req: any, res) => {
+    if (!adminDb) return sendApiError(res, 503, "Server data layer unavailable.");
+    const actor = req.actor as RequestActor | undefined;
+    const { issueId } = req.body || {};
+    const idempotencyKey = isSafeDocumentId(req.body?.idempotencyKey) ? req.body.idempotencyKey : adminDb.collection("agentRuns").doc().id;
+    if (!actor || !isSafeDocumentId(issueId)) {
+      return sendApiError(res, 400, "Missing or invalid issueId.");
+    }
+
+    const issueRef = adminDb.collection("issues").doc(issueId);
+    const runRef = adminDb.collection("agentRuns").doc(`${issueId}_${idempotencyKey}`);
+
+    try {
+      const existingRun = await runRef.get();
+      if (existingRun.exists) {
+        const stepsSnap = await runRef.collection("steps").orderBy("order", "asc").get();
+        return res.json({
+          success: true,
+          run: existingRun.data(),
+          steps: stepsSnap.docs.map((docSnap: any) => docSnap.data()),
+          idempotent: true,
+        });
+      }
+
+      const issueSnap = await issueRef.get();
+      if (!issueSnap.exists) return sendApiError(res, 404, "Issue not found.");
+      const issue = { id: issueSnap.id, ...issueSnap.data() };
+      const safeCandidates = await loadNearbyCandidates(issueId, issue);
+
       const agentTools = [{
         functionDeclarations: [
+          {
+            name: "nearby_search",
+            description: "Return nearby candidate reports loaded from Firestore by deterministic application code.",
+            parameters: {
+              type: Type.OBJECT,
+              properties: {
+                radiusM: { type: Type.NUMBER },
+              },
+            }
+          },
           {
             name: "calculate_priority",
             description: "Compute the deterministic 0-100 civic priority score for this issue.",
@@ -1706,7 +1810,7 @@ Output ONLY valid JSON and nothing else.`;
           },
           {
             name: "finalize",
-            description: "Finalize the triage with the routing decision and a one-line rationale.",
+            description: "Finalize the triage with a draft routing recommendation and a one-line rationale.",
             parameters: {
               type: Type.OBJECT,
               properties: {
@@ -1716,12 +1820,27 @@ Output ONLY valid JSON and nothing else.`;
               },
               required: ["routeTo", "rationale"]
             }
+          },
+          {
+            name: "request_human_approval",
+            description: "Record that a consequential recommendation must wait for human approval.",
+            parameters: {
+              type: Type.OBJECT,
+              properties: {
+                action: { type: Type.STRING },
+                reason: { type: Type.STRING }
+              },
+              required: ["action", "reason"]
+            }
           }
         ]
       }];
 
       // Server-side tool implementations
       async function execTool(name: string, args: any) {
+        if (name === "nearby_search") {
+          return { candidates: safeCandidates, radiusM: args.radiusM || 250 };
+        }
         if (name === "calculate_priority") {
           const severity = args.severity || 1;
           const urgency = args.urgency || "routine";
@@ -1783,6 +1902,9 @@ Output ONLY valid JSON and nothing else.`;
             return { authority: "Municipal Corporation", sla: 7, channel: "Public grievance channel" };
           }
         }
+        if (name === "request_human_approval") {
+          return { approvalRequired: true, action: args.action || "review", reason: args.reason || "Human review required" };
+        }
         if (name === "finalize") {
           return { done: true };
         }
@@ -1790,8 +1912,9 @@ Output ONLY valid JSON and nothing else.`;
       }
 
       let contents: any[] = [{ role: "user", parts: [{ text:
-        `You are CivicLens's triage agent. Issue: ${JSON.stringify(issue)}. Nearby candidates: ${JSON.stringify(safeCandidates)}.
-         Steps: 1) call assess_duplicate, 2) call calculate_priority, 3) call find_authority, 4) call finalize. Call exactly one tool per turn.` }]}];
+        `You are CivicLens's server-side triage agent. Use only server-provided issue data and tools.
+Issue: ${JSON.stringify(issue)}
+Steps: 1) call nearby_search, 2) call assess_duplicate using candidates if any, 3) call calculate_priority, 4) call find_authority, 5) call request_human_approval for any merge/routing/resolution recommendation, 6) call finalize. Call exactly one tool per turn.` }]}];
 
       const steps: any[] = [];
       let final: any = null;
@@ -1807,7 +1930,7 @@ Output ONLY valid JSON and nothing else.`;
 
       while (guard++ < 8) {
         const t0 = Date.now();
-        const { response } = await generateContentWithRetry(ai, {
+        const { response, retried } = await generateContentWithRetry(ai, {
           model: "gemini-2.5-flash",
           contents,
           config: { tools: agentTools }
@@ -1833,7 +1956,12 @@ Output ONLY valid JSON and nothing else.`;
           }
         }
 
+        const stepId = `${runRef.id}_${steps.length + 1}_${fc.name}`;
         steps.push({
+          id: stepId,
+          runId: runRef.id,
+          issueId,
+          order: steps.length + 1,
           step: fc.name,
           tool: `agent.${fc.name}`,
           status: "done",
@@ -1841,7 +1969,10 @@ Output ONLY valid JSON and nothing else.`;
           outputSummary: JSON.stringify(result).slice(0, 160),
           durationMs: Date.now() - t0,
           ts: new Date().toISOString(),
-          rationale: fc.args?.reasoning || fc.args?.rationale || `Called ${fc.name}`
+          rationale: fc.args?.reasoning || fc.args?.rationale || fc.args?.reason || `Called ${fc.name}`,
+          model: "gemini-2.5-flash",
+          retried,
+          sources: fc.name === "nearby_search" ? safeCandidates.map((candidate) => candidate.id) : [],
         });
 
         contents.push({ role: "model", parts: [{ functionCall: fc } as any] });
@@ -1885,8 +2016,29 @@ Output ONLY valid JSON and nothing else.`;
         };
       }
 
+      const nowIso = new Date().toISOString();
+      const run = {
+        id: runRef.id,
+        issueId,
+        status: "completed",
+        startedAt: steps[0]?.ts || nowIso,
+        completedAt: nowIso,
+        model: "gemini-2.5-flash",
+        actorUid: actor.uid,
+        actorRole: actor.role,
+        duplicateCandidateId,
+        duplicateSimilarity,
+        duplicateReasoning,
+        final,
+        resolutionPlan,
+        stepCount: steps.length,
+      };
+
+      await persistAgentRun(issueRef, runRef, run, steps, resolutionPlan, final);
+
       return res.json({
         success: true,
+        run,
         steps,
         final,
         duplicateCandidateId,

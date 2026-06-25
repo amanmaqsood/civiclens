@@ -12,6 +12,7 @@ This document records the current baseline security posture and the target rebui
 - Gemini and mutation endpoints require Firebase identity, App Check or the explicit local-only App Check bypass header, shared payload size checks, stable public errors, and in-memory per-user/IP quotas.
 - `GET /api/admin/health` is restricted to real operators.
 - Issue creation, evidence attachment, support, verification, translations, activity, trace/plan, closure assessment, escalation draft, and demo seed/clear now route through Admin SDK endpoints.
+- `POST /api/agent/run` accepts `issueId` plus an idempotency key, loads canonical issue/candidate data server-side, and persists `agentRuns` plus issue-linked `agentSteps`.
 - Firestore Rules deny direct client create/update/delete access to `/issues/{issueId}` and its issue-owned subcollections.
 - Storage Rules allow signed-in users to upload image files only under their own `reports/{uid}`, `evidence/{uid}`, and `closures/{uid}` paths with MIME and size checks.
 - Legacy pre-Milestone-3 data may still contain browser-authored fields until reseeded or migrated.

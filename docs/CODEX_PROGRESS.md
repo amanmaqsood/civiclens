@@ -7,7 +7,7 @@ Current branch/commit:
 - Branch: `master`
 - Original prototype baseline commit: `ffd4ebc chore: capture original prototype baseline`
 - Original prototype rollback tag: `baseline/original-prototype`
-- Current Milestone 0 changes after that tag: regenerated `package-lock.json`, upgraded `firebase-admin` to `^14.1.0`, added npm `uuid` override, and updated this progress log.
+- Current rebuild state: milestones 0-9 have been completed locally through documentation/readiness. Deployment, public URLs, Google Doc publication, demo video, and submission remain external approval-gated.
 
 Validation commands:
 - `npm install --package-lock-only`: passed; generated a real lockfile from the previously empty `package-lock.json`; initial audit reported 8 moderate vulnerabilities.
@@ -52,10 +52,10 @@ Rollback instructions:
 | 3 Server data integrity | Complete | Server-owned issue/evidence/support/verification/activity/trace/closure/escalation endpoints added; Firestore rules deny direct issue writes; Storage Rules added; focused data-integrity tests added; required commands passed. |
 | 4 Genuine agent | Complete | `/api/agent/run` now accepts `{ issueId, idempotencyKey }`, loads Firestore issue/candidates server-side, persists `agentRuns` and `agentSteps`, and UI renders persisted steps; focused agent tests added; required commands passed. |
 | 5 Full lifecycle | Complete | Status transitions now require operator rationale and approval docs; resolve requires closure assessment; routing and escalation finalization approvals added; focused lifecycle tests added; required commands passed. |
-| 6 UX/accessibility | Not started | |
-| 7 Metrics/performance | Not started | |
-| 8 Tests/security | Not started | |
-| 9 Release/submission | Not started | |
+| 6 UX/accessibility | Complete | Fake phone shell removed; responsive operator workspace added; touched controls gained labels/44px targets/dialog semantics; focused UI regression tests added; required commands passed. |
+| 7 Metrics/performance | Complete | Dashboard metrics use persisted fields and split real/demo data; paged issue loading, code splitting, closure image compression, structured logs, readiness, and config validation added; required commands passed. |
+| 8 Tests/security | Complete | Release-gate tests cover named security/rules/lifecycle/agent/UI cases; emulator/browser gaps documented; required commands passed. |
+| 9 Release/submission | Complete locally | License, attribution, architecture, deployment, AI Studio evidence, demo script, Google Doc draft, final evidence report, env docs, README, and security spec updated; deployment/submission remain blocked by credentials and approval. |
 
 ## Milestone 1: Credibility / Truth Boundary
 Status: completed on 2026-06-26
@@ -292,6 +292,44 @@ Remaining risks:
 - Golden-path and accessibility coverage is source-level; no Playwright/axe browser run has been added yet.
 - Deployment smoke tests remain blocked by Firebase/GCP credentials and explicit deployment approval.
 
+## Milestone 9: Docs, Demo, and GCP Readiness
+Status: completed locally on 2026-06-26
+
+Files changed:
+- `LICENSE`: added MIT license text.
+- `ATTRIBUTIONS.md`: added direct libraries, Google technologies, demo image sources, and local review skills used as checklists.
+- `ARCHITECTURE.md`: added stack, trust boundary, data flow, collections, API groups, controls, and known gaps.
+- `README.md`: updated current stack, prototype boundary, docs index, local setup, validation, and deployment status.
+- `security_spec.md`: updated current security boundary, server-owned data, human approval requirements, agent boundary, upload/URL safety, validation evidence, and remaining gaps.
+- `.env.example`: removed fake secret-looking values and added Maps env descriptions.
+- `docs/DEPLOYMENT_CLOUD_RUN.md`: added local production check, Cloud Run command shape, smoke tests, and rollback notes.
+- `docs/AI_STUDIO_EVIDENCE.md`: added evidence capture instructions without inventing screenshots or URLs.
+- `docs/DEMO_SCRIPT.md`: added a judge-facing truthful demo flow and explicit uncreated external link status.
+- `docs/GOOGLE_DOC_DRAFT.md`: added Google Doc-ready content for problem, solution, features, Google technologies, architecture/safety, testing, limitations, and demo instructions.
+- `docs/FINAL_EVIDENCE_REPORT.md`: added final local evidence, validation outputs, completed tags, blockers, and gaps.
+- `src/docs-readiness.test.ts`: added docs readiness tests for required docs, env fake-secret cleanup, and truthful blocker reporting.
+
+Validation commands:
+- `npm ci`: passed in 44 seconds; 450 packages installed/audited; 0 vulnerabilities. Warnings: deprecated `node-domexception@1.0.0` and `glob@10.5.0`.
+- `npm run lint`: passed (`tsc --noEmit`).
+- `npm test`: passed (12 test files, 55 tests).
+- `npm run build`: passed. Warnings remain: Firebase chunk is larger than 500 kB (`assets/firebase-DfUh0SdN.js`, 716.39 kB / 179.17 kB gzip), and `src/services/issues.ts` is still both dynamically and statically imported.
+- `npm audit --omit=dev`: passed; 0 vulnerabilities.
+- Local production start probe: `NODE_ENV=production PORT=3101 node dist/server.cjs` started successfully; `GET /health` returned 200. `GET /readyz` returned 503 because `GEMINI_API_KEY` was absent, with startup warnings for empty `CIVICLENS_OPERATOR_EMAILS` and missing server-side `GOOGLE_MAPS_PLATFORM_KEY`.
+- Placeholder/secret scan: release-facing docs and `.env.example` did not contain fake key values or pending license/attribution copy; matches remained only in negative test assertions.
+
+Decisions:
+- Chose MIT license for the local prototype.
+- Recorded deployment, public URL, Google Doc, demo video, and final submission as blocked rather than inventing links or evidence.
+- Kept Cloud Run instructions as command shapes and required smoke tests because real project/region/secrets require user account choices.
+- Recorded the local production readiness probe as config-blocked rather than passing readiness without required secrets.
+
+Remaining risks:
+- Public Cloud Run deployment and smoke tests require Firebase/GCP credentials, billing, and explicit approval.
+- Production readiness requires `GEMINI_API_KEY` and the intended operator/maps configuration before `/readyz` can pass.
+- Public Google Doc and demo video still need to be created and verified by the user or in an approved deployment/submission turn.
+- Emulator-backed rules tests and browser E2E/accessibility remain known release gaps.
+
 ## Decision log
 - 2026-06-26: Initialized a valid project-local Git repository because the existing `.git` directory was empty/invalid and Git was resolving to `C:/Users/apexm`.
 - 2026-06-26: Captured the untouched prototype before dependency repair as commit `ffd4ebc` and tag `baseline/original-prototype`.
@@ -310,10 +348,11 @@ Remaining risks:
 - 2026-06-26: Removed the fake phone frame/status bar and moved the operator experience to a responsive queue/detail workspace at desktop breakpoints.
 - 2026-06-26: Scoped dashboard metrics to loaded real/demo records, added paged issue loading, and added readiness/logging/chunking instead of presenting recent records as complete history.
 - 2026-06-26: Added source-level release-gate tests for named security, rules, lifecycle, agent, UI, and golden-path cases while recording emulator/browser gaps honestly.
+- 2026-06-26: Completed local release documentation and final evidence without fabricating deployment, Google Doc, demo video, or submission status.
 
 ## External blockers
 - Firebase/GCP deployment credentials and billing access are required before deployed smoke tests.
 - Public GitHub repository URL, public app URL, Google Doc URL, demo video URL, and BlockseBlock submission require user/account approval before final submission actions.
 
 ## Next milestone
-Milestone 9: complete docs, attribution, architecture, license, Cloud Run readiness notes, demo/submission artifacts, and final evidence reporting; deploy only with credentials and explicit approval.
+External approval/credential step: deploy to Cloud Run, smoke-test public URLs, capture AI Studio/Cloud Run evidence, publish the Google Doc/demo video, and submit only after explicit user approval.

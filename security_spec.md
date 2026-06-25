@@ -1,50 +1,78 @@
 # CivicLens Security Boundary Notes
 
-This document records the current baseline security posture and the target rebuild boundary. It is intentionally conservative: it does not claim protections that are not yet enforced by code and tests.
+This document records the local rebuild security posture. It is intentionally conservative: CivicLens is a prototype and does not claim protections, deployments, or government integrations that were not actually verified.
 
-## Current Milestone 2 Posture
+## Current Boundary
 
 - Firebase Auth signs visitors in anonymously for low-friction citizen access.
-- Google sign-in is exposed in the header. Real operator authorization is resolved on the server from verified allowlist email, custom claim, or configured role source.
-- Public real-operator switching is removed from the header. The server-reported session can expose a real operator desk or a synthetic demo desk.
-- Demo operator mode is explicit and request-marked; server status transitions allow demo operators to mutate only documents marked `isDemoData == true`.
-- `POST /api/issues/update-status` verifies Firebase ID token, resolves role, checks demo boundary, writes through the Admin SDK, and records a server-authored status activity.
-- Gemini and mutation endpoints require Firebase identity, App Check or the explicit local-only App Check bypass header, shared payload size checks, stable public errors, and in-memory per-user/IP quotas.
-- `GET /api/admin/health` is restricted to real operators.
-- Issue creation, evidence attachment, support, verification, translations, activity, trace/plan, closure assessment, escalation draft, and demo seed/clear now route through Admin SDK endpoints.
-- `POST /api/agent/run` accepts `issueId` plus an idempotency key, loads canonical issue/candidate data server-side, and persists `agentRuns` plus issue-linked `agentSteps`.
-- Lifecycle transitions require server-authorized operator identity, a rationale, and server-created approval records. Resolve requires closure assessment evidence.
-- Routing/action-packet approval and escalation finalization are separate server endpoints that record human approval but do not submit anything externally.
-- Firestore Rules deny direct client create/update/delete access to `/issues/{issueId}` and its issue-owned subcollections.
-- Storage Rules allow signed-in users to upload image files only under their own `reports/{uid}`, `evidence/{uid}`, and `closures/{uid}` paths with MIME and size checks.
-- Legacy pre-Milestone-3 data may still contain browser-authored fields until reseeded or migrated.
+- Google sign-in is exposed for users who need a real operator role.
+- Real operator authorization is resolved on the server from verified allowlist email, custom claim, or configured role source.
+- Public real-operator switching is not available in the UI. The server-reported session decides whether the operator desk is available.
+- Demo operator mode is explicit and request-marked. Demo operators can mutate only documents marked `isDemoData == true`.
+- Protected API routes require Firebase ID token, App Check or explicit local-only App Check bypass, request-size checks, public-safe errors, and per-user/IP quotas.
+- `GET /api/admin/health` requires a real operator.
+- `/health` and `/api/health` are liveness endpoints. `/readyz` and `/api/readyz` report runtime readiness and return 503 when required production config or Admin SDK readiness is missing.
 
-## Target Invariants
+## Server-Owned Data
 
-- Trust no browser-supplied privileged fact.
-- Verify Firebase ID token and server-side role before protected work.
-- Restrict public demo operator actions to documents explicitly marked `isDemoData == true`.
-- Keep status, lifecycle timestamps, counts, priority, agent traces, activity/audit events, resolution plans, escalation records, and closure assessments server-owned.
-- Use transactions and idempotency for votes, verification, merges, counters, state changes, and audit writes.
-- Require human approval for duplicate merge, final routing/action packet, escalation finalization, resolve, and reopen.
-- Persist only real server-executed agent tools as agent traces.
-- Keep Storage Rules aligned with path ownership, MIME type, and file-size restrictions.
-- Prevent arbitrary URL fetching and SSRF in closure verification.
-- Add request schemas, quotas, safe errors, App Check verification where deployable, and explicit local-only bypasses.
+The following data is written by Express/Admin SDK endpoints rather than client Firestore writes:
 
-## Required Evidence Before Release
+- Issue creation and duplicate evidence attachment.
+- Support and verification actions.
+- Status transitions and lifecycle timestamps.
+- Activity entries.
+- Approval records.
+- Agent traces, `agentRuns`, and issue-linked `agentSteps`.
+- Resolution plans.
+- Escalation drafts and finalization records.
+- Closure assessments.
+- Synthetic demo seed/clear actions.
 
-The release security claim is valid only after tests prove:
+Firestore Rules deny direct client create/update/delete access to `/issues/{issueId}` and issue-owned subcollections. Storage Rules allow signed-in users to upload image files only under their own `reports/{uid}`, `evidence/{uid}`, and `closures/{uid}` paths with MIME and size checks.
 
-- Unauthenticated protected API calls fail.
-- Citizens cannot mutate real-case status or system-owned fields.
-- Demo operators can mutate demo cases only.
-- Real operator authorization is decided server-side.
-- Clients cannot write audit or agent trace records.
-- One user gets one support and one verification action.
-- Concurrent actions preserve correct counts and audit records.
-- Illegal state transitions fail.
-- Resolve without closure evidence fails.
-- Arbitrary remote image URLs and oversized/non-image uploads are rejected.
-- Malformed Gemini output falls back safely.
-- Closure recommendations wait for human decision.
+## Human Approval Requirements
+
+Human approval is required for:
+
+- Duplicate merge decision.
+- Routing/action packet approval.
+- Escalation finalization.
+- Resolve.
+- Reopen.
+
+Closure recommendations never auto-resolve a case. A server-authorized operator must make the final decision and provide rationale.
+
+## Agent Boundary
+
+`POST /api/agent/run` accepts `issueId` and optional idempotency key. The server loads canonical issue data and nearby candidates from Firestore, executes bounded tools, and persists run/step records. The UI renders persisted runs and does not present seeded demo traces as live tool executions.
+
+## URL And Upload Safety
+
+- Report and closure images are compressed client-side before upload.
+- Storage Rules restrict image MIME types and size.
+- Closure before-image fetching accepts only Firebase Storage URLs and image content types, with a timeout.
+- Arbitrary remote URL fetching is not allowed for closure verification.
+
+## Validation Evidence
+
+Source-level release tests cover:
+
+- Unauthenticated protected API rejection strings.
+- App Check/auth/quota/body-size controls.
+- Demo-only operator mutation boundary.
+- One support and one verification action per user.
+- Illegal lifecycle transitions.
+- Resolve without closure evidence.
+- SSRF-restricted closure image fetch.
+- Firestore and Storage rules matrix.
+- Persisted server agent runs/steps and idempotency.
+- Golden-path UI wiring and key accessibility markers.
+
+Latest command results are recorded in `docs/FINAL_EVIDENCE_REPORT.md`.
+
+## Remaining Security Gaps
+
+- Firestore Rules and Storage Rules are not yet executed in Firebase Emulator Suite tests.
+- Transaction/concurrency behavior is not yet race-tested in an emulator harness.
+- Browser E2E and automated accessibility tests are not wired.
+- Production App Check token wiring and Cloud Run readiness have not been smoke-tested because deployment credentials and explicit approval are not available in this local rebuild.

@@ -2,6 +2,7 @@ import React, { useState } from "react";
 import { IssueReport, ClosureAssessment } from "../types";
 import { submitClosureAssessment } from "../services/issues";
 import { Check, Upload, Sparkles, RefreshCw, AlertCircle } from "lucide-react";
+import { compressImage } from "../utils/compression";
 
 interface ClosureVerificationPanelProps {
   issue: IssueReport;
@@ -13,24 +14,23 @@ export default function ClosureVerificationPanel({ issue, onVerified }: ClosureV
   const [error, setError] = useState<string | null>(null);
   const [afterPreview, setAfterPreview] = useState<string | null>(null);
 
-  const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+  const handleFileChange = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
     if (!file) return;
 
-    if (!file.type.startsWith("image/")) {
-      setError("Please select a valid image file.");
+    const allowedTypes = ["image/jpeg", "image/png", "image/webp"];
+    if (!allowedTypes.includes(file.type)) {
+      setError("Please select a JPEG, PNG, or WebP image file.");
       return;
     }
 
-    const reader = new FileReader();
-    reader.onload = () => {
-      setAfterPreview(reader.result as string);
+    try {
+      const compressed = await compressImage(file, 1024, 1024, 0.72);
+      setAfterPreview(compressed);
       setError(null);
-    };
-    reader.onerror = () => {
-      setError("Failed to read image file.");
-    };
-    reader.readAsDataURL(file);
+    } catch {
+      setError("Failed to optimize image file.");
+    }
   };
 
   const handleStartVerification = async () => {

@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from "react";
+import React, { useState, useEffect, lazy, Suspense } from "react";
 import { ActiveView, IssueReport, AgentTraceEntry } from "./types";
 import MobileFrame from "./components/MobileFrame";
 import Header from "./components/Header";
@@ -8,23 +8,44 @@ import SuccessPage from "./components/SuccessPage";
 import IssueDetailPage from "./components/IssueDetailPage";
 import { useFirebase } from "./context/FirebaseContext";
 import { 
-  fetchRecentIssues, 
+  fetchIssuesPage, 
   submitIssueReport, 
   upvoteIssue,
   findDuplicateCandidates,
   checkDuplicateWithAI,
   submitEvidenceForIssue,
-  calculatePriorityScore
+  calculatePriorityScore,
+  type IssuePageCursor
 } from "./services/issues";
 import { AlertCircle, Loader2 } from "lucide-react";
 import DuplicateCheckPage from "./components/DuplicateCheckPage";
-import OperatorQueue from "./components/OperatorQueue";
-import OperatorDetailView from "./components/OperatorDetailView";
-import ImpactDashboard from "./components/ImpactDashboard";
 import AgentTraceTimeline from "./components/AgentTraceTimeline";
 import { fetchApiSession, type ApiSession } from "./services/api";
 
 type OperatorAccess = "none" | "demo" | "real";
+const ISSUE_PAGE_SIZE = 50;
+
+const OperatorQueue = lazy(() => import("./components/OperatorQueue"));
+const OperatorDetailView = lazy(() => import("./components/OperatorDetailView"));
+const ImpactDashboard = lazy(() => import("./components/ImpactDashboard"));
+
+function sortIssuesForDisplay(items: IssueReport[]): IssueReport[] {
+  return [...items].sort((a, b) => {
+    const scoreA = a.priorityScore ?? 0;
+    const scoreB = b.priorityScore ?? 0;
+    if (scoreB !== scoreA) return scoreB - scoreA;
+    return Date.parse(b.timestamp) - Date.parse(a.timestamp);
+  });
+}
+
+function RouteLoading({ label }: { label: string }) {
+  return (
+    <div className="flex min-h-[45vh] w-full items-center justify-center gap-2 p-6 text-xs font-bold text-slate">
+      <Loader2 className="h-4 w-4 animate-spin text-marigold" />
+      <span>{label}</span>
+    </div>
+  );
+}
 
 export default function App() {
   const { user } = useFirebase();
@@ -32,6 +53,9 @@ export default function App() {
   const [latestReport, setLatestReport] = useState<Partial<IssueReport> | null>(null);
   const [issues, setIssues] = useState<IssueReport[]>([]);
   const [issuesLoading, setIssuesLoading] = useState(true);
+  const [issueCursor, setIssueCursor] = useState<IssuePageCursor | null>(null);
+  const [hasMoreIssues, setHasMoreIssues] = useState(false);
+  const [loadingMoreIssues, setLoadingMoreIssues] = useState(false);
   const [loadError, setLoadError] = useState(false);
   const [upvoteLoadingId, setUpvoteLoadingId] = useState<string | null>(null);
   const [errorNotice, setErrorNotice] = useState<string | null>(null);
@@ -60,13 +84,38 @@ export default function App() {
     setIssuesLoading(true);
     setLoadError(false);
     try {
-      const data = await fetchRecentIssues();
-      setIssues(data);
+      const page = await fetchIssuesPage({ pageSize: ISSUE_PAGE_SIZE });
+      setIssues(page.issues);
+      setIssueCursor(page.nextCursor);
+      setHasMoreIssues(page.hasMore);
     } catch (err) {
       console.error("Failed to load issues:", err);
       setLoadError(true);
     } finally {
       setIssuesLoading(false);
+    }
+  };
+
+  const loadMoreIssues = async () => {
+    if (!hasMoreIssues || !issueCursor || loadingMoreIssues) return;
+    setLoadingMoreIssues(true);
+    setLoadError(false);
+    try {
+      const page = await fetchIssuesPage({ pageSize: ISSUE_PAGE_SIZE, after: issueCursor });
+      setIssues((prev) => {
+        const byId = new Map(prev.map((issue) => [issue.id, issue]));
+        for (const issue of page.issues) {
+          byId.set(issue.id, issue);
+        }
+        return sortIssuesForDisplay(Array.from(byId.values()));
+      });
+      setIssueCursor(page.nextCursor);
+      setHasMoreIssues(page.hasMore);
+    } catch (err) {
+      console.error("Failed to load additional issues:", err);
+      setLoadError(true);
+    } finally {
+      setLoadingMoreIssues(false);
     }
   };
 
@@ -421,54 +470,59 @@ export default function App() {
             </div>
           </div>
         ) : persona === "operator" && operatorAccess !== "none" ? (
-          <div className="min-h-full w-full bg-slate-50 lg:grid lg:grid-cols-[380px_minmax(0,1fr)] xl:grid-cols-[420px_minmax(0,1fr)]">
-            <section
-              className={`${operatorSelectedIssueId ? "hidden lg:block" : "block"} min-w-0 lg:border-r lg:border-slate-200 lg:bg-paper`}
-              aria-label="Operator case queue"
-            >
-              <OperatorQueue
-                issues={operatorIssues}
-                onSelectIssue={(id) => setOperatorSelectedIssueId(id)}
-                onRefresh={loadIssues}
-                loading={issuesLoading}
-                accessMode={operatorAccess}
-                selectedIssueId={operatorSelectedIssueId}
-                embedded
-              />
-            </section>
-            <section
-              className={`${operatorSelectedIssueId ? "block" : "hidden lg:flex"} min-w-0 lg:min-h-[calc(100vh-76px)]`}
-              aria-label="Selected operator case"
-            >
-              {selectedOperatorIssue ? (
-                <OperatorDetailView
-                  issue={selectedOperatorIssue}
-                  onBack={() => setOperatorSelectedIssueId(null)}
+          <Suspense fallback={<RouteLoading label="Loading operator workspace..." />}>
+            <div className="min-h-full w-full bg-slate-50 lg:grid lg:grid-cols-[380px_minmax(0,1fr)] xl:grid-cols-[420px_minmax(0,1fr)]">
+              <section
+                className={`${operatorSelectedIssueId ? "hidden lg:block" : "block"} min-w-0 lg:border-r lg:border-slate-200 lg:bg-paper`}
+                aria-label="Operator case queue"
+              >
+                <OperatorQueue
+                  issues={operatorIssues}
+                  onSelectIssue={(id) => setOperatorSelectedIssueId(id)}
                   onRefresh={loadIssues}
-                  demoOperator={operatorAccess === "demo"}
+                  onLoadMore={loadMoreIssues}
+                  hasMore={hasMoreIssues}
+                  loadingMore={loadingMoreIssues}
+                  loading={issuesLoading}
+                  accessMode={operatorAccess}
+                  selectedIssueId={operatorSelectedIssueId}
                   embedded
                 />
-              ) : (
-                <div className="flex min-h-[55vh] w-full flex-col items-center justify-center gap-3 p-6 text-center font-sans text-slate-500">
-                  <h2 className="text-sm font-bold text-slate-800">
-                    {operatorSelectedIssueId ? "Issue report not found." : "Select a prototype case"}
-                  </h2>
-                  <p className="max-w-sm text-xs leading-relaxed">
-                    Choose a saved case from the queue to review evidence, persisted agent steps, approvals, and closure controls.
-                  </p>
-                  {operatorSelectedIssueId && (
-                    <button
-                      type="button"
-                      onClick={() => setOperatorSelectedIssueId(null)}
-                      className="min-h-[44px] rounded-xl border border-slate-300 bg-white px-4 text-xs font-bold text-[#4F46E5]"
-                    >
-                      Back to Queue
-                    </button>
-                  )}
-                </div>
-              )}
-            </section>
-          </div>
+              </section>
+              <section
+                className={`${operatorSelectedIssueId ? "block" : "hidden lg:flex"} min-w-0 lg:min-h-[calc(100vh-76px)]`}
+                aria-label="Selected operator case"
+              >
+                {selectedOperatorIssue ? (
+                  <OperatorDetailView
+                    issue={selectedOperatorIssue}
+                    onBack={() => setOperatorSelectedIssueId(null)}
+                    onRefresh={loadIssues}
+                    demoOperator={operatorAccess === "demo"}
+                    embedded
+                  />
+                ) : (
+                  <div className="flex min-h-[55vh] w-full flex-col items-center justify-center gap-3 p-6 text-center font-sans text-slate-500">
+                    <h2 className="text-sm font-bold text-slate-800">
+                      {operatorSelectedIssueId ? "Issue report not found." : "Select a prototype case"}
+                    </h2>
+                    <p className="max-w-sm text-xs leading-relaxed">
+                      Choose a saved case from the queue to review evidence, persisted agent steps, approvals, and closure controls.
+                    </p>
+                    {operatorSelectedIssueId && (
+                      <button
+                        type="button"
+                        onClick={() => setOperatorSelectedIssueId(null)}
+                        className="min-h-[44px] rounded-xl border border-slate-300 bg-white px-4 text-xs font-bold text-[#4F46E5]"
+                      >
+                        Back to Queue
+                      </button>
+                    )}
+                  </div>
+                )}
+              </section>
+            </div>
+          </Suspense>
         ) : (
           <>
             {currentView === "landing" && (
@@ -481,6 +535,9 @@ export default function App() {
                 userLocation={userLocation}
                 onUserLocationChange={setUserLocation}
                 loading={issuesLoading}
+                hasMoreIssues={hasMoreIssues}
+                loadingMoreIssues={loadingMoreIssues}
+                onLoadMoreIssues={loadMoreIssues}
               />
             )}
 
@@ -547,10 +604,14 @@ export default function App() {
             )}
 
             {currentView === "dashboard" && (
-              <ImpactDashboard
-                issues={issues}
-                onBack={() => setCurrentView("landing")}
-              />
+              <Suspense fallback={<RouteLoading label="Loading impact dashboard..." />}>
+                <ImpactDashboard
+                  issues={issues}
+                  onBack={() => setCurrentView("landing")}
+                  hasMoreIssues={hasMoreIssues}
+                  loadedPageSize={ISSUE_PAGE_SIZE}
+                />
+              </Suspense>
             )}
 
             {currentView === "submitting" && (

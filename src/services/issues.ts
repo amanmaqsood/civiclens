@@ -10,7 +10,8 @@ import {
   limit, 
   increment,
   getDoc,
-  deleteDoc
+  deleteDoc,
+  startAfter
 } from "firebase/firestore";
 import { ref, uploadString, getDownloadURL } from "firebase/storage";
 import { db, auth, storage, handleFirestoreError, OperationType } from "../lib/firebase";
@@ -28,6 +29,17 @@ export interface PriorityBreakdown {
   reportComponent: number;
   disputeComponent: number;
   hoursSinceReported: number;
+}
+
+export interface IssuePageCursor {
+  timestamp: string;
+}
+
+export interface IssuePage {
+  issues: IssueReport[];
+  nextCursor: IssuePageCursor | null;
+  hasMore: boolean;
+  pageSize: number;
 }
 
 export function calculatePriorityScore(issue: {
@@ -167,56 +179,68 @@ export function generateTicketId(): string {
   return `${letters}-${digits}`;
 }
 
-// Fetch recently submitted issues
-export async function fetchRecentIssues(): Promise<IssueReport[]> {
+function issueReportFromSnapshot(id: string, data: any): IssueReport {
+  const issueReport: IssueReport = {
+    id,
+    ticketId: data.ticketId,
+    image: data.image,
+    category: data.category,
+    description: data.description,
+    lat: data.lat,
+    lng: data.lng,
+    locationName: data.locationName,
+    status: data.status,
+    citizenUpvotes: data.citizenUpvotes || 0,
+    userId: data.userId,
+    timestamp: data.timestamp,
+    createdAt: data.createdAt,
+    updatedAt: data.updatedAt,
+    triagedAt: data.triagedAt,
+    verifiedAt: data.verifiedAt,
+    assignedAt: data.assignedAt,
+    workStartedAt: data.workStartedAt,
+    closureSubmittedAt: data.closureSubmittedAt,
+    resolvedAt: data.resolvedAt,
+    reopenedAt: data.reopenedAt,
+    title: data.title,
+    summary: data.summary,
+    severity: data.severity,
+    urgency: data.urgency,
+    visibleHazards: data.visibleHazards,
+    affectedArea: data.affectedArea,
+    privacyFlags: data.privacyFlags,
+    confidence: data.confidence,
+    reportCount: data.reportCount || 1,
+    confirmCount: data.confirmCount || 0,
+    disputeCount: data.disputeCount || 0,
+    priorityScore: data.priorityScore,
+    verificationStatus: data.verificationStatus || "unverified",
+    agentTrace: data.agentTrace || [],
+    resolutionPlan: data.resolutionPlan || undefined,
+    closureAssessment: data.closureAssessment || undefined,
+    escalation: data.escalation || undefined,
+    isDemoData: data.isDemoData || false,
+  };
+
+  if (issueReport.priorityScore === undefined) {
+    issueReport.priorityScore = calculatePriorityScore(issueReport);
+  }
+
+  return issueReport;
+}
+
+// Fetch a single page of issue records. The returned page is not a complete history.
+export async function fetchIssuesPage(options: { pageSize?: number; after?: IssuePageCursor | null } = {}): Promise<IssuePage> {
+  const pageSize = Math.max(10, Math.min(100, Math.floor(options.pageSize || 50)));
   try {
     const issuesRef = collection(db, COLLECTION_NAME);
-    const q = query(issuesRef, orderBy("timestamp", "desc"), limit(50));
+    const q = options.after?.timestamp
+      ? query(issuesRef, orderBy("timestamp", "desc"), startAfter(options.after.timestamp), limit(pageSize + 1))
+      : query(issuesRef, orderBy("timestamp", "desc"), limit(pageSize + 1));
     const snapshot = await getDocs(q);
-    
-    const results: IssueReport[] = [];
-    snapshot.forEach((doc) => {
-      const data = doc.data();
-      const issueReport: IssueReport = {
-        id: doc.id,
-        ticketId: data.ticketId,
-        image: data.image,
-        category: data.category,
-        description: data.description,
-        lat: data.lat,
-        lng: data.lng,
-        locationName: data.locationName,
-        status: data.status,
-        citizenUpvotes: data.citizenUpvotes || 0,
-        userId: data.userId,
-        timestamp: data.timestamp,
-        title: data.title,
-        summary: data.summary,
-        severity: data.severity,
-        urgency: data.urgency,
-        visibleHazards: data.visibleHazards,
-        affectedArea: data.affectedArea,
-        privacyFlags: data.privacyFlags,
-        confidence: data.confidence,
-        reportCount: data.reportCount || 1,
-        confirmCount: data.confirmCount || 0,
-        disputeCount: data.disputeCount || 0,
-        priorityScore: data.priorityScore,
-        verificationStatus: data.verificationStatus || "unverified",
-        agentTrace: data.agentTrace || [],
-        resolutionPlan: data.resolutionPlan || undefined,
-        closureAssessment: data.closureAssessment || undefined,
-        escalation: data.escalation || undefined,
-        isDemoData: data.isDemoData || false,
-      };
 
-      // Add dynamic fallback of priorityScore if not explicitly stored
-      if (issueReport.priorityScore === undefined) {
-        issueReport.priorityScore = calculatePriorityScore(issueReport);
-      }
-
-      results.push(issueReport);
-    });
+    const pageDocs = snapshot.docs.slice(0, pageSize);
+    const results = pageDocs.map((doc) => issueReportFromSnapshot(doc.id, doc.data()));
 
     // Deterministic sort: sort home feed by priorityScore descending
     results.sort((a, b) => {
@@ -228,11 +252,23 @@ export async function fetchRecentIssues(): Promise<IssueReport[]> {
       return Date.parse(b.timestamp) - Date.parse(a.timestamp); // Secondary tie break by newer timestamp
     });
 
-    return results;
+    const lastDoc = pageDocs[pageDocs.length - 1];
+    return {
+      issues: results,
+      pageSize,
+      hasMore: snapshot.docs.length > pageSize,
+      nextCursor: lastDoc ? { timestamp: String(lastDoc.data().timestamp || "") } : null,
+    };
   } catch (err) {
     handleFirestoreError(err, OperationType.LIST, COLLECTION_NAME);
-    return [];
+    return { issues: [], nextCursor: null, hasMore: false, pageSize };
   }
+}
+
+// Compatibility wrapper for callers that only need the first loaded page.
+export async function fetchRecentIssues(): Promise<IssueReport[]> {
+  const page = await fetchIssuesPage({ pageSize: 50 });
+  return page.issues;
 }
 
 // Create a new Issue Report through the server-owned data endpoint.

@@ -151,7 +151,7 @@ export function findOversizedStringField(
 }
 
 export function classifyProtectedRoute(method: string, path: string): "health" | "gemini" | "mutation" | "session" {
-  if (method === "GET" && (path === "/api/health" || path === "/health")) return "health";
+  if (method === "GET" && (path === "/api/health" || path === "/health" || path === "/api/readyz" || path === "/readyz")) return "health";
   if (path === "/api/session") return "session";
   if (
     path === "/api/analyze-report" ||

@@ -8,7 +8,10 @@ interface OperatorQueueProps {
   issues: IssueReport[];
   onSelectIssue: (id: string) => void;
   onRefresh: () => void;
+  onLoadMore?: () => void;
   loading: boolean;
+  hasMore?: boolean;
+  loadingMore?: boolean;
   accessMode: "demo" | "real";
   selectedIssueId?: string | null;
   embedded?: boolean;
@@ -18,7 +21,10 @@ export default function OperatorQueue({
   issues,
   onSelectIssue,
   onRefresh,
+  onLoadMore,
   loading,
+  hasMore = false,
+  loadingMore = false,
   accessMode,
   selectedIssueId,
   embedded = false,
@@ -239,6 +245,16 @@ export default function OperatorQueue({
                 </div>
               </button>
             ))}
+            {hasMore && (
+              <button
+                type="button"
+                onClick={onLoadMore}
+                disabled={loadingMore}
+                className="min-h-[44px] rounded-xl border border-hairline bg-white px-3 text-xs font-bold text-ink hover:bg-paper disabled:opacity-60"
+              >
+                {loadingMore ? "Loading more cases..." : "Load more cases"}
+              </button>
+            )}
           </div>
         )}
       </div>

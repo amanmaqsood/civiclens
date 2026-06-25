@@ -233,6 +233,39 @@ Remaining risks:
 - Several older components still use compact visual treatment and should be revisited during the release UI/E2E pass.
 - Build still has the known large-bundle and ineffective dynamic-import warnings; Milestone 7 should address code splitting and payload strategy.
 
+## Milestone 7: Metrics, Performance, and Reliability
+Status: completed on 2026-06-26
+
+Files changed:
+- `src/types.ts`: added optional lifecycle timestamp fields (`createdAt`, `triagedAt`, `verifiedAt`, `assignedAt`, `workStartedAt`, `closureSubmittedAt`, `resolvedAt`, `reopenedAt`, `updatedAt`) to the issue type.
+- `src/services/issues.ts`: added `fetchIssuesPage` with bounded page size, timestamp cursor, `hasMore`, and `nextCursor`; kept `fetchRecentIssues` as a first-page compatibility wrapper.
+- `src/App.tsx`, `src/components/LandingPage.tsx`, and `src/components/OperatorQueue.tsx`: added issue pagination/load-more state and controls; lazy-loaded operator queue/detail and dashboard routes; lazy-loaded the map from the landing page.
+- `src/components/ImpactDashboard.tsx`: rebuilt metrics so real records and synthetic demo records are separated; resolution rates show "Not enough data" below a minimum denominator; resolution time uses stored created/resolved timestamps instead of estimating from current age.
+- `src/components/ClosureVerificationPanel.tsx`: compresses closure "after" evidence before upload and Gemini verification.
+- `server.ts`: added structured JSON logs for startup, API requests, API errors, and Gemini retries; added runtime config validation, Cloud Run-compatible `PORT`, and `/readyz` plus `/api/readyz` readiness endpoints.
+- `src/server/perimeter.ts`: classifies readiness endpoints as health routes so they do not require App Check/Auth.
+- `vite.config.ts`: added manual chunks for Firebase, Maps, Motion, and icons.
+- `src/reliability-performance.test.ts`: added focused tests for pagination, persisted dashboard metrics, readiness/logging/config, code splitting, and closure image compression.
+
+Validation commands:
+- `npm ci`: passed in 57 seconds; 450 packages installed/audited; 0 vulnerabilities. Warnings: deprecated `node-domexception@1.0.0` and `glob@10.5.0`.
+- `npm run lint`: passed (`tsc --noEmit`).
+- `npm test`: passed (8 test files, 40 tests).
+- `npm run build`: passed. Output now includes separate chunks for `HomeMap` (5.20 kB / 2.50 kB gzip), `ImpactDashboard` (8.07 kB / 2.27 kB gzip), `OperatorQueue` (8.34 kB / 2.44 kB gzip), `OperatorDetailView` (25.19 kB / 8.33 kB gzip), `maps` (42.25 kB / 13.92 kB gzip), `motion` (96.79 kB / 31.98 kB gzip), `icons` (26.95 kB / 7.38 kB gzip), app index (355.11 kB / 104.07 kB gzip), and `firebase` (716.39 kB / 179.17 kB gzip). Warnings remain: Firebase chunk is larger than 500 kB, and `src/services/issues.ts` is still both dynamically and statically imported.
+- `npm audit --omit=dev`: passed; 0 vulnerabilities.
+
+Decisions:
+- Dashboard metrics are scoped to loaded real records or loaded synthetic demo records and explicitly avoid claiming complete city history.
+- Resolution-time metrics require persisted `resolvedAt` plus stored creation time; otherwise the UI reports "Not enough data."
+- Kept client Firestore reads for the feed but added a page cursor and load-more controls; server-owned writes remain unchanged.
+- Used readiness endpoints to report deployability instead of crashing local development when optional local secrets are absent.
+
+Remaining risks:
+- Pagination uses a timestamp cursor; duplicate timestamps could make a future page boundary less precise than a document-snapshot cursor. Emulator/integration tests should harden this in Milestone 8.
+- The Firebase vendor chunk still exceeds the 500 kB warning threshold; deeper SDK import decomposition or route-level Firebase loading remains a release optimization.
+- Readiness/config validation has not been smoke-tested in Cloud Run; deployment requires Firebase/GCP credentials.
+- Source-level tests were added, but performance budgets, browser traces, accessibility audits, and E2E pagination behavior belong to Milestone 8.
+
 ## Decision log
 - 2026-06-26: Initialized a valid project-local Git repository because the existing `.git` directory was empty/invalid and Git was resolving to `C:/Users/apexm`.
 - 2026-06-26: Captured the untouched prototype before dependency repair as commit `ffd4ebc` and tag `baseline/original-prototype`.
@@ -249,10 +282,11 @@ Remaining risks:
 - 2026-06-26: Changed the agent API contract from browser-supplied issue/candidates to server-loaded `issueId` plus idempotent persisted run records.
 - 2026-06-26: Added human approval records for lifecycle transitions, routing/action packets, and escalation finalization; resolving requires closure evidence.
 - 2026-06-26: Removed the fake phone frame/status bar and moved the operator experience to a responsive queue/detail workspace at desktop breakpoints.
+- 2026-06-26: Scoped dashboard metrics to loaded real/demo records, added paged issue loading, and added readiness/logging/chunking instead of presenting recent records as complete history.
 
 ## External blockers
 - Firebase/GCP deployment credentials and billing access are required before deployed smoke tests.
 - Public GitHub repository URL, public app URL, Google Doc URL, demo video URL, and BlockseBlock submission require user/account approval before final submission actions.
 
 ## Next milestone
-Milestone 7: derive metrics from persisted lifecycle fields, separate demo/real metrics, add pagination/query strategy, code-split heavy paths, and improve deployment-safe observability/config validation.
+Milestone 8: add release-grade unit/API/rules/storage/transaction/agent/closure/UI/E2E/accessibility tests and cover the named security release cases.

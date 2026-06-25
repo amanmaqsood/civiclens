@@ -1,10 +1,11 @@
-import React, { useState } from "react";
+import React, { Suspense, lazy, useState } from "react";
 import { Camera, TrendingUp, CheckCircle2, Users } from "lucide-react";
 import { ActiveView, IssueReport } from "../types";
-import HomeMap from "./HomeMap";
 import IssueListWithFilter from "./IssueListWithFilter";
 import Onboarding from "./Onboarding";
 import { useLanguage } from "../context/LanguageContext";
+
+const HomeMap = lazy(() => import("./HomeMap"));
 
 interface LandingPageProps {
   onNavigate: (view: ActiveView) => void;
@@ -15,6 +16,9 @@ interface LandingPageProps {
   userLocation: { lat: number; lng: number } | null;
   onUserLocationChange: (loc: { lat: number; lng: number } | null) => void;
   loading?: boolean;
+  hasMoreIssues?: boolean;
+  loadingMoreIssues?: boolean;
+  onLoadMoreIssues?: () => void;
 }
 
 export default function LandingPage({
@@ -26,6 +30,9 @@ export default function LandingPage({
   userLocation,
   onUserLocationChange,
   loading = false,
+  hasMoreIssues = false,
+  loadingMoreIssues = false,
+  onLoadMoreIssues,
 }: LandingPageProps) {
   const { t } = useLanguage();
   const [showDemoBanner, setShowDemoBanner] = useState(true);
@@ -87,12 +94,14 @@ export default function LandingPage({
         <h3 className="text-xs font-display font-bold text-ink uppercase tracking-wider px-1">
           Live map
         </h3>
-        <HomeMap 
-          issues={issues} 
-          onSelectIssue={onSelectIssue} 
-          userLocation={userLocation}
-          onUserLocationChange={onUserLocationChange}
-        />
+        <Suspense fallback={<div className="h-[280px] rounded-2xl border border-hairline bg-white p-4 text-xs font-bold text-slate">Loading map...</div>}>
+          <HomeMap 
+            issues={issues} 
+            onSelectIssue={onSelectIssue} 
+            userLocation={userLocation}
+            onUserLocationChange={onUserLocationChange}
+          />
+        </Suspense>
       </div>
 
       {/* Searchable, Filterable list section */}
@@ -105,11 +114,28 @@ export default function LandingPage({
         onNavigateToReport={() => onNavigate("report")}
       />
 
+      <div className="flex flex-col items-center gap-2 text-center">
+        {hasMoreIssues ? (
+          <button
+            type="button"
+            onClick={onLoadMoreIssues}
+            disabled={loadingMoreIssues}
+            className="min-h-[44px] rounded-xl border border-hairline bg-white px-4 text-xs font-bold text-ink shadow-2xs hover:bg-paper disabled:opacity-60"
+          >
+            {loadingMoreIssues ? "Loading more records..." : "Load more saved records"}
+          </button>
+        ) : (
+          <p className="text-[10.5px] font-medium text-slate">
+            Showing all records loaded by the current query page.
+          </p>
+        )}
+      </div>
+
       {/* Progress & Live Network Stats */}
       <div className="bg-white border border-hairline p-4 rounded-2xl flex flex-col gap-3 shadow-xs">
         <h3 className="text-xs font-display font-bold text-ink uppercase tracking-wider flex items-center gap-1.5">
           <TrendingUp className="w-3.5 h-3.5 text-marigold" />
-          Live Network Stats
+          Loaded Report Stats
         </h3>
 
         <div className="grid grid-cols-3 gap-1.5 text-center">
@@ -134,7 +160,7 @@ export default function LandingPage({
         <div className="flex items-center gap-2 bg-[#E9F7F5] border border-verify/10 p-2.5 rounded-xl">
           <CheckCircle2 className="w-3.5 h-3.5 text-verify flex-shrink-0" />
           <p className="text-xs text-slate leading-snug font-medium">
-            Recent: Bengaluru road hazard resolved in 24 hrs.
+            Metrics are calculated from the records currently loaded in this prototype, with synthetic demo records labelled separately.
           </p>
         </div>
       </div>

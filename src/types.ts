@@ -48,6 +48,15 @@ export interface IssueReport {
   category: string;
   description: string;
   timestamp: string;
+  createdAt?: string;
+  updatedAt?: string;
+  triagedAt?: string;
+  verifiedAt?: string;
+  assignedAt?: string;
+  workStartedAt?: string;
+  closureSubmittedAt?: string;
+  resolvedAt?: string;
+  reopenedAt?: string;
   status: "Submitted" | "Verified" | "In Progress" | "Resolved";
   citizenUpvotes: number;
   userId: string;
@@ -87,5 +96,4 @@ export interface IssueActivity {
   message: string;
   timestamp: string;
 }
-
 

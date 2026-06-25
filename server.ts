@@ -19,11 +19,40 @@ import {
 
 async function startServer() {
   const app = express();
-  const PORT = 3000;
+  const configuredPort = Number(process.env.PORT || 3000);
+  const PORT = Number.isFinite(configuredPort) && configuredPort > 0 ? configuredPort : 3000;
   const isProduction = process.env.NODE_ENV === "production";
   const localAppCheckBypassEnabled = process.env.CIVICLENS_LOCAL_APP_CHECK_BYPASS !== "false" && !isProduction;
   const demoOperatorEnabled = process.env.CIVICLENS_DEMO_OPERATOR_ENABLED === "true" || !isProduction;
   const operatorAllowlist = parseCsvEnv(process.env.CIVICLENS_OPERATOR_EMAILS || process.env.OPERATOR_EMAILS);
+  const geminiApiKey = process.env.GEMINI_API_KEY || process.env.API_KEY || "";
+  const runtimeConfig = {
+    mode: isProduction ? "production" : "development",
+    missing: [
+      ...(isProduction && !geminiApiKey ? ["GEMINI_API_KEY"] : []),
+    ],
+    warnings: [
+      ...(isProduction && operatorAllowlist.length === 0 ? ["CIVICLENS_OPERATOR_EMAILS is empty; real operators must use Firebase custom claims."] : []),
+      ...(!process.env.GOOGLE_MAPS_PLATFORM_KEY ? ["GOOGLE_MAPS_PLATFORM_KEY is not set in the server environment."] : []),
+    ],
+  };
+
+  function structuredLog(level: "info" | "warn" | "error", event: string, fields: Record<string, unknown> = {}) {
+    const payload = JSON.stringify({
+      level,
+      event,
+      service: "civiclens",
+      timestamp: new Date().toISOString(),
+      ...fields,
+    });
+    if (level === "error") console.error(payload);
+    else if (level === "warn") console.warn(payload);
+    else console.log(payload);
+  }
+
+  if (runtimeConfig.missing.length || runtimeConfig.warnings.length) {
+    structuredLog(runtimeConfig.missing.length ? "error" : "warn", "runtime_config_checked", runtimeConfig);
+  }
 
   app.set("trust proxy", 1);
 
@@ -48,7 +77,7 @@ async function startServer() {
 
   // Initialize Gemini client on the server
   const ai = new GoogleGenAI({
-    apiKey: process.env.GEMINI_API_KEY,
+    apiKey: geminiApiKey,
     httpOptions: {
       headers: {
         "User-Agent": "aistudio-build",
@@ -66,7 +95,7 @@ async function startServer() {
     adminDb = getAdminFirestore("ai-studio-cd9d785c-f851-4555-9ebe-71e0746f69aa");
   } catch (e: any) {
     adminInitError = e?.message || String(e);
-    console.error("Admin SDK init failed:", adminInitError);
+    structuredLog("error", "admin_sdk_init_failed", { error: adminInitError });
   }
 
   const sleep = (ms: number) => new Promise((resolve) => setTimeout(resolve, ms));
@@ -99,7 +128,12 @@ async function startServer() {
       } catch (error: any) {
         if (attempt < delays.length && isRetryableError(error)) {
           const delayTime = delays[attempt];
-          console.warn(`Gemini API error (retryable): ${error.message || error}. Waiting ${delayTime}ms to retry (attempt ${attempt + 1}/3)...`);
+          structuredLog("warn", "gemini_retry", {
+            attempt: attempt + 1,
+            maxAttempts: delays.length + 1,
+            delayMs: delayTime,
+            error: error?.message || String(error),
+          });
           await sleep(delayTime);
           attempt++;
         } else {
@@ -111,7 +145,11 @@ async function startServer() {
 
   function sendApiError(res: any, status: number, error: string, logError?: any) {
     if (logError) {
-      console.error(error, logError);
+      structuredLog("error", "api_error", {
+        status,
+        error,
+        detail: logError?.message || String(logError),
+      });
     }
     return res.status(status).json({ success: false, error });
   }
@@ -124,6 +162,21 @@ async function startServer() {
   function apiPath(req: any): string {
     return String(req.originalUrl || req.url || "").split("?")[0];
   }
+
+  app.use("/api/*", (req: any, res, next) => {
+    const startedAt = Date.now();
+    res.on("finish", () => {
+      structuredLog(res.statusCode >= 500 ? "error" : res.statusCode >= 400 ? "warn" : "info", "api_request", {
+        method: req.method,
+        path: apiPath(req),
+        status: res.statusCode,
+        durationMs: Date.now() - startedAt,
+        routeKind: classifyProtectedRoute(req.method, apiPath(req)),
+        actorRole: req.actor?.role || "unresolved",
+      });
+    });
+    next();
+  });
 
   async function verifyApiAppCheck(req: any, res: any, next: any) {
     const routeKind = classifyProtectedRoute(req.method, apiPath(req));
@@ -230,12 +283,49 @@ async function startServer() {
     return next();
   });
 
+  function healthPayload() {
+    return {
+      status: "ok",
+      service: "civiclens",
+      mode: runtimeConfig.mode,
+      timestamp: new Date().toISOString(),
+    };
+  }
+
+  function readinessPayload() {
+    const checks = {
+      adminDb: !!adminDb,
+      geminiConfigured: !!geminiApiKey,
+      configValid: runtimeConfig.missing.length === 0,
+    };
+    const ready = checks.adminDb && checks.configValid && (!isProduction || checks.geminiConfigured);
+    return {
+      status: ready ? "ready" : "not_ready",
+      ready,
+      checks,
+      missing: runtimeConfig.missing,
+      warnings: runtimeConfig.warnings,
+      adminInitError,
+      timestamp: new Date().toISOString(),
+    };
+  }
+
   app.get("/health", (req, res) => {
-    res.json({ status: "ok" });
+    res.json(healthPayload());
   });
 
   app.get("/api/health", (req, res) => {
-    res.json({ status: "ok" });
+    res.json(healthPayload());
+  });
+
+  app.get("/readyz", (req, res) => {
+    const payload = readinessPayload();
+    res.status(payload.ready ? 200 : 503).json(payload);
+  });
+
+  app.get("/api/readyz", (req, res) => {
+    const payload = readinessPayload();
+    res.status(payload.ready ? 200 : 503).json(payload);
   });
 
   app.get("/api/session", (req: any, res) => {
@@ -2183,7 +2273,12 @@ Steps: 1) call nearby_search, 2) call assess_duplicate using candidates if any, 
   }
 
   app.listen(PORT, "0.0.0.0", () => {
-    console.log(`Server running on http://localhost:${PORT}`);
+    structuredLog("info", "server_listening", {
+      port: PORT,
+      mode: runtimeConfig.mode,
+      localAppCheckBypassEnabled,
+      demoOperatorEnabled,
+    });
   });
 }
 

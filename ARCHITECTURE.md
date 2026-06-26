@@ -7,7 +7,7 @@ CivicLens is a human-governed civic issue prototype. It saves and reviews report
 - Frontend: React 19, TypeScript, Vite, Tailwind CSS.
 - Server: Express and TypeScript bundled by esbuild.
 - AI: Gemini through `@google/genai`.
-- Identity and data: Firebase Auth, Firestore, Storage, Admin SDK, App Check verification.
+- Identity and data: Firebase Auth, Firestore, Storage, Admin SDK, and optional App Check enforcement.
 - Maps: Google Maps Platform through `@vis.gl/react-google-maps`.
 - Target deployment: Google Cloud Run.
 
@@ -54,7 +54,7 @@ Operator actions require a verified Firebase ID token and a server-resolved role
 ## Security Controls
 
 - Firebase ID token verification for protected APIs.
-- App Check verification for API routes, with an explicit local-only bypass header for development.
+- Optional App Check verification for API routes via `CIVICLENS_REQUIRE_APP_CHECK=true`, with an explicit local-only bypass header for development that production refuses.
 - Per-user/IP in-memory quotas for session, Gemini, and mutation routes.
 - Server-side role resolution from custom claims or verified allowlisted email.
 - Firestore Rules deny client writes to issue-owned documents and subcollections.

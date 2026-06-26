@@ -169,7 +169,7 @@ export default function LandingPage({
       <div className="flex items-center justify-center gap-1.5 py-1 text-center">
         <Users className="w-3.5 h-3.5 text-[#334155]" />
         <span className="text-[10px] text-[#334155] font-mono tracking-widest uppercase">
-          Digital India Citizen Initiative
+          Independent Civic Prototype
         </span>
       </div>
     </div>

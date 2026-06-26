@@ -1,4 +1,5 @@
-import { auth } from "../lib/firebase";
+import { auth, getFirebaseAppCheckToken } from "../lib/firebase";
+import { buildApiHeaders } from "./api-headers";
 
 export type ApiRole = "citizen" | "operator" | "demo_operator";
 
@@ -16,25 +17,14 @@ interface ApiFetchOptions {
 }
 
 export async function apiFetch(input: RequestInfo | URL, init: RequestInit = {}, options: ApiFetchOptions = {}) {
-  const headers = new Headers(init.headers || {});
-  const user = auth.currentUser;
-  const token = user ? await user.getIdToken() : null;
-
-  if (token) {
-    headers.set("Authorization", `Bearer ${token}`);
-  }
-
-  if (init.body && !headers.has("Content-Type") && typeof init.body === "string") {
-    headers.set("Content-Type", "application/json");
-  }
-
-  if ((import.meta as any).env?.DEV) {
-    headers.set("X-CivicLens-Local-AppCheck-Bypass", "true");
-  }
-
-  if (options.demoOperator) {
-    headers.set("X-CivicLens-Demo-Operator", "true");
-  }
+  const headers = await buildApiHeaders(
+    init.headers,
+    init.body,
+    options,
+    { isDev: !!(import.meta as any).env?.DEV },
+    async () => auth.currentUser ? auth.currentUser.getIdToken() : null,
+    getFirebaseAppCheckToken
+  );
 
   return fetch(input, {
     ...init,

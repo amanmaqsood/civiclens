@@ -375,6 +375,39 @@ Remaining risks:
 - The focused concurrency harness covers support, community verification, duplicate evidence, and status-transition races. It does not yet exhaustively race every API mutation path.
 - External deployment, live Gemini/Maps golden-path evidence, public URLs, Google Doc publication, demo video, and final submission remain approval/credential-gated.
 
+## Pre-Deployment Closeout: Config, App Check, and Cloud Run Readiness
+Status: completed locally on 2026-06-26
+
+Files changed:
+- `server.ts` and `src/server/admin-config.ts`: replaced hardcoded Admin SDK project/database setup with env-driven `FIREBASE_PROJECT_ID`, `GOOGLE_CLOUD_PROJECT`, `GCLOUD_PROJECT`, and `FIRESTORE_DATABASE_ID` resolution; default Firestore database is `(default)`.
+- `src/lib/firebase.ts`, `src/lib/firebase-config.ts`, `src/services/api.ts`, and `src/services/api-headers.ts`: added Vite Firebase web config support, safe fallback to public `firebase-applet-config.json`, frontend App Check initialization when a site key exists, and `X-Firebase-AppCheck` API headers when tokens are available.
+- `src/services/issues.ts`: removed unreachable old client-side synthetic demo seed/clear Firestore write branches after the server API returns.
+- `src/components/LandingPage.tsx`, `README.md`, `security_spec.md`, `ARCHITECTURE.md`, `docs/GOOGLE_DOC_DRAFT.md`, `docs/DEPLOYMENT_CLOUD_RUN.md`, `docs/FINAL_EVIDENCE_REPORT.md`, and `.env.example`: replaced unsupported public wording, documented build-time Vite config, runtime Admin config, optional App Check enforcement, and manual Cloud Run setup.
+- `Dockerfile`, `.dockerignore`, and `cloudbuild.yaml`: added Docker/Cloud Build image support that accepts only public browser config as build args and keeps `GEMINI_API_KEY` runtime-only.
+- `playwright.config.ts`, `e2e/release-gates.pw.ts`, and `package.json`: moved E2E emulator runs to `demo-civiclens` with synthetic Firebase web config instead of old project-specific identifiers.
+- `src/server/admin-config.test.ts`, `src/lib/firebase-config.test.ts`, `src/services/api-headers.test.ts`, `src/docs-readiness.test.ts`, `src/server/release-security.test.ts`, and `src/truth-boundary.test.ts`: added regression coverage for Admin config, Firebase web config, App Check headers, deployment docs, removed wording, and stale client write removal.
+
+Validation commands:
+- `npm ci`: passed; 880 packages installed and 881 audited. Install audit still reports 3 moderate dev-dependency vulnerabilities; production audit is clean.
+- `npm run lint`: passed (`tsc --noEmit`).
+- `npm test`: passed (15 test files passed, 2 emulator-only files skipped by default; 71 tests passed, 7 skipped).
+- `npm run build`: passed; known warnings remain for the Firebase chunk over 500 kB and `src/services/issues.ts` mixed static/dynamic import.
+- `npm audit --omit=dev`: passed; 0 vulnerabilities.
+- `npm run test:rules`: passed (1 Firestore/Storage emulator test file, 3 tests). Expected deny-rule warnings appeared for negative cases.
+- `npm run test:concurrency`: passed (1 Firestore emulator test file, 4 tests). Expected duplicate/conflict warnings appeared for intentionally raced writes.
+- `npm run test:e2e`: passed (4 Playwright/Chromium tests) against `demo-civiclens` Auth/Firestore/Storage emulators.
+- Local production probe: `NODE_ENV=production PORT=3199 FIREBASE_PROJECT_ID=demo-civiclens FIRESTORE_DATABASE_ID=(default) node dist/server.cjs`; `/health` returned 200 and `/readyz` returned 503 because production secrets/config were intentionally absent.
+
+Decisions:
+- Kept service-account JSON out of the deployment path; Cloud Run should use Application Default Credentials.
+- Kept `CIVICLENS_REQUIRE_APP_CHECK=false` as the documented pre-deployment default. Production should flip it to `true` only after the deployed frontend has `VITE_FIREBASE_APP_CHECK_SITE_KEY` baked in and verified `X-Firebase-AppCheck` requests.
+- Treated Vite Firebase/Maps/App Check values as build-time public config and server/Admin/Gemini/operator values as runtime config.
+- Kept demo mode available only as an explicit synthetic path; old client-side direct seed/clear writes were removed.
+
+Remaining risks:
+- Cloud Run deployment, public URL verification, live Gemini/Maps golden-path proof, App Check enforcement smoke test, screenshots, Google Doc publication, demo video, and submission remain external/approval-gated.
+- Production readiness requires real `GEMINI_API_KEY`, Firebase/GCP project setup, intended Firestore database, Maps browser key restrictions, operator authorization, and optional App Check domain configuration.
+
 ## Decision log
 - 2026-06-26: Initialized a valid project-local Git repository because the existing `.git` directory was empty/invalid and Git was resolving to `C:/Users/apexm`.
 - 2026-06-26: Captured the untouched prototype before dependency repair as commit `ffd4ebc` and tag `baseline/original-prototype`.
@@ -400,6 +433,10 @@ Remaining risks:
 - 2026-06-26: Removed browser-authored privileged trace persistence for resolution, closure, and escalation endpoints.
 - 2026-06-26: Changed persisted resolution-plan saves to generate from server-loaded issue data instead of browser-posted plan objects.
 - 2026-06-26: Added a focused Firestore emulator concurrency gate for duplicate same-user support and verification writes.
+- 2026-06-26: Replaced hardcoded Admin SDK project/database setup with env-driven Cloud Run/ADC-compatible config.
+- 2026-06-26: Added frontend Firebase `VITE_*` config support and App Check token headers while keeping backend enforcement explicitly opt-in until deployed smoke tests.
+- 2026-06-26: Added Dockerfile, Cloud Build config, and Windows PowerShell Cloud Run runbook without performing deployment.
+- 2026-06-26: Moved E2E emulator runs to the synthetic `demo-civiclens` project and removed old project-specific identifiers from the browser harness.
 
 ## External blockers
 - Firebase/GCP deployment credentials and billing access are required before deployed smoke tests.

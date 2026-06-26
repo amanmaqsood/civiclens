@@ -9,15 +9,36 @@ function readProjectFile(path: string): string {
 }
 
 describe("release security gate coverage", () => {
-  it("rejects protected API calls without App Check, Firebase auth, quota, and body-size controls", () => {
+  it("guards protected API calls with configurable App Check, Firebase auth, quota, and body-size controls", () => {
     const server = readProjectFile("server.ts");
 
+    expect(server).toContain("CIVICLENS_REQUIRE_APP_CHECK");
+    expect(server).toContain("X-CivicLens-AppCheck");
+    expect(server).toContain("not-enforced");
     expect(server).toContain("App Check token is required.");
     expect(server).toContain("Firebase ID token is required.");
     expect(server).toContain("findOversizedStringField");
     expect(server).toContain("exceeds the maximum allowed size.");
     expect(server).toContain("X-RateLimit-Limit");
     expect(server).toContain("Too many requests. Please try again later.");
+  });
+
+  it("uses environment-driven Firebase Admin project and database config", () => {
+    const server = readProjectFile("server.ts");
+    const adminConfig = readProjectFile("src/server/admin-config.ts");
+    const envExample = readProjectFile(".env.example");
+
+    expect(server).toContain("resolveFirebaseAdminConfig(process.env)");
+    expect(server).toContain("firebaseAdminConfig.appOptions");
+    expect(server).toContain("firebaseAdminConfig.databaseId");
+    expect(server).not.toContain("gen-lang-client-0871796745");
+    expect(server).not.toContain("ai-studio-cd9d785c-f851-4555-9ebe-71e0746f69aa");
+    expect(adminConfig).toContain("FIREBASE_PROJECT_ID");
+    expect(adminConfig).toContain("GOOGLE_CLOUD_PROJECT");
+    expect(adminConfig).toContain("GCLOUD_PROJECT");
+    expect(adminConfig).toContain('"(default)"');
+    expect(envExample).toContain("FIREBASE_PROJECT_ID");
+    expect(envExample).toContain("FIRESTORE_DATABASE_ID");
   });
 
   it("keeps real operator work server-authorized and limits demo operators to synthetic demo cases", () => {
@@ -97,6 +118,10 @@ describe("release security gate coverage", () => {
     expect(server).not.toContain("req.body?.agentTrace");
     expect(service).not.toContain("agentTrace: [verifyTrace]");
     expect(service).not.toContain("agentTrace: [escalationTrace]");
+    expect(service).not.toContain("demo.synthetic");
+    expect(service).not.toContain("setDoc(");
+    expect(service).not.toContain("updateDoc(");
+    expect(service).not.toContain("deleteDoc(");
   });
 
   it("generates persisted resolution plans from server-loaded issue state", () => {

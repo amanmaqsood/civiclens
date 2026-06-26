@@ -21,7 +21,7 @@ CivicLens only recommends and drafts. A human operator or citizen must review an
 React 19 + TypeScript + Vite
 Express server bundled with esbuild
 Gemini through @google/genai
-Firebase Auth, Firestore, Storage, Admin SDK, and App Check verification
+Firebase Auth, Firestore, Storage, Admin SDK, and optional App Check enforcement
 Google Maps Platform
 Target deployment path: Google Cloud Run
 ```
@@ -51,9 +51,16 @@ Set real values in `.env` as needed:
 
 - `GEMINI_API_KEY` for Gemini calls.
 - `GOOGLE_MAPS_PLATFORM_KEY` or `VITE_GOOGLE_MAPS_PLATFORM_KEY` for Google Maps.
+- `VITE_FIREBASE_API_KEY`, `VITE_FIREBASE_AUTH_DOMAIN`, `VITE_FIREBASE_PROJECT_ID`, `VITE_FIREBASE_APP_ID`, and optional Firebase browser fields before building the frontend. If these are absent, the app falls back to the public `firebase-applet-config.json`.
+- `FIREBASE_PROJECT_ID` or Cloud Run's `GOOGLE_CLOUD_PROJECT` for Firebase Admin SDK project selection.
+- `FIRESTORE_DATABASE_ID`, defaulting to `(default)`, when using a named Firestore database.
+- `VITE_FIREBASE_APP_CHECK_SITE_KEY` to initialize frontend App Check token generation.
+- `CIVICLENS_REQUIRE_APP_CHECK=true` only after the deployed frontend sends `X-Firebase-AppCheck` successfully.
 - `CIVICLENS_OPERATOR_EMAILS` for verified real operator email allowlist.
 - `CIVICLENS_LOCAL_APP_CHECK_BYPASS=true` for local development only.
 - `CIVICLENS_DEMO_OPERATOR_ENABLED=true` only when synthetic demo mutation should be enabled.
+
+Vite reads `VITE_*` variables at build time, not Cloud Run request time. Rebuild the frontend after changing Firebase browser config, App Check site key, or Maps browser key.
 
 Never commit `.env`, service-account JSON, or secret values.
 

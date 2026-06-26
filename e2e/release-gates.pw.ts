@@ -7,11 +7,12 @@ import { expect, test, type Page } from "@playwright/test";
 const require = createRequire(import.meta.url);
 const axeSource = readFileSync(require.resolve("axe-core/axe.min.js"), "utf8");
 const issueId = "e2e-demo-pothole";
-const databaseId = "ai-studio-cd9d785c-f851-4555-9ebe-71e0746f69aa";
+const projectId = process.env.FIREBASE_PROJECT_ID || process.env.GOOGLE_CLOUD_PROJECT || process.env.GCLOUD_PROJECT || "demo-civiclens";
+const databaseId = process.env.FIRESTORE_DATABASE_ID || "(default)";
 
 async function seedDemoIssue() {
-  const app = getApps()[0] || initializeApp({ projectId: "gen-lang-client-0871796745" });
-  const db = getFirestore(app, databaseId);
+  const app = getApps()[0] || initializeApp({ projectId });
+  const db = databaseId === "(default)" ? getFirestore(app) : getFirestore(app, databaseId);
   await db.collection("issues").doc(issueId).set({
     id: issueId,
     ticketId: "CVL-E2E-001",
@@ -23,7 +24,7 @@ async function seedDemoIssue() {
     lng: 77.5946,
     locationName: "MG Road, Bengaluru",
     category: "pothole",
-    status: "Submitted",
+    status: "submitted",
     timestamp: new Date("2026-06-26T00:00:00.000Z").toISOString(),
     createdAt: new Date("2026-06-26T00:00:00.000Z").toISOString(),
     userId: "seeded-e2e",

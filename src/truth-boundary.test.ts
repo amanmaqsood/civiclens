@@ -41,6 +41,8 @@ describe("truth boundary copy", () => {
       "Confirm & Submit grievance",
       "Report submitted successfully!",
       "Official Ticket ID / Reference ID",
+      "Digital India Citizen Initiative",
+      "File a grievance via the local department portal.",
     ];
 
     const combined = files.map((path) => readProjectFile(path)).join("\n");

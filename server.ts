@@ -16,6 +16,7 @@ import {
   resolveActorFromDecoded,
   type RequestActor,
 } from "./src/server/perimeter";
+import { isDefaultFirestoreDatabase, resolveFirebaseAdminConfig } from "./src/server/admin-config";
 import {
   coerceIssueStatus,
   issueStatusLabel,
@@ -29,16 +30,20 @@ async function startServer() {
   const PORT = Number.isFinite(configuredPort) && configuredPort > 0 ? configuredPort : 3000;
   const isProduction = process.env.NODE_ENV === "production";
   const localAppCheckBypassEnabled = process.env.CIVICLENS_LOCAL_APP_CHECK_BYPASS !== "false" && !isProduction;
+  const requireAppCheck = process.env.CIVICLENS_REQUIRE_APP_CHECK === "true";
   const demoOperatorEnabled = process.env.CIVICLENS_DEMO_OPERATOR_ENABLED === "true" || !isProduction;
   const operatorAllowlist = parseCsvEnv(process.env.CIVICLENS_OPERATOR_EMAILS || process.env.OPERATOR_EMAILS);
   const geminiApiKey = process.env.GEMINI_API_KEY || process.env.API_KEY || "";
+  const firebaseAdminConfig = resolveFirebaseAdminConfig(process.env);
   const runtimeConfig = {
     mode: isProduction ? "production" : "development",
     missing: [
       ...(isProduction && !geminiApiKey ? ["GEMINI_API_KEY"] : []),
     ],
     warnings: [
+      ...(isProduction && !firebaseAdminConfig.projectId ? ["FIREBASE_PROJECT_ID/GOOGLE_CLOUD_PROJECT/GCLOUD_PROJECT is not set; relying on Application Default Credentials project discovery."] : []),
       ...(isProduction && operatorAllowlist.length === 0 ? ["CIVICLENS_OPERATOR_EMAILS is empty; real operators must use Firebase custom claims."] : []),
+      ...(!requireAppCheck ? ["CIVICLENS_REQUIRE_APP_CHECK is not true; backend App Check enforcement is disabled."] : []),
       ...(!process.env.GOOGLE_MAPS_PLATFORM_KEY ? ["GOOGLE_MAPS_PLATFORM_KEY is not set in the server environment."] : []),
     ],
   };
@@ -96,9 +101,11 @@ async function startServer() {
   let adminInitError: string | null = null;
   try {
     if (!getAdminApps().length) {
-      initAdminApp({ projectId: "gen-lang-client-0871796745" });
+      initAdminApp(firebaseAdminConfig.appOptions);
     }
-    adminDb = getAdminFirestore("ai-studio-cd9d785c-f851-4555-9ebe-71e0746f69aa");
+    adminDb = isDefaultFirestoreDatabase(firebaseAdminConfig.databaseId)
+      ? getAdminFirestore()
+      : getAdminFirestore(firebaseAdminConfig.databaseId);
   } catch (e: any) {
     adminInitError = e?.message || String(e);
     structuredLog("error", "admin_sdk_init_failed", { error: adminInitError });
@@ -187,6 +194,11 @@ async function startServer() {
   async function verifyApiAppCheck(req: any, res: any, next: any) {
     const routeKind = classifyProtectedRoute(req.method, apiPath(req));
     if (routeKind === "health") return next();
+
+    if (!requireAppCheck) {
+      res.setHeader("X-CivicLens-AppCheck", "not-enforced");
+      return next();
+    }
 
     if (isLocalAppCheckBypassAllowed(req, { nodeEnv: process.env.NODE_ENV, bypassEnabled: localAppCheckBypassEnabled })) {
       res.setHeader("X-CivicLens-AppCheck", "local-bypass");
@@ -353,6 +365,7 @@ async function startServer() {
         demoOperatorEnabled,
         operatorAllowlistConfigured: operatorAllowlist.length > 0,
         localAppCheckBypass: !isProduction && localAppCheckBypassEnabled,
+        appCheckEnforced: requireAppCheck,
       },
     });
   });
@@ -811,8 +824,8 @@ Issue details loaded from Firestore by CivicLens server:
 - Reporting Date (Today): ${todayStr}
 
 Determine:
-1. The actual likely municipal corporation, utility, or government board responsible (recommendedAuthority).
-2. A citizen grievance portal, email, app name, or citizen helpline if one can be grounded (contactChannel).
+1. The likely municipal corporation, public works body, or utility contact to verify (recommendedAuthority).
+2. A public grievance portal, email, app name, or citizen helpline if one can be grounded (contactChannel).
 3. A published or typical citizen follow-up window in days (slaDays, integer). If uncertain, provide a conservative estimate and make the uncertainty clear in the draft body.
 4. A drafted complaint email or letter for human review only:
    - subject: A concise professional subject line
@@ -1615,7 +1628,7 @@ Output STRICT, VALID JSON conforming exactly to the response schema.`;
     try {
       const todayStr = new Date().toLocaleDateString("en-US", { year: "numeric", month: "long", day: "numeric" });
       const promptText = `Suggest a likely responsible Indian municipal authority or department and draft a complaint packet for human review for this reported civic issue.
-Use Google Search grounding to lookup the real-world departments, municipal corporations, or utility boards that govern this category of issues in this specific Indian city or state (based on the location/address description: "${locationName || "India"}", and coordinates if provided: lat: ${lat || "unknown"}, lng: ${lng || "unknown"}).
+Use Google Search grounding to look up likely real-world departments, municipal corporations, or utility boards that may handle this category of issue in this specific Indian city or state (based on the location/address description: "${locationName || "India"}", and coordinates if provided: lat: ${lat || "unknown"}, lng: ${lng || "unknown"}).
 
 Issue details:
 - Category: ${category}
@@ -1624,9 +1637,9 @@ Issue details:
 - CivicLens prototype ticket ID: ${ticketId || "N/A"}
 - Reporting Date (Today): ${todayStr}
 
-Perform a ground-truth lookup for this Indian location. If the city or municipality is identified (e.g. Bangalore/Bengaluru -> BBMP/BWSSB, Mumbai -> BMC, Delhi -> MCD/DJB, Pune -> PMC, Chennai -> GCC, etc.), determine:
-1. The actual municipal corporation or government board responsible (recommendedAuthority).
-2. The exact citizen grievance portal, email, app name, or citizen helpline toll-free number (contactChannel).
+Perform a grounded lookup for this Indian location. If the city or municipality is identified (e.g. Bangalore/Bengaluru -> BBMP/BWSSB, Mumbai -> BMC, Delhi -> MCD/DJB, Pune -> PMC, Chennai -> GCC, etc.), determine:
+1. The likely municipal corporation, public works body, or utility contact to verify (recommendedAuthority).
+2. A public citizen grievance portal, email, app name, or citizen helpline toll-free number if grounded (contactChannel).
 3. A published or typical citizen follow-up window in days for resolving such issue in that region (slaDays, integer). If uncertain, provide a conservative estimate and make that uncertainty clear.
 4. A drafted complaint email or letter for human review:
    - subject: A concise professional subject line
@@ -2499,11 +2512,11 @@ Steps: 1) call search_nearby_cases, 2) call compare_candidate_evidence using can
           actionPacket: {
             subject: `Draft Civic Grievance: ${issue.title || "Civic Incident"}`,
             body: `To the Commissioner / Officer,\n\nWe would like to share a civic grievance draft regarding ${issue.category} at ${issue.locationName || "the location"}.\nSummary: ${issue.summary || "No details provided."}\n\nPlease review and advise on next steps within the suggested follow-up window of ${slaDays} days.\n\nSincerely,\nCivicLens Prototype`,
-            bodyHindi: `आयुक्त / अधिकारी के लिए,\n\nहम औपचारिक रूप से ${issue.locationName || "स्थान"} पर ${issue.category} के संबंध में एक नागरिक शिकायत दर्ज करना चाहते हैं।\nसारांश: ${issue.summary || "कोई विवरण प्रदान नहीं किया गया।"}\n\nकृपया इस मुद्दे को ${slaDays} दिनों के सामान्य एसएलए के भीतर हल करें।\n\nसादर,\nसिविक लेंस एजेंट`,
+            bodyHindi: `आयुक्त / अधिकारी के लिए,\n\nहम ${issue.locationName || "स्थान"} पर ${issue.category} के संबंध में यह नागरिक शिकायत मसौदा साझा करना चाहते हैं।\nसारांश: ${issue.summary || "कोई विवरण प्रदान नहीं किया गया।"}\n\nकृपया इस मुद्दे की समीक्षा करें और ${slaDays} दिनों की सुझाई गई फॉलो-अप अवधि के भीतर अगले कदम बताएं।\n\nसादर,\nCivicLens Prototype`,
             summaryHindi: `${issue.category} की शिकायत दर्ज की गई है।`,
             nextActions: [
               "Post on social media / X tagging the authorities.",
-              "File a grievance via the local department portal.",
+              "Manually verify the appropriate public grievance channel before acting outside CivicLens.",
               "Follow up with local ward committee."
             ]
           },
@@ -2572,7 +2585,10 @@ Steps: 1) call search_nearby_cases, 2) call compare_candidate_evidence using can
       port: PORT,
       mode: runtimeConfig.mode,
       localAppCheckBypassEnabled,
+      requireAppCheck,
       demoOperatorEnabled,
+      firebaseProjectId: firebaseAdminConfig.projectId || "adc-discovered",
+      firestoreDatabaseId: firebaseAdminConfig.databaseId,
     });
   });
 }

@@ -9,6 +9,12 @@ import {
   User as FirebaseUser,
   connectAuthEmulator
 } from "firebase/auth";
+import {
+  getToken as getAppCheckToken,
+  initializeAppCheck,
+  ReCaptchaV3Provider,
+  type AppCheck,
+} from "firebase/app-check";
 import { 
   initializeFirestore, 
   collection, 
@@ -26,10 +32,22 @@ import {
   connectFirestoreEmulator
 } from "firebase/firestore";
 import { connectStorageEmulator, getStorage } from "firebase/storage";
-import firebaseConfig from "../../firebase-applet-config.json";
+import fallbackFirebaseConfig from "../../firebase-applet-config.json";
+import { resolveFirebaseWebConfig, shouldInitializeFirebaseAppCheck } from "./firebase-config";
+
+const firebaseConfigResolution = resolveFirebaseWebConfig((import.meta as any).env || {}, fallbackFirebaseConfig);
+const firebaseConfig = firebaseConfigResolution.config;
 
 // Initialize Firebase
 const app = initializeApp(firebaseConfig);
+let appCheck: AppCheck | null = null;
+
+if (shouldInitializeFirebaseAppCheck((import.meta as any).env || {})) {
+  appCheck = initializeAppCheck(app, {
+    provider: new ReCaptchaV3Provider((import.meta as any).env.VITE_FIREBASE_APP_CHECK_SITE_KEY),
+    isTokenAutoRefreshEnabled: true,
+  });
+}
 
 // Initialize Services
 export const db = initializeFirestore(app, {
@@ -38,6 +56,17 @@ export const db = initializeFirestore(app, {
 export const auth = getAuth(app);
 export const storage = getStorage(app);
 export const googleAuthProvider = new GoogleAuthProvider();
+
+export async function getFirebaseAppCheckToken(): Promise<string | null> {
+  if (!appCheck) return null;
+  try {
+    const result = await getAppCheckToken(appCheck);
+    return result.token || null;
+  } catch (error) {
+    console.warn("Firebase App Check token unavailable.", error);
+    return null;
+  }
+}
 
 function envPort(name: string, fallback: number): number {
   const value = Number((import.meta as any).env?.[name]);

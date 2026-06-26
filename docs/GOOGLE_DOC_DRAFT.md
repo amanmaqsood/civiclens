@@ -37,7 +37,7 @@ CivicLens does not submit complaints to government systems, does not receive off
 
 ## Architecture And Safety
 
-The browser can submit user-owned report inputs and image uploads. Privileged lifecycle data is written by the Express server through Firebase Admin SDK. Protected APIs require Firebase identity and App Check, with local-only bypass for development. Operators are resolved server-side from custom claims or verified allowlisted email. Demo operators can mutate only records marked as synthetic demo data.
+The browser can submit user-owned report inputs and image uploads. Privileged lifecycle data is written by the Express server through Firebase Admin SDK. Protected APIs require Firebase identity, request validation, quotas, and server-side role checks. App Check can be enforced with `CIVICLENS_REQUIRE_APP_CHECK=true` after the deployed frontend is configured with a Firebase App Check site key; local development uses an explicit bypass that production refuses. Operators are resolved server-side from custom claims or verified allowlisted email. Demo operators can mutate only records marked as synthetic demo data.
 
 ## Testing Evidence
 
@@ -55,8 +55,8 @@ See `docs/FINAL_EVIDENCE_REPORT.md` for exact outputs and warnings.
 
 - This is a prototype and not a government service.
 - No government filing, routing, acknowledgement, signature, immutable ledger, or statutory SLA is claimed.
-- Firestore/Storage rules are covered by source-level tests in this local rebuild; emulator-backed tests remain a release gap.
-- Browser E2E and automated accessibility tests remain a release gap.
+- Firestore/Storage rules and representative transaction races have local Firebase Emulator Suite coverage.
+- Browser E2E and automated accessibility checks use seeded synthetic emulator data; live Gemini/Maps proof requires deployment credentials and approval.
 - Deployment requires Firebase/GCP credentials, billing, public URL verification, and explicit approval.
 
 ## Demo Instructions

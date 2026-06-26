@@ -9,7 +9,7 @@ This document records the local rebuild security posture. It is intentionally co
 - Real operator authorization is resolved on the server from verified allowlist email, custom claim, or configured role source.
 - Public real-operator switching is not available in the UI. The server-reported session decides whether the operator desk is available.
 - Demo operator mode is explicit and request-marked. Demo operators can mutate only documents marked `isDemoData == true`.
-- Protected API routes require Firebase ID token, App Check or explicit local-only App Check bypass, request-size checks, public-safe errors, and per-user/IP quotas.
+- Protected API routes require Firebase ID tokens, request-size checks, public-safe errors, and per-user/IP quotas. App Check enforcement is controlled by `CIVICLENS_REQUIRE_APP_CHECK=true`; when enabled, routes require `X-Firebase-AppCheck` except for the explicit local-only bypass that is refused in production.
 - `GET /api/admin/health` requires a real operator.
 - `/health` and `/api/health` are liveness endpoints. `/readyz` and `/api/readyz` report runtime readiness and return 503 when required production config or Admin SDK readiness is missing.
 
@@ -84,4 +84,4 @@ Latest command results are recorded in `docs/FINAL_EVIDENCE_REPORT.md`.
 
 - The concurrency emulator gate covers representative support, verification, duplicate evidence, and status-transition races, not every API mutation race path.
 - Browser E2E currently uses seeded synthetic emulator data; live Gemini/Maps golden-path evidence requires production secrets and deployment approval.
-- Production App Check token wiring and Cloud Run readiness have not been smoke-tested because deployment credentials and explicit approval are not available in this local rebuild.
+- Production App Check token wiring and Cloud Run readiness have not been smoke-tested because deployment credentials and explicit approval are not available in this local rebuild. Keep `CIVICLENS_REQUIRE_APP_CHECK=false` until the deployed frontend is configured with `VITE_FIREBASE_APP_CHECK_SITE_KEY` and verified to send `X-Firebase-AppCheck`.

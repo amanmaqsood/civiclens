@@ -408,6 +408,38 @@ Remaining risks:
 - Cloud Run deployment, public URL verification, live Gemini/Maps golden-path proof, App Check enforcement smoke test, screenshots, Google Doc publication, demo video, and submission remain external/approval-gated.
 - Production readiness requires real `GEMINI_API_KEY`, Firebase/GCP project setup, intended Firestore database, Maps browser key restrictions, operator authorization, and optional App Check domain configuration.
 
+## Production Firebase Rules and Secret Manager Checkpoint
+Status: completed on 2026-06-26
+
+Files changed:
+- `firebase.json`: pinned Firestore Rules deployment to the production named database `ai-studio-cd9d785c-f851-4555-9ebe-71e0746f69aa` so Firebase CLI does not fall back to `(default)`.
+- `docs/CODEX_PROGRESS.md` and `docs/FINAL_EVIDENCE_REPORT.md`: recorded production rules, Secret Manager, validation, and remaining Cloud Run status without secret values.
+
+Production actions:
+- Firestore Rules dry-run compiled successfully for project `gen-lang-client-0871796745` and database `ai-studio-cd9d785c-f851-4555-9ebe-71e0746f69aa`.
+- Firestore Rules deployed successfully to `cloud.firestore/ai-studio-cd9d785c-f851-4555-9ebe-71e0746f69aa`.
+- Storage Rules dry-run compiled successfully for project `gen-lang-client-0871796745`.
+- Storage Rules deployed successfully to the Firebase Storage release for `gen-lang-client-0871796745`.
+- Secret Manager secret `GEMINI_API_KEY` exists with version `1` in state `ENABLED`. The value was loaded from ignored local `.env.production.local`; no secret value is recorded in repository docs.
+
+Validation commands:
+- `npm run lint`: passed (`tsc --noEmit`).
+- `npm test`: passed (15 test files passed, 2 emulator-only files skipped by default; 71 tests passed, 7 skipped).
+- `npm run build`: passed with known warnings for the Firebase chunk over 500 kB and `src/services/issues.ts` mixed static/dynamic import.
+- `npm audit --omit=dev`: passed; 0 vulnerabilities.
+- `npm run test:rules`: passed (1 Firestore/Storage emulator test file, 3 tests).
+- `npm run test:concurrency`: passed (1 Firestore emulator test file, 4 tests).
+
+Decisions:
+- Cleared the ambient `DEBUG` environment variable for Firebase CLI secret metadata/version commands because debug logging can include API request bodies.
+- Did not deploy Cloud Run, publish URLs, change billing, delete resources, or submit anything in this checkpoint.
+- Kept `.env.production.local` ignored and untracked.
+
+Remaining risks:
+- Cloud Run deployment and public `/health` and `/readyz` smoke tests are the next external approval step.
+- Production App Check enforcement remains off until the deployed frontend site key and `X-Firebase-AppCheck` request path are smoke-tested.
+- Live Gemini/Maps golden-path evidence still requires the approved deployed environment.
+
 ## Decision log
 - 2026-06-26: Initialized a valid project-local Git repository because the existing `.git` directory was empty/invalid and Git was resolving to `C:/Users/apexm`.
 - 2026-06-26: Captured the untouched prototype before dependency repair as commit `ffd4ebc` and tag `baseline/original-prototype`.

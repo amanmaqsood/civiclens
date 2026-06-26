@@ -22,19 +22,27 @@ This report records local validation and readiness evidence. It does not claim p
   - `milestone-9-docs-readiness`
 - `docs/CODEX_MASTER_PLAN.md` is updated as the final release checklist. Locally verifiable items are checked. The only unchecked items are deployed smoke testing, real screenshot capture, and public URL/evidence recording, each blocked on external credentials/account actions and explicit approval.
 
+## Production Firebase Rules and Secret Manager Checkpoint
+
+This checkpoint was performed on 2026-06-26 against project `gen-lang-client-0871796745`. It deployed only Firebase Rules and created/verified one Secret Manager secret. It did not deploy Cloud Run, publish a public URL, change billing, delete resources, publish docs/video, or submit the project.
+
+- Firestore database ID used: `ai-studio-cd9d785c-f851-4555-9ebe-71e0746f69aa`.
+- Firestore Rules: dry-run compiled successfully, then deployed successfully to `cloud.firestore/ai-studio-cd9d785c-f851-4555-9ebe-71e0746f69aa`.
+- Storage Rules: dry-run compiled successfully, then deployed successfully to the Firebase Storage rules release for the project.
+- Secret Manager: `GEMINI_API_KEY` exists with version `1` in state `ENABLED`. The secret value came from ignored local `.env.production.local` and is not recorded in this report.
+- Config change: `firebase.json` now pins the Firestore Rules target to the named production database so Firebase CLI does not default to `(default)`.
+- Remaining next step: Cloud Run deployment and public `/health` plus `/readyz` smoke tests after explicit approval.
+
 ## Latest Completed Validation
 
-Pre-deployment closeout validation results:
+Production rules and Secret Manager checkpoint validation results:
 
-- `npm ci`: passed in about 1 minute; 880 packages installed and 881 audited. The install audit reported 3 moderate dev-dependency vulnerabilities; the production audit below is clean. Warnings: deprecated `json-ptr@3.1.1`, `node-domexception@1.0.0`, and `glob@10.5.0`.
 - `npm run lint`: passed (`tsc --noEmit`).
 - `npm test`: passed (15 test files passed, 2 emulator-only files skipped by default; 71 tests passed, 7 skipped).
 - `npm run build`: passed. Warnings remain: Firebase chunk is larger than 500 kB (`assets/firebase-Ct40zCNZ.js`, 718.27 kB / 179.73 kB gzip), and `src/services/issues.ts` is still both dynamically and statically imported.
 - `npm audit --omit=dev`: passed; 0 vulnerabilities.
-- `npm run test:rules`: passed (1 emulator rules test file, 3 tests) against the Firebase Firestore and Storage emulators. Expected deny-rule warnings appeared for negative cases.
-- `npm run test:concurrency`: passed (1 Firestore emulator test file, 4 tests). Expected duplicate/conflict warnings appeared for intentionally raced writes.
-- `npm run test:e2e`: passed (4 Playwright/Chromium tests) against `demo-civiclens` Auth/Firestore/Storage emulators and the Vite dev server; the run checks mobile, tablet, desktop, synthetic demo operator queue, horizontal overflow, and axe serious/critical accessibility violations.
-- Local production start probe: `node dist/server.cjs` started with `NODE_ENV=production`, `PORT=3199`, `FIREBASE_PROJECT_ID=demo-civiclens`, `FIRESTORE_DATABASE_ID=(default)`, and no secrets. `GET /health` returned 200. `GET /readyz` returned 503 because production secrets/config were intentionally absent.
+- `npm run test:rules`: passed (1 Firestore/Storage emulator test file, 3 tests).
+- `npm run test:concurrency`: passed (1 Firestore emulator test file, 4 tests).
 
 ## Local Release Evidence
 

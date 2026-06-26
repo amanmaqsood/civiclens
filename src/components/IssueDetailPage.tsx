@@ -10,6 +10,7 @@ import ResolutionPlanWidget from "./ResolutionPlanWidget";
 import AutoEscalationPanel from "./AutoEscalationPanel";
 import { humanizeCategory, humanizeUrgency } from "../utils/humanize";
 import { apiFetch, fetchLatestAgentRun, runAgentForIssue } from "../services/api";
+import { ISSUE_STATUS_KEYS, issueStatusLabel } from "../constants/status";
 
 interface IssueDetailPageProps {
   issue: IssueReport;
@@ -19,7 +20,7 @@ interface IssueDetailPageProps {
   onRefresh: () => void;
 }
 
-const STATUS_STEPS = ["Submitted", "Verified", "In Progress", "Resolved"] as const;
+const STATUS_STEPS = ISSUE_STATUS_KEYS;
 
 export default function IssueDetailPage({
   issue,
@@ -480,7 +481,7 @@ export default function IssueDetailPage({
       <VerificationPanel issue={issue} onRefresh={onRefresh} />
 
       {/* RTI ESCALATION PORTAL (if not resolved) */}
-      {issue.status !== "Resolved" && (
+      {issue.status !== "resolved" && (
         <AutoEscalationPanel issue={issue} onUpdated={onRefresh} />
       )}
 
@@ -524,7 +525,7 @@ export default function IssueDetailPage({
                   {idx + 1}
                 </div>
                 <span className={`text-[9px] font-sans font-semibold tracking-tight uppercase ${isCurrent ? "text-ink font-bold" : isCompleted ? "text-verify" : "text-slate/60"}`}>
-                  {step}
+                  {issueStatusLabel(step)}
                 </span>
               </div>
             );

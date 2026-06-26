@@ -30,6 +30,8 @@ The following data is written by Express/Admin SDK endpoints rather than client 
 
 Firestore Rules deny direct client create/update/delete access to `/issues/{issueId}` and issue-owned subcollections. Storage Rules allow signed-in users to upload image files only under their own `reports/{uid}`, `evidence/{uid}`, and `closures/{uid}` paths with MIME and size checks.
 
+Issue lifecycle statuses are stored as canonical enum keys (`submitted`, `verified`, `in_progress`, `resolved`). Human-readable status labels are derived in the UI.
+
 ## Human Approval Requirements
 
 Human approval is required for:
@@ -45,6 +47,8 @@ Closure recommendations never auto-resolve a case. A server-authorized operator 
 ## Agent Boundary
 
 `POST /api/agent/run` accepts `issueId` and optional idempotency key. The server loads canonical issue data and nearby candidates from Firestore, executes bounded tools, and persists run/step records. The UI renders persisted runs and does not present seeded demo traces as live tool executions.
+
+Browser requests are not accepted as evidence for privileged agent traces or persisted resolution plans. Resolution plans are generated from server-loaded issue data; closure and escalation saves append server-generated trace entries only.
 
 ## URL And Upload Safety
 
@@ -66,6 +70,7 @@ Source-level release tests cover:
 - SSRF-restricted closure image fetch.
 - Firestore and Storage rules matrix.
 - Persisted server agent runs/steps and idempotency.
+- Focused Firestore emulator transaction/concurrency checks for duplicate same-user support and verification writes.
 - Golden-path UI wiring and key accessibility markers.
 
 Executed local release gates also include:
@@ -77,6 +82,6 @@ Latest command results are recorded in `docs/FINAL_EVIDENCE_REPORT.md`.
 
 ## Remaining Security Gaps
 
-- Transaction/concurrency behavior is not yet race-tested in an emulator harness.
+- The concurrency emulator gate covers representative same-user support and verification races, not every API mutation race path.
 - Browser E2E currently uses seeded synthetic emulator data; live Gemini/Maps golden-path evidence requires production secrets and deployment approval.
 - Production App Check token wiring and Cloud Run readiness have not been smoke-tested because deployment credentials and explicit approval are not available in this local rebuild.

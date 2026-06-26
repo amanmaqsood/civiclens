@@ -10,8 +10,8 @@ import {
   Clock, 
   RefreshCw 
 } from "lucide-react";
-import { IssueReport, AgentTraceEntry, ResolutionPlan } from "../types";
-import { generateResolutionPlan, updateIssueResolutionPlan } from "../services/issues";
+import { IssueReport } from "../types";
+import { updateIssueResolutionPlan } from "../services/issues";
 
 interface ResolutionPlanProps {
   issue: IssueReport;
@@ -28,26 +28,7 @@ export default function ResolutionPlanWidget({ issue, onRefresh, lang = "en" }: 
     setLoading(true);
     setErrorMsg(null);
     try {
-      const plan = await generateResolutionPlan(issue);
-
-      const now = new Date().toISOString();
-      const findAuthorityTrace: AgentTraceEntry = {
-        step: "Find Authority",
-        tool: "Gemini 2.5 Google Search Grounding (/api/resolution-plan)",
-        status: "done",
-        rationale: `Drafted "${plan.recommendedAuthority}" as a possible responsible agency. Contact suggestion for human review: "${plan.contactChannel}".`,
-        ts: now
-      };
-
-      const draftPacketTrace: AgentTraceEntry = {
-        step: "Draft Action Packet",
-        tool: "Gemini Structured Compliance Compiler (/api/resolution-plan)",
-        status: "done",
-        rationale: `Drafted review packet titled "${plan.actionPacket.subject}" with an estimated ${plan.slaDays}-day follow-up window.`,
-        ts: new Date(Date.now() + 500).toISOString()
-      };
-
-      await updateIssueResolutionPlan(issue.id, plan, [findAuthorityTrace, draftPacketTrace]);
+      await updateIssueResolutionPlan(issue.id);
       onRefresh();
     } catch (err: any) {
       console.error(err);
@@ -181,19 +162,23 @@ export default function ResolutionPlanWidget({ issue, onRefresh, lang = "en" }: 
               <span className="text-[8px] font-mono uppercase tracking-wider text-slate">Grounding reference links</span>
               <div className="flex flex-wrap gap-1.5">
                 {plan.groundingSources.map((src, i) => {
+                  const sourceUrl = typeof src === "string" ? src : src.url;
+                  const sourceTitle = typeof src === "string" ? "" : src.title;
+                  const sourceClaim = typeof src === "string" ? "" : src.claimSupported;
                   let domain = "Reference link";
                   try {
-                    domain = new URL(src).hostname.replace("www.", "");
+                    domain = new URL(sourceUrl).hostname.replace("www.", "");
                   } catch(e) {}
                   return (
                     <a
                       key={i}
-                      href={src}
+                      href={sourceUrl || "#"}
                       target="_blank"
                       rel="noopener noreferrer"
+                      title={sourceClaim || sourceTitle || domain}
                       className="flex items-center gap-1 text-[9px] font-mono text-slate hover:text-ink underline transition-colors cursor-pointer"
                     >
-                      <span>{domain}</span>
+                      <span>{sourceTitle || domain}</span>
                       <ExternalLink className="w-2.5 h-2.5 shrink-0" />
                     </a>
                   )

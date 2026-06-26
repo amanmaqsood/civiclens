@@ -5,6 +5,7 @@ import { ArrowLeft, Clock, ShieldCheck, CheckSquare, RefreshCw, Lock } from "luc
 import ClosureVerificationPanel from "./ClosureVerificationPanel";
 import AutoEscalationPanel from "./AutoEscalationPanel";
 import confetti from "canvas-confetti";
+import { IssueStatusKey, issueStatusLabel } from "../constants/status";
 
 interface OperatorDetailViewProps {
   issue: IssueReport;
@@ -17,7 +18,7 @@ interface OperatorDetailViewProps {
 export default function OperatorDetailView({ issue, onBack, onRefresh, demoOperator, embedded = false }: OperatorDetailViewProps) {
   const [activities, setActivities] = useState<IssueActivity[]>([]);
   const [loadingAct, setLoadingAct] = useState(true);
-  const [confirmingStatus, setConfirmingStatus] = useState<"Verified" | "In Progress" | "Resolved" | null>(null);
+  const [confirmingStatus, setConfirmingStatus] = useState<IssueStatusKey | null>(null);
   const [actionPending, setActionPending] = useState(false);
   const [manualOverride, setManualOverride] = useState(false);
   const [approvalRationale, setApprovalRationale] = useState("");
@@ -38,14 +39,14 @@ export default function OperatorDetailView({ issue, onBack, onRefresh, demoOpera
     loadActivities();
   }, [issue.id]);
 
-  const handleAdvanceStatus = async (nextStatus: "Verified" | "In Progress" | "Resolved") => {
+  const handleAdvanceStatus = async (nextStatus: IssueStatusKey) => {
     setActionPending(true);
     try {
-      const rationale = approvalRationale.trim() || `Operator reviewed the case and approved transition to ${nextStatus}.`;
+      const rationale = approvalRationale.trim() || `Operator reviewed the case and approved transition to ${issueStatusLabel(nextStatus)}.`;
       await updateIssueStatus(issue.id, nextStatus, { demoOperator, rationale });
       setConfirmingStatus(null);
       setApprovalRationale("");
-      if (nextStatus === "Resolved") {
+      if (nextStatus === "resolved") {
         confetti({
           particleCount: 150,
           spread: 80,
@@ -95,9 +96,9 @@ export default function OperatorDetailView({ issue, onBack, onRefresh, demoOpera
     }
   };
 
-  const isResolved = issue.status === "Resolved";
+  const isResolved = issue.status === "resolved";
   const isAiVerified = !!issue.closureAssessment;
-  const canMarkResolved = issue.status === "In Progress" && (isAiVerified || manualOverride);
+  const canMarkResolved = issue.status === "in_progress" && (isAiVerified || manualOverride);
   const rootClassName = embedded
     ? "flex flex-col gap-4 p-4 sm:p-5 lg:p-6 bg-slate-50 min-h-full w-full font-sans"
     : "flex flex-col gap-4 p-4 sm:p-6 lg:p-8 bg-slate-50 min-h-screen w-full font-sans";
@@ -138,13 +139,13 @@ export default function OperatorDetailView({ issue, onBack, onRefresh, demoOpera
         ) : (
           <div className="flex flex-col gap-3">
             <span className="text-[10px] text-slate-400 font-bold uppercase tracking-wider block">
-              Current prototype step: <span className="text-indigo-600 font-extrabold">{issue.status}</span>
+              Current prototype step: <span className="text-indigo-600 font-extrabold">{issueStatusLabel(issue.status)}</span>
             </span>
 
             <div className="grid grid-cols-1 gap-2 text-xs">
               <button
-                disabled={issue.status !== "Submitted"}
-                onClick={() => setConfirmingStatus("Verified")}
+                disabled={issue.status !== "submitted"}
+                onClick={() => setConfirmingStatus("verified")}
                 className="w-full min-h-[44px] text-left bg-slate-50 disabled:opacity-40 hover:bg-slate-100/50 cursor-pointer border py-2.5 px-3 rounded-xl flex items-center justify-between font-semibold"
               >
                 <span>1. Acknowledge Draft</span>
@@ -152,8 +153,8 @@ export default function OperatorDetailView({ issue, onBack, onRefresh, demoOpera
               </button>
 
               <button
-                disabled={issue.status !== "Verified"}
-                onClick={() => setConfirmingStatus("In Progress")}
+                disabled={issue.status !== "verified"}
+                onClick={() => setConfirmingStatus("in_progress")}
                 className="w-full min-h-[44px] text-left bg-slate-50 disabled:opacity-40 hover:bg-slate-100/50 cursor-pointer border py-2.5 px-3 rounded-xl flex items-center justify-between font-semibold"
               >
                 <span>2. Mark In Progress</span>
@@ -163,14 +164,14 @@ export default function OperatorDetailView({ issue, onBack, onRefresh, demoOpera
               <div className="flex flex-col gap-2">
                 <button
                   disabled={!canMarkResolved}
-                  onClick={() => setConfirmingStatus("Resolved")}
+                  onClick={() => setConfirmingStatus("resolved")}
                   className="w-full min-h-[44px] text-left bg-emerald-50 disabled:opacity-40 hover:bg-emerald-100/50 hover:border-emerald-300 disabled:bg-slate-50 cursor-pointer border py-2.5 px-3 rounded-xl flex items-center justify-between font-semibold text-emerald-950"
                 >
                   <span>3. Mark Resolved</span>
                   <span className="text-[9px] bg-emerald-100 text-emerald-800 px-2 py-0.5 rounded-md">To Resolved</span>
                 </button>
 
-                {issue.status === "In Progress" && !isAiVerified && (
+                {issue.status === "in_progress" && !isAiVerified && (
                   <label className="flex items-center gap-2 px-1 text-[10.5px] font-bold text-slate-500 hover:text-slate-800 transition-colors select-none cursor-pointer">
                     <input
                       type="checkbox"
@@ -187,7 +188,7 @@ export default function OperatorDetailView({ issue, onBack, onRefresh, demoOpera
         )}
           </div>
 
-          {issue.status !== "Resolved" && (
+          {issue.status !== "resolved" && (
             <AutoEscalationPanel issue={issue} onUpdated={onRefresh} />
           )}
         </div>
@@ -256,7 +257,7 @@ export default function OperatorDetailView({ issue, onBack, onRefresh, demoOpera
           >
             <h4 id="operator-status-dialog-title" className="text-xs font-bold text-slate-800 uppercase">Confirm Status</h4>
             <p className="text-[10.5px] text-slate-500 font-medium">
-              Transition this complaint status to <span className="font-extrabold text-[#4F46E5]">"{confirmingStatus}"</span>?
+              Transition this complaint status to <span className="font-extrabold text-[#4F46E5]">"{issueStatusLabel(confirmingStatus)}"</span>?
             </p>
             <textarea
               value={approvalRationale}

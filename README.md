@@ -68,10 +68,11 @@ npm test
 npm run build
 npm audit --omit=dev
 npm run test:rules
+npm run test:concurrency
 npm run test:e2e
 ```
 
-`npm test` skips the emulator-only rules file by default; use `npm run test:rules` for Firestore/Storage Emulator Suite coverage. `npm run test:e2e` starts local Firebase emulators and runs the Playwright/axe browser release gate.
+`npm test` skips emulator-only files by default; use `npm run test:rules` for Firestore/Storage Emulator Suite coverage and `npm run test:concurrency` for the focused parallel transaction harness. `npm run test:e2e` starts local Firebase emulators and runs the Playwright/axe browser release gate.
 
 The latest local validation results are recorded in `docs/FINAL_EVIDENCE_REPORT.md` and `docs/CODEX_PROGRESS.md`.
 

@@ -163,7 +163,7 @@ export default function App() {
     setCurrentView("detail");
   };
 
-  const saveNewStandaloneReport = async (reportData: Partial<IssueReport>, customTrace?: AgentTraceEntry[], customPlan?: any) => {
+  const saveNewStandaloneReport = async (reportData: Partial<IssueReport>) => {
     const savedReport = await submitIssueReport({
       image: reportData.image!,
       category: reportData.category!,
@@ -179,8 +179,6 @@ export default function App() {
       affectedArea: reportData.affectedArea,
       privacyFlags: reportData.privacyFlags,
       confidence: reportData.confidence,
-      agentTrace: customTrace,
-      resolutionPlan: customPlan || undefined,
     });
     setLatestReport(savedReport);
     setCurrentView("success");
@@ -315,11 +313,7 @@ export default function App() {
       }
 
       // Otherwise, save the standalone report with the complete real trace and plan
-      await saveNewStandaloneReport(
-        reportData, 
-        currentTraceWithDup, 
-        undefined
-      );
+      await saveNewStandaloneReport(reportData);
 
     } catch (err: any) {
       console.error("Submitting pipeline error:", err);
@@ -370,11 +364,7 @@ export default function App() {
       setLiveTrace(existingTrace);
       await delay(800);
 
-      await saveNewStandaloneReport(
-        pendingReportData, 
-        existingTrace, 
-        (pendingReportData as any).resolutionPlan || undefined
-      );
+      await saveNewStandaloneReport(pendingReportData);
     } catch (err: any) {
       setErrorNotice(err.message || "Failed to submit new report.");
       setCurrentView("report");

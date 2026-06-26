@@ -118,7 +118,7 @@ export default function AutoEscalationPanel({ issue, onUpdated }: AutoEscalation
 
           <button
             onClick={handleEscalate}
-            disabled={loading || issue.status === "Resolved"}
+            disabled={loading || issue.status === "resolved"}
             className="w-full bg-alert hover:bg-alert/90 text-white text-xs font-bold py-2.5 rounded-xl cursor-pointer flex items-center justify-center gap-2 border border-white/5 active:scale-[0.99] transition-all"
             style={{ minHeight: "38px" }}
           >

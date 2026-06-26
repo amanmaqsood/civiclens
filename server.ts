@@ -16,6 +16,12 @@ import {
   resolveActorFromDecoded,
   type RequestActor,
 } from "./src/server/perimeter";
+import {
+  coerceIssueStatus,
+  issueStatusLabel,
+  normalizeIssueStatus,
+  type IssueStatusKey,
+} from "./src/constants/status";
 
 async function startServer() {
   const app = express();
@@ -444,10 +450,10 @@ async function startServer() {
     if (!adminDb) return sendApiError(res, 503, "Server data layer unavailable.");
     const actor = req.actor as RequestActor | undefined;
 
-    const { issueId, newStatus } = req.body || {};
+    const { issueId } = req.body || {};
+    const newStatus = coerceIssueStatus(req.body?.newStatus);
     const rationale = cleanText(req.body?.rationale, "", 1200);
-    const VALID = ["Submitted", "Verified", "In Progress", "Resolved"];
-    if (!issueId || typeof issueId !== "string" || !VALID.includes(newStatus)) {
+    if (!issueId || typeof issueId !== "string" || !newStatus) {
       return sendApiError(res, 400, "Invalid issueId or status.");
     }
 
@@ -458,15 +464,15 @@ async function startServer() {
       const issueData = snap.data();
       if (!requireOperatorForIssue(issueData, actor, res)) return;
 
-      const current = issueData.status;
-      const allowed: Record<string, string[]> = {
-        "Submitted": ["Verified"],
-        "Verified": ["In Progress"],
-        "In Progress": ["Resolved", "Submitted"],
-        "Resolved": ["In Progress"],
+      const current = normalizeIssueStatus(issueData.status);
+      const allowed: Record<IssueStatusKey, IssueStatusKey[]> = {
+        submitted: ["verified"],
+        verified: ["in_progress"],
+        in_progress: ["resolved", "submitted"],
+        resolved: ["in_progress"],
       };
       if (!(allowed[current] || []).includes(newStatus)) {
-        return sendApiError(res, 409, `Illegal transition: ${current} -> ${newStatus}.`);
+        return sendApiError(res, 409, `Illegal transition: ${issueStatusLabel(current)} -> ${issueStatusLabel(newStatus)}.`);
       }
 
       const nowIso = new Date().toISOString();
@@ -474,24 +480,24 @@ async function startServer() {
       if (!rationale || rationale.length < 8) {
         return sendApiError(res, 400, "Operator rationale is required for lifecycle transitions.");
       }
-      if (newStatus === "Verified") updates.triagedAt = nowIso;
-      if (newStatus === "In Progress") {
+      if (newStatus === "verified") updates.triagedAt = nowIso;
+      if (newStatus === "in_progress") {
         updates.workStartedAt = nowIso;
         if (!issueData.assignedAt) updates.assignedAt = nowIso;
       }
-      if (newStatus === "Resolved") {
+      if (newStatus === "resolved") {
         if (!issueData.closureAssessment) {
           return sendApiError(res, 409, "Closure evidence and assessment are required before resolving.");
         }
         updates.resolvedAt = nowIso;
       }
-      if (current === "Resolved" || newStatus === "Submitted") {
+      if (current === "resolved" || newStatus === "submitted") {
         updates.reopenedAt = nowIso;
       }
       await ref.update(updates);
 
       await ref.collection("approvals").add({
-        type: newStatus === "Resolved" ? "closure_resolution" : current === "Resolved" ? "reopen" : "status_transition",
+        type: newStatus === "resolved" ? "closure_resolution" : current === "resolved" ? "reopen" : "status_transition",
         fromStatus: current,
         toStatus: newStatus,
         rationale,
@@ -504,7 +510,7 @@ async function startServer() {
       await ref.collection("activity").add({
         actorType: "operator",
         eventType: "status_changed",
-        message: `Status advanced to ${newStatus} by server-authorized operator. Rationale: ${rationale}`,
+        message: `Status advanced to ${issueStatusLabel(newStatus)} by server-authorized operator. Rationale: ${rationale}`,
         timestamp: nowIso,
         byUid: actor?.uid,
         byRole: actor?.role,
@@ -542,7 +548,7 @@ async function startServer() {
       timestamp: nowIso,
       createdAt: nowIso,
       updatedAt: nowIso,
-      status: "Submitted",
+      status: "submitted",
       citizenUpvotes: 0,
       userId: actor.uid,
       isDemoData: false,
@@ -763,28 +769,151 @@ async function startServer() {
     }
   });
 
+  async function draftResolutionPlanFromIssue(issueData: any, issueId: string) {
+    const todayStr = new Date().toLocaleDateString("en-US", { year: "numeric", month: "long", day: "numeric" });
+    const category = cleanText(issueData.category, "general civic issue", 120);
+    const title = cleanText(issueData.title, issueData.category || "Civic incident", 180);
+    const summary = cleanText(issueData.summary || issueData.description, "Reported civic issue pending summary.", 1200);
+    const locationName = cleanText(issueData.locationName, "India", 240);
+    const ticketId = cleanText(issueData.ticketId, issueId, 100);
+    const lat = typeof issueData.lat === "number" ? issueData.lat : null;
+    const lng = typeof issueData.lng === "number" ? issueData.lng : null;
+
+    const promptText = `Suggest a likely responsible Indian municipal authority or department and draft a complaint packet for human review for this reported civic issue.
+Use Google Search grounding to lookup real-world departments, municipal corporations, or utility boards that govern this category of issues in this specific Indian city or state.
+
+Issue details loaded from Firestore by CivicLens server:
+- Category: ${category}
+- Title: ${title}
+- Summary: ${summary}
+- Location/address description: ${locationName}
+- Coordinates: lat ${lat ?? "unknown"}, lng ${lng ?? "unknown"}
+- CivicLens prototype ticket ID: ${ticketId}
+- Reporting Date (Today): ${todayStr}
+
+Determine:
+1. The actual likely municipal corporation, utility, or government board responsible (recommendedAuthority).
+2. A citizen grievance portal, email, app name, or citizen helpline if one can be grounded (contactChannel).
+3. A published or typical citizen follow-up window in days (slaDays, integer). If uncertain, provide a conservative estimate and make the uncertainty clear in the draft body.
+4. A drafted complaint email or letter for human review only:
+   - subject: A concise professional subject line
+   - body: The full body of a draft letter, starting with a polite salutation, laying out the ticket summary, citing safety concerns and location, and asking for review within the suggested follow-up window.
+   - bodyHindi: A fluent Hindi translation of the draft complaint body.
+   - summaryHindi: A brief Hindi summary of the problem.
+   - nextActions: 3 actionable steps for the citizen or operator to verify before acting outside CivicLens.
+
+CRITICAL COMPLIANCE DIRECTIVE:
+Use only the CivicLens prototype ticket ID ('${ticketId}') and current date ('${todayStr}') for reference numbers or dates. Never invent government complaint IDs, submission IDs, approval numbers, official acknowledgements, or external filing history.
+
+Output STRICT, VALID JSON conforming exactly to this schema:
+{
+  "recommendedAuthority": "string",
+  "contactChannel": "string",
+  "slaDays": 10,
+  "actionPacket": {
+    "subject": "string",
+    "body": "string",
+    "bodyHindi": "string",
+    "summaryHindi": "string",
+    "nextActions": ["string", "string", "string"]
+  }
+}
+Output ONLY valid JSON and nothing else.`;
+
+    const startTime = Date.now();
+    const result = await generateContentWithRetry(ai, {
+      model: "gemini-2.5-flash",
+      contents: promptText,
+      config: {
+        tools: [{ googleSearch: {} }],
+      },
+    });
+
+    const durationMs = Date.now() - startTime;
+    const response = result.response;
+    const responseText = (response.text || "").trim();
+    let cleanResponseText = responseText.replace(/^```(?:json)?\s*/i, "").replace(/```\s*$/, "").trim();
+
+    let parsedData: any;
+    try {
+      parsedData = JSON.parse(cleanResponseText);
+    } catch {
+      const jsonMatch = cleanResponseText.match(/\{[\s\S]*\}/);
+      if (!jsonMatch) throw new Error("Unable to parse Gemini resolution plan result as JSON.");
+      parsedData = JSON.parse(jsonMatch[0]);
+    }
+
+    const searchChunks = response.candidates?.[0]?.groundingMetadata?.groundingChunks || [];
+    const seenSources = new Set<string>();
+    parsedData.groundingSources = searchChunks
+      .map((chunk: any) => ({
+        title: cleanText(chunk.web?.title, "Grounding source", 180),
+        url: cleanText(chunk.web?.uri, "", 2000),
+        claimSupported: "Suggested authority/contact reference for a draft action packet.",
+        sourceType: "sourced",
+      }))
+      .filter((source: any) => {
+        if (!source.url || seenSources.has(source.url)) return false;
+        seenSources.add(source.url);
+        return true;
+      });
+
+    return {
+      success: true,
+      data: parsedData,
+      durationMs,
+      confidence: 0.95,
+      inputDigest: `${category}: "${title}"`,
+      outputSummary: `Suggested authority: ${cleanText(parsedData.recommendedAuthority, "Unknown", 160)} - follow-up: ${cleanNumber(parsedData.slaDays, 0, 0, 365)} days`,
+      retried: result.retried,
+    };
+  }
+
   app.post("/api/issues/:issueId/agent-trace-plan", async (req: any, res) => {
     if (!adminDb) return sendApiError(res, 503, "Server data layer unavailable.");
     const actor = req.actor as RequestActor | undefined;
     const { issueId } = req.params;
     if (!actor || !isSafeDocumentId(issueId)) return sendApiError(res, 400, "Invalid agent update request.");
+    if (req.body?.resolutionPlan !== undefined) {
+      return sendApiError(res, 400, "Resolution plans are generated from server-loaded issue state.");
+    }
     const issueRef = adminDb.collection("issues").doc(issueId);
 
     try {
       const snap = await issueRef.get();
       if (!snap.exists) return sendApiError(res, 404, "Issue not found.");
       if (!requireOperatorForIssue(snap.data(), actor, res)) return;
+      const issueData = snap.data() || {};
       const updateData: any = {
         updatedAt: new Date().toISOString(),
       };
-      if (Array.isArray(req.body?.agentTrace)) {
-        updateData.agentTrace = req.body.agentTrace.slice(0, 30);
-      }
-      if (req.body?.resolutionPlan && typeof req.body.resolutionPlan === "object") {
-        updateData.resolutionPlan = req.body.resolutionPlan;
+      let changed = false;
+      if (req.body?.draftResolutionPlan === true) {
+        const planResult = await draftResolutionPlanFromIssue(issueData, issueId);
+        updateData.resolutionPlan = planResult.data;
+        updateData.agentTrace = [
+          ...(Array.isArray(issueData.agentTrace) ? issueData.agentTrace : []),
+          {
+            step: "draft_action_packet",
+            tool: "agent.draft_action_packet",
+            status: "done",
+            rationale: "Draft resolution plan saved by the server for human review.",
+            ts: updateData.updatedAt,
+            inputDigest: planResult.inputDigest,
+            outputSummary: planResult.outputSummary,
+            durationMs: planResult.durationMs,
+            retried: planResult.retried,
+            sources: planResult.data.groundingSources || [],
+          },
+        ].slice(-30);
+        changed = true;
       }
       if (typeof req.body?.priorityScore === "number") {
         updateData.priorityScore = cleanNumber(req.body.priorityScore, 0, 0, 100);
+        changed = true;
+      }
+      if (!changed) {
+        return sendApiError(res, 400, "No server-generated agent update was requested.");
       }
       await issueRef.update(updateData);
       await addServerActivity(issueRef, {
@@ -795,7 +924,7 @@ async function startServer() {
         byUid: actor.uid,
         byRole: actor.role,
       });
-      return res.json({ success: true });
+      return res.json({ success: true, data: updateData.resolutionPlan || null });
     } catch (error) {
       return sendApiError(res, 500, "Failed to save agent results.", error);
     }
@@ -816,9 +945,19 @@ async function startServer() {
       await issueRef.update({
         closureAssessment,
         closureSubmittedAt: nowIso,
-        agentTrace: Array.isArray(req.body?.agentTrace)
-          ? [...(snap.data().agentTrace || []), ...req.body.agentTrace].slice(-30)
-          : snap.data().agentTrace || [],
+        agentTrace: [
+          ...(Array.isArray(snap.data().agentTrace) ? snap.data().agentTrace : []),
+          {
+            step: "verify_closure",
+            tool: "agent.verify_closure",
+            status: closureAssessment?.resolved ? "done" : "failed",
+            rationale: cleanText(closureAssessment?.explanation, "Closure assessment saved by server.", 1200),
+            ts: nowIso,
+            inputDigest: "Server accepted closure assessment payload",
+            outputSummary: `Recommendation: ${cleanText(closureAssessment?.recommendation, "request_more_evidence", 80)}`,
+            retried: false,
+          },
+        ].slice(-30),
         updatedAt: nowIso,
       });
       await addServerActivity(issueRef, {
@@ -853,9 +992,19 @@ async function startServer() {
       };
       await issueRef.update({
         escalation,
-        agentTrace: Array.isArray(req.body?.agentTrace)
-          ? [...(snap.data().agentTrace || []), ...req.body.agentTrace].slice(-30)
-          : snap.data().agentTrace || [],
+        agentTrace: [
+          ...(Array.isArray(snap.data().agentTrace) ? snap.data().agentTrace : []),
+          {
+            step: "record_event",
+            tool: "agent.record_event",
+            status: "done",
+            rationale: "Escalation and RTI drafts saved by the server for human review.",
+            ts: nowIso,
+            inputDigest: "Escalation draft save request",
+            outputSummary: "Draft escalation and RTI text recorded",
+            retried: false,
+          },
+        ].slice(-30),
         updatedAt: nowIso,
       });
       await addServerActivity(issueRef, {
@@ -969,7 +1118,7 @@ async function startServer() {
       lng: 77.6251,
       image: "https://images.unsplash.com/photo-1541888946425-d81bb19240f5?auto=format&fit=crop&w=600&q=80",
       severity: 4,
-      status: "In Progress",
+      status: "in_progress",
       reportCount: 3,
       confirmCount: 4,
       urgency: "priority",
@@ -983,7 +1132,7 @@ async function startServer() {
       lng: 77.6385,
       image: "https://images.unsplash.com/photo-1515162305285-0293e4767cc2?auto=format&fit=crop&w=600&q=80",
       severity: 5,
-      status: "Submitted",
+      status: "submitted",
       reportCount: 1,
       confirmCount: 0,
       urgency: "urgent",
@@ -997,7 +1146,7 @@ async function startServer() {
       lng: 77.5831,
       image: "https://images.unsplash.com/photo-1509024640106-cf78faeb99b2?auto=format&fit=crop&w=600&q=80",
       severity: 2,
-      status: "Verified",
+      status: "verified",
       reportCount: 2,
       confirmCount: 3,
       urgency: "routine",
@@ -1011,7 +1160,7 @@ async function startServer() {
       lng: 77.5694,
       image: "https://images.unsplash.com/photo-1611284446314-60a58ac0deb9?auto=format&fit=crop&w=600&q=80",
       severity: 3,
-      status: "Verified",
+      status: "verified",
       reportCount: 4,
       confirmCount: 5,
       urgency: "priority",
@@ -1025,7 +1174,7 @@ async function startServer() {
       lng: 77.6950,
       image: "https://images.unsplash.com/photo-1504307651254-35680f356dfd?auto=format&fit=crop&w=600&q=80",
       severity: 5,
-      status: "Resolved",
+      status: "resolved",
       reportCount: 5,
       confirmCount: 8,
       urgency: "urgent",
@@ -1039,7 +1188,7 @@ async function startServer() {
       lng: 77.5550,
       image: "https://images.unsplash.com/photo-1541888946425-d81bb19240f5?auto=format&fit=crop&w=600&q=80",
       severity: 4,
-      status: "In Progress",
+      status: "in_progress",
       reportCount: 2,
       confirmCount: 2,
       urgency: "priority",
@@ -1053,7 +1202,7 @@ async function startServer() {
       lng: 77.6385,
       image: "https://images.unsplash.com/photo-1515162305285-0293e4767cc2?auto=format&fit=crop&w=600&q=80",
       severity: 3,
-      status: "Submitted",
+      status: "submitted",
       reportCount: 1,
       confirmCount: 1,
       urgency: "routine",
@@ -1548,14 +1697,30 @@ Output ONLY valid JSON and nothing else.`;
   });
 
   // Multimodal before/after resolution verification analyzer
-  app.post("/api/verify-resolution", async (req, res) => {
-    const { beforeImageUrl, afterImage, summary } = req.body;
+  app.post("/api/verify-resolution", async (req: any, res) => {
+    let { beforeImageUrl, afterImage, summary } = req.body;
+    const actor = req.actor as RequestActor | undefined;
+    const issueId = isSafeDocumentId(req.body?.issueId) ? req.body.issueId : null;
+    const afterImageUrl = cleanText(req.body?.afterImageUrl, "", 2000);
+    let issueRef: any = null;
+    let issueData: any = null;
 
     if (!afterImage) {
       return res.status(400).json({ success: false, error: "Missing afterImage payload." });
     }
 
     try {
+      if (issueId) {
+        if (!adminDb) return sendApiError(res, 503, "Server data layer unavailable.");
+        issueRef = adminDb.collection("issues").doc(issueId);
+        const snap = await issueRef.get();
+        if (!snap.exists) return sendApiError(res, 404, "Issue not found.");
+        issueData = snap.data();
+        if (!requireOperatorForIssue(issueData, actor, res)) return;
+        beforeImageUrl = issueData.image || beforeImageUrl;
+        summary = issueData.summary || issueData.description || summary;
+      }
+
       const contentsList: any[] = [];
 
       // 1. Process beforeImageUrl (with SSRF protection checking host safety)
@@ -1650,11 +1815,53 @@ Return a STRICT JSON response adhering precisely to this schema. Do not include 
       const parsedResult = JSON.parse(cleanText);
 
       const inputDigest = `Compare original vs afterImage`;
-      const outputSummary = `Resolved: ${parsedResult.resolved} · Rec: ${parsedResult.recommendation} · conf: ${(parsedResult.confidence || 0).toFixed(2)}`;
+      const closureAssessment = {
+        resolved: parsedResult.resolved === true,
+        confidence: cleanNumber(parsedResult.confidence, 0, 0, 1),
+        observedChanges: cleanStringArray(parsedResult.observedChanges, 12, 240),
+        recommendation: ["resolve", "request_more_evidence", "reopen"].includes(parsedResult.recommendation)
+          ? parsedResult.recommendation
+          : "request_more_evidence",
+        explanation: cleanText(parsedResult.explanation, "Gemini returned no explanation.", 1200),
+        afterImage: afterImageUrl || undefined,
+      };
+      const outputSummary = `Resolved: ${closureAssessment.resolved} - Rec: ${closureAssessment.recommendation} - conf: ${closureAssessment.confidence.toFixed(2)}`;
+
+      if (issueRef) {
+        const nowIso = new Date().toISOString();
+        await issueRef.update({
+          closureAssessment,
+          closureSubmittedAt: nowIso,
+          agentTrace: [
+            ...(Array.isArray(issueData?.agentTrace) ? issueData.agentTrace : []),
+            {
+              step: "verify_closure",
+              tool: "agent.verify_closure",
+              status: closureAssessment.resolved ? "done" : "failed",
+              rationale: closureAssessment.explanation,
+              ts: nowIso,
+              durationMs,
+              confidence: closureAssessment.confidence,
+              inputDigest,
+              outputSummary,
+              retried,
+            },
+          ].slice(-30),
+          updatedAt: nowIso,
+        });
+        await addServerActivity(issueRef, {
+          actorType: "operator",
+          eventType: "closure_assessment",
+          message: "Closure assessment generated by Gemini and saved by the server for human review.",
+          timestamp: nowIso,
+          byUid: actor?.uid,
+          byRole: actor?.role,
+        });
+      }
 
       return res.json({ 
         success: true, 
-        data: parsedResult,
+        data: closureAssessment,
         durationMs,
         confidence: parsedResult.confidence,
         inputDigest,
@@ -1965,7 +2172,7 @@ Output ONLY valid JSON and nothing else.`;
       const agentTools = [{
         functionDeclarations: [
           {
-            name: "nearby_search",
+            name: "search_nearby_cases",
             description: "Return nearby candidate reports loaded from Firestore by deterministic application code.",
             parameters: {
               type: Type.OBJECT,
@@ -1989,7 +2196,7 @@ Output ONLY valid JSON and nothing else.`;
             }
           },
           {
-            name: "assess_duplicate",
+            name: "compare_candidate_evidence",
             description: "Decide whether this issue duplicates one of the provided nearby candidates. Return the candidate id to merge into, or 'none'.",
             parameters: {
               type: Type.OBJECT,
@@ -2002,7 +2209,7 @@ Output ONLY valid JSON and nothing else.`;
             }
           },
           {
-            name: "find_authority",
+            name: "find_responsible_authority",
             description: "Suggest a responsible municipal authority and typical follow-up window for this category and location.",
             parameters: {
               type: Type.OBJECT,
@@ -2014,8 +2221,33 @@ Output ONLY valid JSON and nothing else.`;
             }
           },
           {
-            name: "finalize",
-            description: "Finalize the triage with a draft routing recommendation and a one-line rationale.",
+            name: "draft_action_packet",
+            description: "Draft a safe complaint/action packet summary for human review. This does not submit anything externally.",
+            parameters: {
+              type: Type.OBJECT,
+              properties: {
+                subject: { type: Type.STRING },
+                summary: { type: Type.STRING },
+                nextAction: { type: Type.STRING }
+              },
+              required: ["subject", "summary"]
+            }
+          },
+          {
+            name: "verify_closure",
+            description: "Check whether closure evidence exists and report that final closure still needs human approval.",
+            parameters: {
+              type: Type.OBJECT,
+              properties: {
+                recommendation: { type: Type.STRING },
+                reason: { type: Type.STRING }
+              },
+              required: ["recommendation", "reason"]
+            }
+          },
+          {
+            name: "record_event",
+            description: "Record the final triage summary for the persisted agent run.",
             parameters: {
               type: Type.OBJECT,
               properties: {
@@ -2043,7 +2275,7 @@ Output ONLY valid JSON and nothing else.`;
 
       // Server-side tool implementations
       async function execTool(name: string, args: any) {
-        if (name === "nearby_search") {
+        if (name === "search_nearby_cases") {
           return { candidates: safeCandidates, radiusM: args.radiusM || 250 };
         }
         if (name === "calculate_priority") {
@@ -2059,10 +2291,10 @@ Output ONLY valid JSON and nothing else.`;
           const roundedScore = Math.round(clampedScore * 10) / 10;
           return { score: roundedScore };
         }
-        if (name === "assess_duplicate") {
+        if (name === "compare_candidate_evidence") {
           return { candidateId: args.candidateId || "none", similarity: args.similarity ?? null };
         }
-        if (name === "find_authority") {
+        if (name === "find_responsible_authority") {
           try {
             const searchPrompt = `Suggest the likely responsible Indian municipal authority/department, a public contact channel (helpline/portal/email), and a published or typical follow-up window in days for category: "${args.category || "general"}" in location: "${args.locationName || "India"}".
             
@@ -2103,15 +2335,30 @@ Output ONLY valid JSON and nothing else.`;
             
             return { authority: authVal, sla: slaVal, channel: chanVal };
           } catch (searchErr: any) {
-            console.warn("find_authority grounded search failed, returning fallback:", searchErr);
+            console.warn("find_responsible_authority grounded search failed, returning fallback:", searchErr);
             return { authority: "Municipal Corporation", sla: 7, channel: "Public grievance channel" };
           }
+        }
+        if (name === "draft_action_packet") {
+          return {
+            subject: cleanText(args.subject, `Draft Civic Grievance: ${issue.title || issue.category}`, 240),
+            summary: cleanText(args.summary, issue.summary || issue.description || "Draft summary pending human review.", 1000),
+            nextAction: cleanText(args.nextAction, "Human operator reviews this draft before any outside-app action.", 240),
+          };
+        }
+        if (name === "verify_closure") {
+          return {
+            closureEvidencePresent: !!issue.closureAssessment,
+            recommendation: cleanText(args.recommendation, issue.closureAssessment?.recommendation || "request_more_evidence", 80),
+            humanDecisionRequired: true,
+            reason: cleanText(args.reason, "Closure cannot be finalized without a human operator decision.", 400),
+          };
         }
         if (name === "request_human_approval") {
           return { approvalRequired: true, action: args.action || "review", reason: args.reason || "Human review required" };
         }
-        if (name === "finalize") {
-          return { done: true };
+        if (name === "record_event") {
+          return { recorded: true, eventType: "agent_triage_completed" };
         }
         return { error: `Unknown tool: ${name}` };
       }
@@ -2119,7 +2366,7 @@ Output ONLY valid JSON and nothing else.`;
       let contents: any[] = [{ role: "user", parts: [{ text:
         `You are CivicLens's server-side triage agent. Use only server-provided issue data and tools.
 Issue: ${JSON.stringify(issue)}
-Steps: 1) call nearby_search, 2) call assess_duplicate using candidates if any, 3) call calculate_priority, 4) call find_authority, 5) call request_human_approval for any merge/routing/resolution recommendation, 6) call finalize. Call exactly one tool per turn.` }]}];
+Steps: 1) call search_nearby_cases, 2) call compare_candidate_evidence using candidates if any, 3) call calculate_priority, 4) call find_responsible_authority, 5) call draft_action_packet, 6) call request_human_approval for any merge/routing/resolution recommendation, 7) call verify_closure to record that closure still needs human review, 8) call record_event. Call exactly one tool per turn.` }]}];
 
       const steps: any[] = [];
       let final: any = null;
@@ -2146,13 +2393,13 @@ Steps: 1) call nearby_search, 2) call assess_duplicate using candidates if any, 
         const result = await execTool(fc.name, fc.args || {});
 
         // Save tool execution findings
-        if (fc.name === "find_authority" && result) {
+        if (fc.name === "find_responsible_authority" && result) {
           authority = result.authority || authority;
           channel = result.channel || channel;
           slaDays = typeof result.sla === "number" ? result.sla : slaDays;
         }
 
-        if (fc.name === "assess_duplicate") {
+        if (fc.name === "compare_candidate_evidence") {
           const cid = fc.args?.candidateId;
           if (cid && cid !== "none" && cid !== "") {
             duplicateCandidateId = cid;
@@ -2177,13 +2424,20 @@ Steps: 1) call nearby_search, 2) call assess_duplicate using candidates if any, 
           rationale: fc.args?.reasoning || fc.args?.rationale || fc.args?.reason || `Called ${fc.name}`,
           model: "gemini-2.5-flash",
           retried,
-          sources: fc.name === "nearby_search" ? safeCandidates.map((candidate) => candidate.id) : [],
+          sources: fc.name === "search_nearby_cases"
+            ? safeCandidates.map((candidate) => ({
+                title: candidate.title || candidate.id,
+                url: `firestore://issues/${candidate.id}`,
+                claimSupported: "Nearby candidate loaded by server search",
+                sourceType: "sourced",
+              }))
+            : [],
         });
 
         contents.push({ role: "model", parts: [{ functionCall: fc } as any] });
         contents.push({ role: "user", parts: [{ functionResponse: { name: fc.name, response: { result } } } as any] });
 
-        if (fc.name === "finalize") {
+        if (fc.name === "record_event") {
           final = fc.args;
           break;
         }
@@ -2198,7 +2452,12 @@ Steps: 1) call nearby_search, 2) call assess_duplicate using candidates if any, 
           contactChannel: channel,
           slaDays,
           actionPacket,
-          groundingSources: []
+          groundingSources: [{
+            title: authority,
+            url: typeof channel === "string" && /^https?:\/\//.test(channel) ? channel : "",
+            claimSupported: "Responsible authority/contact suggestion generated by server-side Gemini grounding or fallback.",
+            sourceType: channel === "Public grievance channel" ? "estimated" : "sourced",
+          }]
         };
       } catch (planErr: any) {
         console.error("Failed to generate action packet in agent run, using fallback:", planErr);
@@ -2217,7 +2476,12 @@ Steps: 1) call nearby_search, 2) call assess_duplicate using candidates if any, 
               "Follow up with local ward committee."
             ]
           },
-          groundingSources: []
+          groundingSources: [{
+            title: authority,
+            url: "",
+            claimSupported: "Fallback authority/contact suggestion; verify manually before outside-app action.",
+            sourceType: "estimated",
+          }]
         };
       }
 

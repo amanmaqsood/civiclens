@@ -16,12 +16,14 @@ export default function AgentTraceTimeline({ trace = [] }: AgentTraceTimelinePro
     Decide: "Review Gate Recommendation",
     "Find Authority": "Suggested Authority Lookup",
     "Draft Action Packet": "Draft Resolution Case Packet",
-    nearby_search: "Nearby Search",
-    assess_duplicate: "Duplicate Assessment",
+    search_nearby_cases: "Nearby Search",
+    compare_candidate_evidence: "Duplicate Assessment",
     calculate_priority: "Priority Calculation",
-    find_authority: "Suggested Authority Lookup",
+    find_responsible_authority: "Suggested Authority Lookup",
+    draft_action_packet: "Draft Resolution Case Packet",
     request_human_approval: "Human Approval Gate",
-    finalize: "Draft Recommendation",
+    verify_closure: "Closure Evidence Check",
+    record_event: "Audit Event Record",
   };
 
   const stepsList = trace.map((entry) => ({

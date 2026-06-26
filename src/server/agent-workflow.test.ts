@@ -18,6 +18,9 @@ describe("persisted server agent workflow", () => {
     expect(server).toContain('adminDb.collection("agentRuns")');
     expect(server).toContain('issueRef.collection("agentSteps")');
     expect(server).toContain('app.get("/api/issues/:issueId/agent-runs/latest"');
+    expect(server).toContain('name: "search_nearby_cases"');
+    expect(server).toContain('name: "record_event"');
+    expect(server).toContain("claimSupported");
     expect(server).not.toContain("const { issue, candidates } = req.body");
   });
 

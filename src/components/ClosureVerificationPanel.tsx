@@ -151,7 +151,7 @@ export default function ClosureVerificationPanel({ issue, onVerified }: ClosureV
       )}
 
       {/* File Upload Trigger if In Progress and not yet verified */}
-      {issue.status === "In Progress" && (
+      {issue.status === "in_progress" && (
         <div className="flex flex-col gap-2.5">
           {!assessment && (
             <div className="flex flex-col items-center justify-center border-2 border-dashed border-slate-200 rounded-xl p-4 bg-slate-50 hover:bg-slate-100/50 relative cursor-pointer">

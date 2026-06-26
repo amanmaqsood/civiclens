@@ -1,3 +1,5 @@
+import type { IssueStatusKey } from "./constants/status";
+
 export type ActiveView = "landing" | "report" | "success" | "issues" | "detail" | "duplicate" | "dashboard" | "submitting";
 
 export interface AgentTraceEntry {
@@ -26,7 +28,12 @@ export interface ResolutionPlan {
     summaryHindi?: string;
     nextActions: string[];
   };
-  groundingSources: string[];
+  groundingSources: Array<string | {
+    title: string;
+    url: string;
+    claimSupported: string;
+    sourceType: "sourced" | "estimated";
+  }>;
 }
 
 export interface ClosureAssessment {
@@ -57,7 +64,7 @@ export interface IssueReport {
   closureSubmittedAt?: string;
   resolvedAt?: string;
   reopenedAt?: string;
-  status: "Submitted" | "Verified" | "In Progress" | "Resolved";
+  status: IssueStatusKey;
   citizenUpvotes: number;
   userId: string;
   isDemoData?: boolean;
@@ -96,4 +103,3 @@ export interface IssueActivity {
   message: string;
   timestamp: string;
 }
-

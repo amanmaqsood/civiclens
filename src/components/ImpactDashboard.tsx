@@ -1,6 +1,7 @@
 import React, { useMemo, useState } from "react";
 import { IssueReport } from "../types";
 import { ArrowLeft, CheckCircle, Copy, Clock, Layers } from "lucide-react";
+import { ISSUE_STATUS_KEYS, IssueStatusKey, issueStatusLabel } from "../constants/status";
 
 interface ImpactDashboardProps {
   issues: IssueReport[];
@@ -12,7 +13,7 @@ interface ImpactDashboardProps {
 type DashboardScope = "real" | "demo";
 
 const categories = ["pothole", "water_leak", "streetlight", "waste", "drainage", "road_damage", "other"];
-const statuses = ["Submitted", "Verified", "In Progress", "Resolved"];
+const statuses = ISSUE_STATUS_KEYS;
 const MIN_RATE_DENOMINATOR = 3;
 
 function parseStoredDate(value?: string): number | null {
@@ -30,7 +31,7 @@ function formatMetricUnavailable(reason: string) {
 
 function buildMetrics(issues: IssueReport[]) {
   const totalReported = issues.length;
-  const totalResolved = issues.filter((issue) => issue.status === "Resolved").length;
+  const totalResolved = issues.filter((issue) => issue.status === "resolved").length;
   const resolutionRate = totalReported >= MIN_RATE_DENOMINATOR
     ? {
         value: `${Math.round((totalResolved / totalReported) * 100)}%`,
@@ -59,7 +60,7 @@ function buildMetrics(issues: IssueReport[]) {
   const categoryCounts = categories.reduce((acc, cat) => {
     acc[cat] = issues.filter((issue) => issue.category === cat).length;
     return acc;
-  }, {} as Record<string, number>);
+  }, {} as Record<IssueStatusKey, number>);
 
   const statusCounts = statuses.reduce((acc, stat) => {
     acc[stat] = issues.filter((issue) => issue.status === stat).length;
@@ -203,17 +204,17 @@ export default function ImpactDashboard({
           {statuses.map((stat) => {
             const count = metrics.statusCounts[stat] || 0;
             const pct = count === 0 ? 0 : Math.max(6, Math.round((count / maxStatusCount) * 100));
-            const statusBarColors: Record<string, string> = {
-              Submitted: "bg-slate",
-              Verified: "bg-marigold",
-              "In Progress": "bg-[#3B82F6]",
-              Resolved: "bg-verify",
+            const statusBarColors: Record<IssueStatusKey, string> = {
+              submitted: "bg-slate",
+              verified: "bg-marigold",
+              in_progress: "bg-[#3B82F6]",
+              resolved: "bg-verify",
             };
 
             return (
               <div key={stat} className="flex flex-col gap-1 text-[10px]">
                 <div className="flex items-center justify-between text-slate font-semibold uppercase tracking-tight">
-                  <span className="text-[9.5px] font-medium text-ink">{stat}</span>
+                  <span className="text-[9.5px] font-medium text-ink">{issueStatusLabel(stat)}</span>
                   <span className="font-mono text-ink text-[10px]">{count}</span>
                 </div>
                 <div className="w-full bg-paper h-1.5 rounded-full overflow-hidden border border-hairline">

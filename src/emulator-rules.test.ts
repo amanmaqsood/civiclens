@@ -50,7 +50,7 @@ describeEmulator("Firebase emulator security rules", () => {
         title: "Demo pothole",
         category: "pothole",
         description: "Synthetic report for emulator tests.",
-        status: "Submitted",
+        status: "submitted",
         timestamp: new Date("2026-06-26T00:00:00.000Z").toISOString(),
         userId: "alice",
         isDemoData: true,
@@ -72,15 +72,15 @@ describeEmulator("Firebase emulator security rules", () => {
 
     await assertFails(alice.firestore().collection("issues").doc("issue-2").set({
       title: "Client-created issue",
-      status: "Submitted",
+      status: "submitted",
       userId: "alice",
     }));
     await assertFails(alice.firestore().collection("issues").doc("issue-1").update({
-      status: "Resolved",
+      status: "resolved",
       resolvedAt: new Date().toISOString(),
     }));
     await assertFails(alice.firestore().collection("issues").doc("issue-1").collection("agentSteps").add({
-      tool: "agent.finalize",
+      tool: "agent.record_event",
       status: "done",
     }));
   });

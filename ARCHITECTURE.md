@@ -17,6 +17,8 @@ The browser may create low-privilege report inputs and upload image bytes to use
 
 Server-owned fields include status, priority, counters, lifecycle timestamps, activity/audit records, agent runs, agent steps, resolution plans, escalation records, closure assessments, approvals, and demo seed/clear actions.
 
+Stored lifecycle statuses use canonical keys (`submitted`, `verified`, `in_progress`, `resolved`). Display labels are UI-only.
+
 Operator actions require a verified Firebase ID token and a server-resolved role. Demo operator mode is separate and may mutate only records marked `isDemoData === true`.
 
 ## Data Flow
@@ -61,7 +63,7 @@ Operator actions require a verified Firebase ID token and a server-resolved role
 
 ## Known Release Gaps
 
-- Transaction/concurrency behavior is covered by source/idempotency tests but not by a parallel emulator race harness.
+- Transaction/concurrency behavior has a focused parallel Firestore emulator harness for duplicate same-user support and verification writes; a full API-level race matrix remains future hardening.
 - Browser E2E and automated accessibility checks use seeded synthetic emulator data; live Gemini/Maps golden-path evidence requires production secrets and deployment approval.
 - Firebase vendor chunk remains above Vite's 500 kB warning threshold.
 - Cloud Run deployment and public URL verification require credentials and explicit approval.

@@ -91,7 +91,7 @@ describe("CivicLens - Unit Tests", () => {
     it("should return true for identical category within 150m and within 14 days", () => {
       const existing: Partial<IssueReport> = {
         category: "Roads & Potholes",
-        status: "Submitted",
+        status: "submitted",
         timestamp: new Date(Date.now() - 5 * 24 * 60 * 60 * 1000).toISOString(), // 5 days ago
         lat: 12.9720, // very close, approx ~44m
         lng: 77.5946,
@@ -104,7 +104,7 @@ describe("CivicLens - Unit Tests", () => {
     it("should return false if category is different", () => {
       const existing: Partial<IssueReport> = {
         category: "Garbage & Sewage",
-        status: "Submitted",
+        status: "submitted",
         timestamp: new Date().toISOString(),
         lat: 12.9716,
         lng: 77.5946,
@@ -118,7 +118,7 @@ describe("CivicLens - Unit Tests", () => {
       // 0.002 deg latitude is approximately 222 meters
       const existing: Partial<IssueReport> = {
         category: "Roads & Potholes",
-        status: "Submitted",
+        status: "submitted",
         timestamp: new Date().toISOString(),
         lat: 12.9736,
         lng: 77.5946,
@@ -131,7 +131,7 @@ describe("CivicLens - Unit Tests", () => {
     it("should return false if existing complaint is already Resolved", () => {
       const existing: Partial<IssueReport> = {
         category: "Roads & Potholes",
-        status: "Resolved",
+        status: "resolved",
         timestamp: new Date().toISOString(),
         lat: 12.9716,
         lng: 77.5946,
@@ -144,7 +144,7 @@ describe("CivicLens - Unit Tests", () => {
     it("should return false if timestamp is older than 14 days", () => {
       const existing: Partial<IssueReport> = {
         category: "Roads & Potholes",
-        status: "Submitted",
+        status: "submitted",
         timestamp: new Date(Date.now() - 15 * 24 * 60 * 60 * 1000).toISOString(), // 15 days ago
         lat: 12.9716,
         lng: 77.5946,
@@ -157,29 +157,29 @@ describe("CivicLens - Unit Tests", () => {
 
   describe("operator status-transition validity", () => {
     it("should allow Submitted -> Verified", () => {
-      const res = isValidStatusTransition("Submitted", "Verified", false, false);
+      const res = isValidStatusTransition("submitted", "verified", false, false);
       expect(res).toBe(true);
     });
 
     it("should reject Submitted -> In Progress", () => {
-      const res = isValidStatusTransition("Submitted", "In Progress", false, false);
+      const res = isValidStatusTransition("submitted", "in_progress", false, false);
       expect(res).toBe(false);
     });
 
     it("should allow Verified -> In Progress", () => {
-      const res = isValidStatusTransition("Verified", "In Progress", false, false);
+      const res = isValidStatusTransition("verified", "in_progress", false, false);
       expect(res).toBe(true);
     });
 
     it("should only allow In Progress -> Resolved if AI verified or manual override is true", () => {
       // Neither true -> false
-      expect(isValidStatusTransition("In Progress", "Resolved", false, false)).toBe(false);
+      expect(isValidStatusTransition("in_progress", "resolved", false, false)).toBe(false);
       
       // Ai verified -> true
-      expect(isValidStatusTransition("In Progress", "Resolved", true, false)).toBe(true);
+      expect(isValidStatusTransition("in_progress", "resolved", true, false)).toBe(true);
       
       // Manual override -> true
-      expect(isValidStatusTransition("In Progress", "Resolved", false, true)).toBe(true);
+      expect(isValidStatusTransition("in_progress", "resolved", false, true)).toBe(true);
     });
   });
 

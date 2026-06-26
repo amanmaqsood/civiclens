@@ -4,6 +4,7 @@ import { IssueReport } from "../types";
 import { motion } from "motion/react";
 import { humanizeCategory } from "../utils/humanize";
 import { useLanguage } from "../context/LanguageContext";
+import { ISSUE_STATUS_KEYS, IssueStatusKey, issueStatusLabel } from "../constants/status";
 
 interface IssueListWithFilterProps {
   issues: IssueReport[];
@@ -14,7 +15,7 @@ interface IssueListWithFilterProps {
   onNavigateToReport?: () => void;
 }
 
-type StatusFilter = "All" | "Submitted" | "Verified" | "In Progress" | "Resolved";
+type StatusFilter = "All" | IssueStatusKey;
 
 export default function IssueListWithFilter({
   issues,
@@ -28,7 +29,7 @@ export default function IssueListWithFilter({
   const [activeFilter, setActiveFilter] = useState<StatusFilter>("All");
   const [searchTerm, setSearchTerm] = useState("");
 
-  const filters: StatusFilter[] = ["All", "Submitted", "Verified", "In Progress", "Resolved"];
+  const filters: StatusFilter[] = ["All", ...ISSUE_STATUS_KEYS];
 
   const filteredIssues = useMemo(() => {
     return issues.filter((issue) => {
@@ -46,11 +47,11 @@ export default function IssueListWithFilter({
   // Exact Status color tokens matching specification
   const getStatusClasses = (status: string) => {
     switch (status) {
-      case "Verified":
+      case "verified":
         return "bg-marigold/10 border-marigold/25 text-[#7A4300]";
-      case "In Progress":
+      case "in_progress":
         return "bg-[#3B82F6]/10 border-[#3B82F6]/25 text-[#1D4ED8]";
-      case "Resolved":
+      case "resolved":
         return "bg-verify/10 border-verify/25 text-[#047857]";
       default: // Submitted
         return "bg-slate/10 border-slate/25 text-[#334155]";
@@ -85,7 +86,7 @@ export default function IssueListWithFilter({
               : "bg-white border-hairline text-[#334155] hover:text-ink hover:border-slate/40"
               }`}
             >
-              {filter}
+              {filter === "All" ? "All" : issueStatusLabel(filter)}
             </button>
           );
         })}
@@ -161,7 +162,7 @@ export default function IssueListWithFilter({
                     </span>
                   )}
                   <span className={`text-xs font-mono font-semibold uppercase tracking-wider border px-2 py-0.5 rounded-full ${getStatusClasses(issue.status)}`}>
-                    {issue.status}
+                    {issueStatusLabel(issue.status)}
                   </span>
                 </div>
               </div>

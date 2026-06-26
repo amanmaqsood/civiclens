@@ -74,7 +74,41 @@ describe("release security gate coverage", () => {
     expect(server).toContain('adminDb.collection("agentRuns")');
     expect(server).toContain('issueRef.collection("agentSteps")');
     expect(server).toContain("idempotent: true");
+    expect(server).toContain('name: "search_nearby_cases"');
+    expect(server).toContain('name: "compare_candidate_evidence"');
+    expect(server).toContain('name: "find_responsible_authority"');
+    expect(server).toContain('name: "draft_action_packet"');
     expect(server).toContain('name: "request_human_approval"');
+    expect(server).toContain('name: "verify_closure"');
+    expect(server).toContain('name: "record_event"');
     expect(server).toContain("Unknown tool:");
+  });
+
+  it("stores canonical status keys and rejects browser-authored agent traces", () => {
+    const server = readProjectFile("server.ts");
+    const types = readProjectFile("src/types.ts");
+    const service = readProjectFile("src/services/issues.ts");
+
+    expect(types).toContain("IssueStatusKey");
+    expect(server).toContain("coerceIssueStatus(req.body?.newStatus)");
+    expect(server).toContain('status: "submitted"');
+    expect(server).not.toContain("req.body?.agentTrace");
+    expect(service).not.toContain("agentTrace: [verifyTrace]");
+    expect(service).not.toContain("agentTrace: [escalationTrace]");
+  });
+
+  it("generates persisted resolution plans from server-loaded issue state", () => {
+    const server = readProjectFile("server.ts");
+    const service = readProjectFile("src/services/issues.ts");
+    const widget = readProjectFile("src/components/ResolutionPlanWidget.tsx");
+
+    expect(server).toContain("Resolution plans are generated from server-loaded issue state.");
+    expect(server).toContain("draftResolutionPlanFromIssue(issueData, issueId)");
+    expect(server).not.toContain("updateData.resolutionPlan = req.body.resolutionPlan");
+    expect(server).not.toContain("req.body.resolutionPlan.recommendedAuthority");
+    expect(service).toContain("draftResolutionPlan: true");
+    expect(service).not.toContain("JSON.stringify({ resolutionPlan })");
+    expect(service).not.toContain('apiFetch("/api/resolution-plan"');
+    expect(widget).not.toContain("generateResolutionPlan(issue)");
   });
 });

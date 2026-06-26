@@ -3,6 +3,7 @@ import { IssueReport } from "../types";
 import { ShieldCheck, Eye, RefreshCw, Layers, Database } from "lucide-react";
 import { seedDemoIssuesBengaluru, clearDemoIssues } from "../services/issues";
 import { humanizeCategory } from "../utils/humanize";
+import { issueStatusLabel } from "../constants/status";
 
 interface OperatorQueueProps {
   issues: IssueReport[];
@@ -63,9 +64,9 @@ export default function OperatorQueue({
 
   const getStatusStyle = (status: string) => {
     switch (status) {
-      case "Verified": return "bg-marigold/10 border-marigold/20 text-[#7A4300]";
-      case "In Progress": return "bg-[#3B82F6]/10 border-[#3B82F6]/20 text-[#1D4ED8]";
-      case "Resolved": return "bg-verify/10 border-verify/20 text-[#047857]";
+      case "verified": return "bg-marigold/10 border-marigold/20 text-[#7A4300]";
+      case "in_progress": return "bg-[#3B82F6]/10 border-[#3B82F6]/20 text-[#1D4ED8]";
+      case "resolved": return "bg-verify/10 border-verify/20 text-[#047857]";
       default: return "bg-slate/10 border-slate/20 text-[#334155]";
     }
   };
@@ -100,13 +101,13 @@ export default function OperatorQueue({
         <div className="bg-white p-2.5 rounded-xl border border-hairline flex flex-col shadow-2xs">
           <span className="text-xs font-mono text-[#334155] uppercase">Active Triages</span>
           <span className="text-sm font-mono font-bold text-marigold mt-0.5">
-            {issues.filter(i => i.status === "Submitted" || i.status === "Verified").length}
+            {issues.filter(i => i.status === "submitted" || i.status === "verified").length}
           </span>
          </div>
         <div className="bg-white p-2.5 rounded-xl border border-hairline flex flex-col shadow-2xs">
           <span className="text-xs font-mono text-[#334155] uppercase">Resolved</span>
           <span className="text-sm font-mono font-bold text-verify mt-0.5">
-            {issues.filter(i => i.status === "Resolved").length}
+            {issues.filter(i => i.status === "resolved").length}
           </span>
         </div>
       </div>
@@ -236,7 +237,7 @@ export default function OperatorQueue({
                       </span>
                     )}
                     <span className={`text-[11px] font-mono font-bold uppercase tracking-wider px-2 py-0.5 rounded-full border ${getStatusStyle(issue.status)}`}>
-                      {issue.status}
+                      {issueStatusLabel(issue.status)}
                     </span>
                     <div className="w-5 h-5 rounded border border-hairline bg-white flex items-center justify-center text-slate">
                       <Eye className="w-2.5 h-2.5" />

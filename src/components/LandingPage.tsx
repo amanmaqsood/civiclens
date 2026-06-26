@@ -146,13 +146,13 @@ export default function LandingPage({
           <div className="p-2.5 bg-paper rounded-xl border border-hairline">
             <p className="text-[10px] font-mono uppercase tracking-wider text-[#334155]">Executing</p>
             <p id="stats-in-progress" className="text-sm font-display font-black text-[#3B82F6]">
-              {issues.filter(i => i.status === "In Progress" || i.status === "Verified").length}
+              {issues.filter(i => i.status === "in_progress" || i.status === "verified").length}
             </p>
           </div>
           <div className="p-2.5 bg-paper rounded-xl border border-hairline">
             <p className="text-[10px] font-mono uppercase tracking-wider text-[#334155]">Resolved</p>
             <p id="stats-resolved" className="text-sm font-display font-black text-verify">
-              {issues.filter(i => i.status === "Resolved").length}
+              {issues.filter(i => i.status === "resolved").length}
             </p>
           </div>
         </div>

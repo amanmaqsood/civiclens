@@ -17,6 +17,7 @@ import { ref, uploadString, getDownloadURL } from "firebase/storage";
 import { db, auth, storage, handleFirestoreError, OperationType } from "../lib/firebase";
 import { IssueReport, AgentTraceEntry, ResolutionPlan, IssueActivity, ClosureAssessment } from "../types";
 import { apiFetch } from "./api";
+import { IssueStatusKey, normalizeIssueStatus } from "../constants/status";
 
 const COLLECTION_NAME = "issues";
 
@@ -88,7 +89,7 @@ export function isDuplicateCandidate(
   }
   
   if (existing.category !== newReport.category) return false;
-  if (existing.status === "Resolved") return false;
+  if (normalizeIssueStatus(existing.status) === "resolved") return false;
   if (!existing.timestamp) return false;
   const createdTime = Date.parse(existing.timestamp);
   const fourteenDaysMs = 14 * 24 * 60 * 60 * 1000;
@@ -108,19 +109,19 @@ export function isDuplicateCandidate(
 }
 
 export function isValidStatusTransition(
-  currentStatus: "Submitted" | "Verified" | "In Progress" | "Resolved",
-  nextStatus: "Submitted" | "Verified" | "In Progress" | "Resolved",
+  currentStatus: IssueStatusKey,
+  nextStatus: IssueStatusKey,
   isAiVerified: boolean,
   manualOverride: boolean
 ): boolean {
-  if (currentStatus === "Submitted") {
-    return nextStatus === "Verified";
+  if (currentStatus === "submitted") {
+    return nextStatus === "verified";
   }
-  if (currentStatus === "Verified") {
-    return nextStatus === "In Progress";
+  if (currentStatus === "verified") {
+    return nextStatus === "in_progress";
   }
-  if (currentStatus === "In Progress") {
-    if (nextStatus === "Resolved") {
+  if (currentStatus === "in_progress") {
+    if (nextStatus === "resolved") {
       return isAiVerified || manualOverride;
     }
     return false;
@@ -189,7 +190,7 @@ function issueReportFromSnapshot(id: string, data: any): IssueReport {
     lat: data.lat,
     lng: data.lng,
     locationName: data.locationName,
-    status: data.status,
+    status: normalizeIssueStatus(data.status),
     citizenUpvotes: data.citizenUpvotes || 0,
     userId: data.userId,
     timestamp: data.timestamp,
@@ -375,7 +376,7 @@ export async function findDuplicateCandidates(
           lat: data.lat!,
           lng: data.lng!,
           locationName: data.locationName,
-          status: data.status!,
+          status: normalizeIssueStatus(data.status),
           citizenUpvotes: data.citizenUpvotes || 0,
           userId: data.userId!,
           timestamp: data.timestamp!,
@@ -447,32 +448,9 @@ export async function checkDuplicateWithAI(
   return result.data;
 }
 
-// Client-side call to resolution plan API
+// Compatibility wrapper: asks the server to draft and persist a plan from stored issue state.
 export async function generateResolutionPlan(issue: IssueReport): Promise<ResolutionPlan> {
-  const response = await apiFetch("/api/resolution-plan", {
-    method: "POST",
-    body: JSON.stringify({
-      category: issue.category,
-      title: issue.title || "Civic Incident",
-      summary: issue.summary || issue.description,
-      locationName: issue.locationName || "Default Civic Landmark",
-      lat: issue.lat,
-      lng: issue.lng,
-      ticketId: issue.ticketId || "N/A",
-    }),
-  });
-
-  if (!response.ok) {
-    const errObj = await response.json().catch(() => ({}));
-    throw new Error(errObj.error || "Failed to generate resolution plan.");
-  }
-
-  const result = await response.json();
-  if (!result.success || !result.data) {
-    throw new Error(result.error || "Failed to generate resolution plan.");
-  }
-
-  return result.data as ResolutionPlan;
+  return updateIssueResolutionPlan(issue.id);
 }
 
 // Submits evidence and hooks into existing issue
@@ -570,7 +548,7 @@ export async function checkUserVerification(issueId: string): Promise<"confirm" 
 // Update state of lifecycle
 export async function updateIssueStatus(
   issueId: string,
-  newStatus: "Submitted" | "Verified" | "In Progress" | "Resolved",
+  newStatus: IssueStatusKey,
   options: { demoOperator?: boolean; rationale?: string } = {}
 ): Promise<void> {
   const user = auth.currentUser;
@@ -636,32 +614,38 @@ export async function upvoteIssue(issueId: string): Promise<void> {
   }
 }
 
-// Update resolution plan and append agent trace steps
+// Ask the server to persist a server-generated resolution-plan record.
 export async function updateIssueResolutionPlan(
-  issueId: string,
-  resolutionPlan: ResolutionPlan,
-  extraTraces: AgentTraceEntry[]
-): Promise<void> {
+  issueId: string
+): Promise<ResolutionPlan> {
   const response = await apiFetch(`/api/issues/${issueId}/agent-trace-plan`, {
     method: "POST",
-    body: JSON.stringify({ resolutionPlan, agentTrace: extraTraces }),
+    body: JSON.stringify({ draftResolutionPlan: true }),
   }, { demoOperator: true });
   if (!response.ok) {
     const err = await response.json().catch(() => ({}));
     throw new Error(err.error || "Failed to save resolution plan.");
   }
+  const result = await response.json();
+  if (!result.success || !result.data) {
+    throw new Error(result.error || "Failed to save resolution plan.");
+  }
+  return result.data as ResolutionPlan;
 }
 
 // Overwrite/update agent trace, plan, and priority score
 export async function updateIssueAgentTraceAndPlan(
   issueId: string,
-  agentTrace: AgentTraceEntry[],
+  _agentTrace: AgentTraceEntry[],
   resolutionPlan?: any,
   priorityScore?: number
 ): Promise<void> {
+  const body: Record<string, unknown> = {};
+  if (resolutionPlan) body.draftResolutionPlan = true;
+  if (typeof priorityScore === "number") body.priorityScore = priorityScore;
   const response = await apiFetch(`/api/issues/${issueId}/agent-trace-plan`, {
     method: "POST",
-    body: JSON.stringify({ agentTrace, resolutionPlan, priorityScore }),
+    body: JSON.stringify(body),
   }, { demoOperator: true });
   if (!response.ok) {
     const err = await response.json().catch(() => ({}));
@@ -713,7 +697,7 @@ export async function fetchIssueActivities(issueId: string): Promise<IssueActivi
   }
 }
 
-// Upload completion image and request AI verify-resolution analysis, then save closureAssessment & agentTrace
+// Upload completion image and request the server to verify and persist closure evidence.
 export async function submitClosureAssessment(
   issueId: string,
   beforeImageUrl: string,
@@ -738,8 +722,10 @@ export async function submitClosureAssessment(
   const response = await apiFetch("/api/verify-resolution", {
     method: "POST",
     body: JSON.stringify({
+      issueId,
       beforeImageUrl,
       afterImage: afterImageBase64,
+      afterImageUrl,
       summary,
     }),
   });
@@ -760,34 +746,8 @@ export async function submitClosureAssessment(
     observedChanges: result.data.observedChanges,
     recommendation: result.data.recommendation,
     explanation: result.data.explanation,
-    afterImage: afterImageUrl, // Persist download URL
+    afterImage: result.data.afterImage || afterImageUrl,
   };
-
-  const verifyTrace: AgentTraceEntry = {
-    step: "Verify Resolution",
-    tool: "Gemini Vision Integrity Inspector (/api/verify-resolution)",
-    status: assessment.resolved ? "done" : "failed",
-    rationale: `AI checked work with ${(assessment.confidence * 100).toFixed(0)}% confidence. recommendation: "${assessment.recommendation.toUpperCase()}". Changes: ${assessment.observedChanges.join(", ") || "none"}. Details: ${assessment.explanation}`,
-    ts: new Date().toISOString(),
-    durationMs: result.durationMs || 1500,
-    confidence: result.confidence || assessment.confidence,
-    inputDigest: result.inputDigest || `Compare original vs afterImage`,
-    outputSummary: result.outputSummary || `Resolved: ${assessment.resolved} · Rec: ${assessment.recommendation}`,
-    retried: result.retried || false,
-  };
-
-  const saveResponse = await apiFetch(`/api/issues/${issueId}/closure-assessment`, {
-    method: "POST",
-    body: JSON.stringify({
-      closureAssessment: assessment,
-      agentTrace: [verifyTrace],
-    }),
-  }, { demoOperator: true });
-
-  if (!saveResponse.ok) {
-    const err = await saveResponse.json().catch(() => ({}));
-    throw new Error(err.error || "Failed to save closure assessment.");
-  }
 
   return assessment;
 }
@@ -818,25 +778,11 @@ export async function triggerAutoEscalation(issue: IssueReport): Promise<any> {
   const { escalationLetter, rtiRequest } = result.data;
   const escalatedAt = new Date().toISOString();
 
-  const escalationTrace: AgentTraceEntry = {
-    step: "Auto-Escalation / RTI",
-    tool: "Gemini 2.5 Civil Escalation Engine (/api/escalation)",
-    status: "done",
-    rationale: `Drafted higher-authority appeal and Section 6(1) RTI text for human review. Nothing was submitted outside CivicLens. Drafted at ${new Date(escalatedAt).toLocaleString()}`,
-    ts: escalatedAt,
-    durationMs: result.durationMs || 1200,
-    confidence: result.confidence || 0.90,
-    inputDigest: result.inputDigest || `Escalate ticket ${issue.ticketId || "N/A"}`,
-    outputSummary: result.outputSummary || `Drafted Escalation Letter + RTI Request`,
-    retried: result.retried || false,
-  };
-
   const saveResponse = await apiFetch(`/api/issues/${issue.id}/escalation-record`, {
     method: "POST",
     body: JSON.stringify({
       escalationLetter,
       rtiRequest,
-      agentTrace: [escalationTrace],
     }),
   }, { demoOperator: true });
 
@@ -877,7 +823,7 @@ export async function seedDemoIssuesBengaluru(): Promise<boolean> {
       lng: 77.6251,
       image: "https://images.unsplash.com/photo-1541888946425-d81bb19240f5?auto=format&fit=crop&w=600&q=80",
       severity: 4,
-      status: "In Progress" as const,
+      status: "in_progress" as const,
       reportCount: 3,
       confirmCount: 4,
       urgency: "priority" as const,
@@ -891,7 +837,7 @@ export async function seedDemoIssuesBengaluru(): Promise<boolean> {
       lng: 77.6385,
       image: "https://images.unsplash.com/photo-1515162305285-0293e4767cc2?auto=format&fit=crop&w=600&q=80",
       severity: 5,
-      status: "Submitted" as const,
+      status: "submitted" as const,
       reportCount: 1,
       confirmCount: 0,
       urgency: "urgent" as const,
@@ -905,7 +851,7 @@ export async function seedDemoIssuesBengaluru(): Promise<boolean> {
       lng: 77.5831,
       image: "https://images.unsplash.com/photo-1509024640106-cf78faeb99b2?auto=format&fit=crop&w=600&q=80",
       severity: 2,
-      status: "Verified" as const,
+      status: "verified" as const,
       reportCount: 2,
       confirmCount: 3,
       urgency: "routine" as const,
@@ -919,7 +865,7 @@ export async function seedDemoIssuesBengaluru(): Promise<boolean> {
       lng: 77.5694,
       image: "https://images.unsplash.com/photo-1611284446314-60a58ac0deb9?auto=format&fit=crop&w=600&q=80",
       severity: 3,
-      status: "Verified" as const,
+      status: "verified" as const,
       reportCount: 4,
       confirmCount: 5,
       urgency: "priority" as const,
@@ -933,7 +879,7 @@ export async function seedDemoIssuesBengaluru(): Promise<boolean> {
       lng: 77.6950,
       image: "https://images.unsplash.com/photo-1504307651254-35680f356dfd?auto=format&fit=crop&w=600&q=80",
       severity: 5,
-      status: "Resolved" as const,
+      status: "resolved" as const,
       reportCount: 5,
       confirmCount: 8,
       urgency: "urgent" as const,
@@ -947,7 +893,7 @@ export async function seedDemoIssuesBengaluru(): Promise<boolean> {
       lng: 77.5550,
       image: "https://images.unsplash.com/photo-1541888946425-d81bb19240f5?auto=format&fit=crop&w=600&q=80",
       severity: 4,
-      status: "In Progress" as const,
+      status: "in_progress" as const,
       reportCount: 2,
       confirmCount: 2,
       urgency: "priority" as const,
@@ -961,7 +907,7 @@ export async function seedDemoIssuesBengaluru(): Promise<boolean> {
       lng: 77.6385,
       image: "https://images.unsplash.com/photo-1515162305285-0293e4767cc2?auto=format&fit=crop&w=600&q=80",
       severity: 3,
-      status: "Submitted" as const,
+      status: "submitted" as const,
       reportCount: 1,
       confirmCount: 1,
       urgency: "routine" as const,
@@ -982,7 +928,7 @@ export async function seedDemoIssuesBengaluru(): Promise<boolean> {
       locationName: t.locationName,
       category: t.category,
       description: t.description,
-      status: "Submitted",
+      status: "submitted",
       citizenUpvotes: t.confirmCount || 0, // seed display count for synthetic sample
       userId,
       timestamp,
@@ -1143,7 +1089,7 @@ export async function seedDemoIssuesBengaluru(): Promise<boolean> {
       }
     ];
 
-    if (t.status === "Verified") {
+    if (t.status === "verified") {
       if (t.confirmCount && t.confirmCount > 0) {
         activitiesToSeed.push({
           actorType: "citizen" as const,
@@ -1158,7 +1104,7 @@ export async function seedDemoIssuesBengaluru(): Promise<boolean> {
         message: "Synthetic demo status set to Verified for workflow preview.",
         timestamp: capTimestamp(baseMs + 28 * 60 * 60 * 1000)
       });
-    } else if (t.status === "In Progress") {
+    } else if (t.status === "in_progress") {
       if (t.confirmCount && t.confirmCount > 0) {
         activitiesToSeed.push({
           actorType: "citizen" as const,
@@ -1173,7 +1119,7 @@ export async function seedDemoIssuesBengaluru(): Promise<boolean> {
         message: "Synthetic demo status set to In Progress for workflow preview.",
         timestamp: capTimestamp(baseMs + 6 * 60 * 60 * 1000)
       });
-    } else if (t.status === "Resolved") {
+    } else if (t.status === "resolved") {
       if (t.confirmCount && t.confirmCount > 0) {
         activitiesToSeed.push({
           actorType: "citizen" as const,

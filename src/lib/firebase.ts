@@ -6,7 +6,8 @@ import {
   signOut,
   onAuthStateChanged,
   signInAnonymously,
-  User as FirebaseUser
+  User as FirebaseUser,
+  connectAuthEmulator
 } from "firebase/auth";
 import { 
   initializeFirestore, 
@@ -21,9 +22,10 @@ import {
   orderBy, 
   onSnapshot,
   getDocFromServer,
-  limit
+  limit,
+  connectFirestoreEmulator
 } from "firebase/firestore";
-import { getStorage } from "firebase/storage";
+import { connectStorageEmulator, getStorage } from "firebase/storage";
 import firebaseConfig from "../../firebase-applet-config.json";
 
 // Initialize Firebase
@@ -36,6 +38,20 @@ export const db = initializeFirestore(app, {
 export const auth = getAuth(app);
 export const storage = getStorage(app);
 export const googleAuthProvider = new GoogleAuthProvider();
+
+function envPort(name: string, fallback: number): number {
+  const value = Number((import.meta as any).env?.[name]);
+  return Number.isFinite(value) && value > 0 ? value : fallback;
+}
+
+if ((import.meta as any).env?.VITE_CIVICLENS_USE_FIREBASE_EMULATORS === "true") {
+  const host = (import.meta as any).env?.VITE_FIREBASE_EMULATOR_HOST || "127.0.0.1";
+  connectAuthEmulator(auth, `http://${host}:${envPort("VITE_FIREBASE_AUTH_EMULATOR_PORT", 9099)}`, {
+    disableWarnings: true,
+  });
+  connectFirestoreEmulator(db, host, envPort("VITE_FIRESTORE_EMULATOR_PORT", 8080));
+  connectStorageEmulator(storage, host, envPort("VITE_FIREBASE_STORAGE_EMULATOR_PORT", 9199));
+}
 
 // Error logger for Firestore Permission Denied tracking (Pillar 3 from SKILL.md)
 export enum OperationType {

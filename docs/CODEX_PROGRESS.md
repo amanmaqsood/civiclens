@@ -7,7 +7,7 @@ Current branch/commit:
 - Branch: `master`
 - Original prototype baseline commit: `ffd4ebc chore: capture original prototype baseline`
 - Original prototype rollback tag: `baseline/original-prototype`
-- Current rebuild state: milestones 0-9 have been completed locally through documentation/readiness. Deployment, public URLs, Google Doc publication, demo video, and submission remain external approval-gated.
+- Current rebuild state: milestones 0-9 have been completed locally through documentation/readiness, emulator rules validation, and browser accessibility/E2E validation. Deployment, public URLs, Google Doc publication, demo video, and submission remain external approval-gated.
 
 Validation commands:
 - `npm install --package-lock-only`: passed; generated a real lockfile from the previously empty `package-lock.json`; initial audit reported 8 moderate vulnerabilities.
@@ -54,8 +54,8 @@ Rollback instructions:
 | 5 Full lifecycle | Complete | Status transitions now require operator rationale and approval docs; resolve requires closure assessment; routing and escalation finalization approvals added; focused lifecycle tests added; required commands passed. |
 | 6 UX/accessibility | Complete | Fake phone shell removed; responsive operator workspace added; touched controls gained labels/44px targets/dialog semantics; focused UI regression tests added; required commands passed. |
 | 7 Metrics/performance | Complete | Dashboard metrics use persisted fields and split real/demo data; paged issue loading, code splitting, closure image compression, structured logs, readiness, and config validation added; required commands passed. |
-| 8 Tests/security | Complete | Release-gate tests cover named security/rules/lifecycle/agent/UI cases; emulator/browser gaps documented; required commands passed. |
-| 9 Release/submission | Complete locally | License, attribution, architecture, deployment, AI Studio evidence, demo script, Google Doc draft, final evidence report, env docs, README, and security spec updated; deployment/submission remain blocked by credentials and approval. |
+| 8 Tests/security | Complete | Release-gate tests cover named security/rules/lifecycle/agent/UI cases; required commands passed. |
+| 9 Release/submission | Complete locally | License, attribution, architecture, deployment, AI Studio evidence, demo script, Google Doc draft, final evidence report, emulator rules gate, browser a11y/E2E gate, env docs, README, and security spec updated; deployment/submission remain blocked by credentials and approval. |
 
 ## Milestone 1: Credibility / Truth Boundary
 Status: completed on 2026-06-26
@@ -282,14 +282,14 @@ Validation commands:
 - `npm audit --omit=dev`: passed; 0 vulnerabilities.
 
 Decisions:
-- Added source-level release gates now because Firebase Emulator Suite and browser E2E tooling are not yet configured in this repository.
+- Added source-level release gates first so named security and lifecycle requirements fail close to the code they protect; Firebase Emulator Suite and browser E2E tooling were added in the Milestone 9 readiness pass.
 - Kept named release cases explicit in test names/assertions so future changes fail close to the product/security requirement they violate.
-- Treated emulator-backed rules tests, transaction race tests, and browser accessibility/E2E as documented release gaps rather than claiming they ran.
+- Treated transaction race tests as a documented release gap rather than claiming a parallel emulator harness ran.
 
 Remaining risks:
-- Firestore Rules and Storage Rules are still verified by source/rules-matrix tests, not emulator execution.
+- Firestore Rules and Storage Rules now have both source/rules-matrix coverage and a focused emulator gate, but the emulator gate covers representative release cases rather than every possible rule path.
 - Transaction/concurrency behavior is verified by transaction/idempotency source coverage, not a parallel emulator race harness.
-- Golden-path and accessibility coverage is source-level; no Playwright/axe browser run has been added yet.
+- Golden-path and accessibility coverage now includes source-level checks plus a Playwright/axe browser gate for seeded emulator flows; a live Gemini/Maps deployed run still requires production secrets.
 - Deployment smoke tests remain blocked by Firebase/GCP credentials and explicit deployment approval.
 
 ## Milestone 9: Docs, Demo, and GCP Readiness
@@ -308,13 +308,21 @@ Files changed:
 - `docs/GOOGLE_DOC_DRAFT.md`: added Google Doc-ready content for problem, solution, features, Google technologies, architecture/safety, testing, limitations, and demo instructions.
 - `docs/FINAL_EVIDENCE_REPORT.md`: added final local evidence, validation outputs, completed tags, blockers, and gaps.
 - `src/docs-readiness.test.ts`: added docs readiness tests for required docs, env fake-secret cleanup, and truthful blocker reporting.
+- `package.json` and `package-lock.json`: added Firebase Emulator Suite, rules-unit-testing, Playwright, axe-core, and cross-env dev tooling plus `test:rules` and `test:e2e` scripts.
+- `firebase.json`: configured local Firestore, Storage, and Auth emulators against the repository rules files.
+- `src/emulator-rules.test.ts`: added Firestore/Storage rules emulator coverage for issue reads, privileged write denials, user profile ownership, owner-scoped upload paths, MIME type limits, and size limits.
+- `playwright.config.ts` and `e2e/release-gates.pw.ts`: added the browser release gate for responsive landing and synthetic demo operator flows with seeded emulator data, overflow checks, and axe serious/critical accessibility checks.
+- `src/lib/firebase.ts` and `.env.example`: added explicit opt-in Vite Firebase emulator connection settings for local browser tests.
+- `src/components/HomeMap.tsx`, `src/components/IssueListWithFilter.tsx`, `src/components/LandingPage.tsx`, and `src/components/OperatorQueue.tsx`: darkened low-contrast text surfaced by axe checks while preserving the existing visual identity.
 
 Validation commands:
-- `npm ci`: passed in 44 seconds; 450 packages installed/audited; 0 vulnerabilities. Warnings: deprecated `node-domexception@1.0.0` and `glob@10.5.0`.
+- `npm ci`: passed in about 1 minute; 880 packages installed and 881 audited. The install audit reported 3 moderate dev-dependency vulnerabilities; the production audit below is clean. Warnings: deprecated `json-ptr@3.1.1`, `node-domexception@1.0.0`, and `glob@10.5.0`.
 - `npm run lint`: passed (`tsc --noEmit`).
-- `npm test`: passed (12 test files, 55 tests).
-- `npm run build`: passed. Warnings remain: Firebase chunk is larger than 500 kB (`assets/firebase-DfUh0SdN.js`, 716.39 kB / 179.17 kB gzip), and `src/services/issues.ts` is still both dynamically and statically imported.
+- `npm test`: passed (12 test files passed, 1 emulator-only file skipped by default; 55 tests passed, 3 skipped).
+- `npm run build`: passed. Warnings remain: Firebase chunk is larger than 500 kB (`assets/firebase-DO9hihec.js`, 717.41 kB / 179.53 kB gzip), and `src/services/issues.ts` is still both dynamically and statically imported.
 - `npm audit --omit=dev`: passed; 0 vulnerabilities.
+- `npm run test:rules`: passed (1 emulator rules test file, 3 tests) against the Firestore and Storage emulators. Expected emulator denial warnings appeared for intentionally rejected writes.
+- `npm run test:e2e`: passed (4 Playwright/Chromium tests) against Auth/Firestore/Storage emulators and Vite; checks cover mobile, tablet, desktop, synthetic demo operator queue, horizontal overflow, and axe serious/critical violations.
 - Local production start probe: `NODE_ENV=production PORT=3101 node dist/server.cjs` started successfully; `GET /health` returned 200. `GET /readyz` returned 503 because `GEMINI_API_KEY` was absent, with startup warnings for empty `CIVICLENS_OPERATOR_EMAILS` and missing server-side `GOOGLE_MAPS_PLATFORM_KEY`.
 - Placeholder/secret scan: release-facing docs and `.env.example` did not contain fake key values or pending license/attribution copy; matches remained only in negative test assertions.
 
@@ -323,12 +331,14 @@ Decisions:
 - Recorded deployment, public URL, Google Doc, demo video, and final submission as blocked rather than inventing links or evidence.
 - Kept Cloud Run instructions as command shapes and required smoke tests because real project/region/secrets require user account choices.
 - Recorded the local production readiness probe as config-blocked rather than passing readiness without required secrets.
+- Added focused emulator/browser gates at the documentation-readiness stage so the final local evidence includes executed Firestore/Storage Rules and responsive accessibility checks without claiming deployed production behavior.
 
 Remaining risks:
 - Public Cloud Run deployment and smoke tests require Firebase/GCP credentials, billing, and explicit approval.
 - Production readiness requires `GEMINI_API_KEY` and the intended operator/maps configuration before `/readyz` can pass.
 - Public Google Doc and demo video still need to be created and verified by the user or in an approved deployment/submission turn.
-- Emulator-backed rules tests and browser E2E/accessibility remain known release gaps.
+- Transaction/concurrency behavior is covered by source/idempotency tests but is not yet race-tested with a parallel emulator harness.
+- Browser E2E uses seeded synthetic emulator data; live Gemini/Maps golden-path evidence still requires production secrets and deployment approval.
 
 ## Decision log
 - 2026-06-26: Initialized a valid project-local Git repository because the existing `.git` directory was empty/invalid and Git was resolving to `C:/Users/apexm`.
@@ -347,8 +357,10 @@ Remaining risks:
 - 2026-06-26: Added human approval records for lifecycle transitions, routing/action packets, and escalation finalization; resolving requires closure evidence.
 - 2026-06-26: Removed the fake phone frame/status bar and moved the operator experience to a responsive queue/detail workspace at desktop breakpoints.
 - 2026-06-26: Scoped dashboard metrics to loaded real/demo records, added paged issue loading, and added readiness/logging/chunking instead of presenting recent records as complete history.
-- 2026-06-26: Added source-level release-gate tests for named security, rules, lifecycle, agent, UI, and golden-path cases while recording emulator/browser gaps honestly.
+- 2026-06-26: Added source-level release-gate tests for named security, rules, lifecycle, agent, UI, and golden-path cases.
 - 2026-06-26: Completed local release documentation and final evidence without fabricating deployment, Google Doc, demo video, or submission status.
+- 2026-06-26: Added Firebase Emulator Suite rules tests and Playwright/axe browser tests for final local release evidence.
+- 2026-06-26: Added explicit Vite Firebase emulator opt-in settings so browser tests use local Auth, Firestore, and Storage instead of production services.
 
 ## External blockers
 - Firebase/GCP deployment credentials and billing access are required before deployed smoke tests.

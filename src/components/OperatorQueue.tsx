@@ -63,10 +63,10 @@ export default function OperatorQueue({
 
   const getStatusStyle = (status: string) => {
     switch (status) {
-      case "Verified": return "bg-marigold/10 border-marigold/20 text-marigold";
-      case "In Progress": return "bg-[#3B82F6]/10 border-[#3B82F6]/20 text-[#3B82F6]";
-      case "Resolved": return "bg-verify/10 border-verify/20 text-verify";
-      default: return "bg-slate/10 border-slate/20 text-slate";
+      case "Verified": return "bg-marigold/10 border-marigold/20 text-[#7A4300]";
+      case "In Progress": return "bg-[#3B82F6]/10 border-[#3B82F6]/20 text-[#1D4ED8]";
+      case "Resolved": return "bg-verify/10 border-verify/20 text-[#047857]";
+      default: return "bg-slate/10 border-slate/20 text-[#334155]";
     }
   };
 
@@ -94,17 +94,17 @@ export default function OperatorQueue({
       {/* Grid of counters */}
       <div className="grid grid-cols-3 gap-2">
         <div className="bg-white p-2.5 rounded-xl border border-hairline flex flex-col shadow-2xs">
-          <span className="text-xs font-mono text-slate uppercase">Total feed</span>
+          <span className="text-xs font-mono text-[#334155] uppercase">Total feed</span>
           <span className="text-sm font-mono font-bold text-ink mt-0.5">{issues.length}</span>
         </div>
         <div className="bg-white p-2.5 rounded-xl border border-hairline flex flex-col shadow-2xs">
-          <span className="text-xs font-mono text-slate uppercase">Active Triages</span>
+          <span className="text-xs font-mono text-[#334155] uppercase">Active Triages</span>
           <span className="text-sm font-mono font-bold text-marigold mt-0.5">
             {issues.filter(i => i.status === "Submitted" || i.status === "Verified").length}
           </span>
          </div>
         <div className="bg-white p-2.5 rounded-xl border border-hairline flex flex-col shadow-2xs">
-          <span className="text-xs font-mono text-slate uppercase">Resolved</span>
+          <span className="text-xs font-mono text-[#334155] uppercase">Resolved</span>
           <span className="text-sm font-mono font-bold text-verify mt-0.5">
             {issues.filter(i => i.status === "Resolved").length}
           </span>
@@ -115,8 +115,8 @@ export default function OperatorQueue({
       <div className="bg-white border border-hairline rounded-2xl p-4 shadow-sm flex flex-col gap-3">
         <div className="flex items-center justify-between border-b border-hairline pb-2.5">
           <div className="flex items-center gap-1.5">
-            <Layers className="w-4 h-4 text-slate" />
-            <h3 className="text-xs font-mono font-bold text-slate uppercase tracking-wide">ACTIVE CASES</h3>
+            <Layers className="w-4 h-4 text-[#334155]" />
+            <h3 className="text-xs font-mono font-bold text-[#334155] uppercase tracking-wide">ACTIVE CASES</h3>
           </div>
           <button
             onClick={onRefresh}
@@ -136,7 +136,7 @@ export default function OperatorQueue({
             </div>
             <div>
               <h4 className="text-[13px] font-semibold text-ink">Demo Data Control</h4>
-              <p className="text-[13px] text-slate mt-0.5 leading-relaxed max-w-xs">
+              <p className="text-[13px] text-[#334155] mt-0.5 leading-relaxed max-w-xs">
                 Seed 7 synthetic Bengaluru reports to preview the workflow, or clear only demo records.
               </p>
             </div>
@@ -163,7 +163,7 @@ export default function OperatorQueue({
                 id="clear-demo-btn"
                 onClick={handleClearDemo}
                 disabled={seeding || clearing || loading}
-                className="flex-1 min-h-[44px] bg-white hover:bg-paper text-slate border border-slate-300 hover:border-slate-500 hover:text-ink text-[13px] font-bold px-3 py-2 rounded-lg cursor-pointer flex items-center justify-center gap-1.5 transition-all"
+                className="flex-1 min-h-[44px] bg-white hover:bg-paper text-[#334155] border border-slate-300 hover:border-slate-500 hover:text-ink text-[13px] font-bold px-3 py-2 rounded-lg cursor-pointer flex items-center justify-center gap-1.5 transition-all"
               >
                 {clearing ? (
                   <>
@@ -200,11 +200,11 @@ export default function OperatorQueue({
               >
                 {/* Header info */}
                 <div className="flex items-center justify-between gap-2.5">
-                  <span className="text-xs font-mono uppercase tracking-wider text-slate font-semibold">
+                  <span className="text-xs font-mono uppercase tracking-wider text-[#334155] font-semibold">
                     {humanizeCategory(issue.category)}
                   </span>
                   <div className="flex items-center gap-1">
-                    <span className="text-xs font-mono text-slate">PRIORITY:</span>
+                    <span className="text-xs font-mono text-[#334155]">PRIORITY:</span>
                     <span className="font-mono text-xs font-bold text-ink bg-white border border-hairline px-2 py-0.5 rounded">
                       {Math.round(issue.priorityScore || 0)}
                     </span>
@@ -214,14 +214,14 @@ export default function OperatorQueue({
                 {/* Body details */}
                 <div className="flex flex-col">
                   <h4 className="text-sm font-semibold text-ink line-clamp-1 leading-normal">{issue.title || "Civic Incident"}</h4>
-                  <p className="text-[13px] text-slate mt-0.5 line-clamp-1 leading-snug font-normal">
+                  <p className="text-[13px] text-[#334155] mt-0.5 line-clamp-1 leading-snug font-normal">
                     {issue.description}
                   </p>
                 </div>
 
                 {/* Footer metrics info */}
                 <div className="flex items-center justify-between flex-wrap gap-2 pt-2 border-t border-hairline/60 text-xs font-mono">
-                  <div className="flex gap-2 items-center text-slate font-medium">
+                  <div className="flex gap-2 items-center text-[#334155] font-medium">
                     <span>SEVERITY: <span className="font-bold text-ink">{issue.severity || 1}/5</span></span>
                     <span className="w-0.5 h-0.5 rounded-full bg-slate" />
                     <span>RPTS: <span className="font-bold text-ink">{issue.reportCount || 1}</span></span>
@@ -231,7 +231,7 @@ export default function OperatorQueue({
 
                   <div className="flex items-center gap-1.5 ml-auto">
                     {issue.isDemoData && (
-                      <span className="text-[10px] font-mono font-bold bg-marigold/10 border border-marigold/20 text-marigold px-1.5 py-0.5 rounded uppercase">
+                      <span className="text-[10px] font-mono font-bold bg-marigold/10 border border-marigold/20 text-[#7A4300] px-1.5 py-0.5 rounded uppercase">
                         Demo
                       </span>
                     )}

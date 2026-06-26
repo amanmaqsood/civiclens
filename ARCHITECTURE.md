@@ -61,7 +61,7 @@ Operator actions require a verified Firebase ID token and a server-resolved role
 
 ## Known Release Gaps
 
-- Emulator-backed Firestore/Storage Rules tests are not wired yet.
-- Browser E2E and automated accessibility checks are not wired yet.
+- Transaction/concurrency behavior is covered by source/idempotency tests but not by a parallel emulator race harness.
+- Browser E2E and automated accessibility checks use seeded synthetic emulator data; live Gemini/Maps golden-path evidence requires production secrets and deployment approval.
 - Firebase vendor chunk remains above Vite's 500 kB warning threshold.
 - Cloud Run deployment and public URL verification require credentials and explicit approval.

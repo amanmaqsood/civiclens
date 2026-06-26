@@ -68,11 +68,15 @@ Source-level release tests cover:
 - Persisted server agent runs/steps and idempotency.
 - Golden-path UI wiring and key accessibility markers.
 
+Executed local release gates also include:
+
+- Firebase Emulator Suite Firestore/Storage Rules tests for representative allow/deny cases.
+- Playwright/axe browser checks for responsive landing and synthetic demo operator flows at mobile, tablet, and desktop sizes.
+
 Latest command results are recorded in `docs/FINAL_EVIDENCE_REPORT.md`.
 
 ## Remaining Security Gaps
 
-- Firestore Rules and Storage Rules are not yet executed in Firebase Emulator Suite tests.
 - Transaction/concurrency behavior is not yet race-tested in an emulator harness.
-- Browser E2E and automated accessibility tests are not wired.
+- Browser E2E currently uses seeded synthetic emulator data; live Gemini/Maps golden-path evidence requires production secrets and deployment approval.
 - Production App Check token wiring and Cloud Run readiness have not been smoke-tested because deployment credentials and explicit approval are not available in this local rebuild.

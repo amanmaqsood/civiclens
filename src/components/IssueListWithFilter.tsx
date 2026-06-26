@@ -47,13 +47,13 @@ export default function IssueListWithFilter({
   const getStatusClasses = (status: string) => {
     switch (status) {
       case "Verified":
-        return "bg-marigold/10 border-marigold/25 text-marigold";
+        return "bg-marigold/10 border-marigold/25 text-[#7A4300]";
       case "In Progress":
-        return "bg-[#3B82F6]/10 border-[#3B82F6]/25 text-[#3B82F6]";
+        return "bg-[#3B82F6]/10 border-[#3B82F6]/25 text-[#1D4ED8]";
       case "Resolved":
-        return "bg-verify/10 border-verify/25 text-verify";
+        return "bg-verify/10 border-verify/25 text-[#047857]";
       default: // Submitted
-        return "bg-slate/10 border-slate/25 text-slate";
+        return "bg-slate/10 border-slate/25 text-[#334155]";
     }
   };
 
@@ -82,7 +82,7 @@ export default function IssueListWithFilter({
               className={`text-xs font-sans font-semibold px-2.5 py-1 rounded-full border transition-all cursor-pointer whitespace-nowrap uppercase tracking-wider ${
                 isSelected
                   ? "bg-ink border-ink text-paper shadow-2xs"
-                  : "bg-white border-hairline text-slate hover:text-ink hover:border-slate/40"
+              : "bg-white border-hairline text-[#334155] hover:text-ink hover:border-slate/40"
               }`}
             >
               {filter}
@@ -92,7 +92,7 @@ export default function IssueListWithFilter({
       </div>
 
       {/* Matching Header */}
-      <div className="flex justify-between items-center text-xs font-mono font-bold text-slate uppercase tracking-widest px-1">
+      <div className="flex justify-between items-center text-xs font-mono font-bold text-[#334155] uppercase tracking-widest px-1">
         <span>Reports</span>
         <span>{filteredIssues.length} matching</span>
       </div>
@@ -122,7 +122,7 @@ export default function IssueListWithFilter({
           ))
         ) : filteredIssues.length === 0 ? (
           <div className="bg-white border border-hairline rounded-2xl p-6 text-center shadow-xs flex flex-col items-center gap-3">
-            <p className="text-[13px] font-medium text-slate">No active records match the filter.</p>
+            <p className="text-[13px] font-medium text-[#334155]">No active records match the filter.</p>
             {onNavigateToReport && (
               <button
                 type="button"
@@ -156,7 +156,7 @@ export default function IssueListWithFilter({
                 </div>
                 <div className="flex items-center gap-1.5">
                   {issue.isDemoData && (
-                    <span className="text-[9px] px-1.5 py-0.5 rounded font-mono font-bold bg-slate-500/10 text-slate-500/80 uppercase tracking-wider">
+                    <span className="text-[9px] px-1.5 py-0.5 rounded font-mono font-bold bg-slate-100 text-[#334155] uppercase tracking-wider">
                       DEMO
                     </span>
                   )}
@@ -192,12 +192,12 @@ export default function IssueListWithFilter({
                       ? (issue.titleHi || issue.title || "Geotagged Civic Incident")
                       : (issue.title || "Geotagged Civic Incident")}
                   </h4>
-                  <p className="text-[13px] text-slate line-clamp-2 leading-relaxed mt-0.5 font-sans font-normal">
+                  <p className="text-[13px] text-[#334155] line-clamp-2 leading-relaxed mt-0.5 font-sans font-normal">
                     {language === "hi"
                       ? (issue.summaryHi || issue.summary || issue.description)
                       : (issue.summary || issue.description)}
                   </p>
-                  <div className="flex items-center gap-1 mt-1 text-slate font-sans">
+                  <div className="flex items-center gap-1 mt-1 text-[#334155] font-sans">
                     <MapPin className="w-3 h-3 text-marigold" />
                     <span className="text-xs truncate font-medium">{issue.locationName || "Reported Location"}</span>
                   </div>
@@ -206,14 +206,14 @@ export default function IssueListWithFilter({
 
               {/* Card Footer row */}
               <div className="border-t border-hairline/80 pt-2.5 flex items-center justify-between mt-0.5">
-                <span className="text-xs font-mono text-slate uppercase tracking-tight">
+                <span className="text-xs font-mono text-[#334155] uppercase tracking-tight">
                   {issue.ticketId}
                 </span>
 
                 <div className="flex items-center gap-1">
                   <button
                     onClick={() => onSelectIssue(issue.id)}
-                    className="text-xs font-sans font-semibold text-slate hover:text-ink px-2.5 py-1.5 rounded-lg cursor-pointer"
+                    className="text-xs font-sans font-semibold text-[#334155] hover:text-ink px-2.5 py-1.5 rounded-lg cursor-pointer"
                   >
                     {t("card.details")}
                   </button>

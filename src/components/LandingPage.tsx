@@ -125,7 +125,7 @@ export default function LandingPage({
             {loadingMoreIssues ? "Loading more records..." : "Load more saved records"}
           </button>
         ) : (
-          <p className="text-[10.5px] font-medium text-slate">
+          <p className="text-[10.5px] font-medium text-[#334155]">
             Showing all records loaded by the current query page.
           </p>
         )}
@@ -140,17 +140,17 @@ export default function LandingPage({
 
         <div className="grid grid-cols-3 gap-1.5 text-center">
           <div className="p-2.5 bg-paper rounded-xl border border-hairline">
-            <p className="text-[10px] font-mono uppercase tracking-wider text-slate">Reported</p>
+            <p className="text-[10px] font-mono uppercase tracking-wider text-[#334155]">Reported</p>
             <p id="stats-total-reported" className="text-sm font-display font-black text-marigold">{issues.length}</p>
           </div>
           <div className="p-2.5 bg-paper rounded-xl border border-hairline">
-            <p className="text-[10px] font-mono uppercase tracking-wider text-slate">Executing</p>
+            <p className="text-[10px] font-mono uppercase tracking-wider text-[#334155]">Executing</p>
             <p id="stats-in-progress" className="text-sm font-display font-black text-[#3B82F6]">
               {issues.filter(i => i.status === "In Progress" || i.status === "Verified").length}
             </p>
           </div>
           <div className="p-2.5 bg-paper rounded-xl border border-hairline">
-            <p className="text-[10px] font-mono uppercase tracking-wider text-slate">Resolved</p>
+            <p className="text-[10px] font-mono uppercase tracking-wider text-[#334155]">Resolved</p>
             <p id="stats-resolved" className="text-sm font-display font-black text-verify">
               {issues.filter(i => i.status === "Resolved").length}
             </p>
@@ -159,7 +159,7 @@ export default function LandingPage({
 
         <div className="flex items-center gap-2 bg-[#E9F7F5] border border-verify/10 p-2.5 rounded-xl">
           <CheckCircle2 className="w-3.5 h-3.5 text-verify flex-shrink-0" />
-          <p className="text-xs text-slate leading-snug font-medium">
+          <p className="text-xs text-[#334155] leading-snug font-medium">
             Metrics are calculated from the records currently loaded in this prototype, with synthetic demo records labelled separately.
           </p>
         </div>
@@ -167,8 +167,8 @@ export default function LandingPage({
 
       {/* Footer Decoration */}
       <div className="flex items-center justify-center gap-1.5 py-1 text-center">
-        <Users className="w-3.5 h-3.5 text-slate/50" />
-        <span className="text-[10px] text-slate/60 font-mono tracking-widest uppercase">
+        <Users className="w-3.5 h-3.5 text-[#334155]" />
+        <span className="text-[10px] text-[#334155] font-mono tracking-widest uppercase">
           Digital India Citizen Initiative
         </span>
       </div>

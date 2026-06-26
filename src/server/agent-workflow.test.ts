@@ -21,6 +21,8 @@ describe("persisted server agent workflow", () => {
     expect(server).toContain('name: "search_nearby_cases"');
     expect(server).toContain('name: "record_event"');
     expect(server).toContain("claimSupported");
+    expect(server).toContain("server-loaded candidate set");
+    expect(server).toContain("const cid = result?.candidateId");
     expect(server).not.toContain("const { issue, candidates } = req.body");
   });
 

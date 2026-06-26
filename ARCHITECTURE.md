@@ -63,7 +63,7 @@ Operator actions require a verified Firebase ID token and a server-resolved role
 
 ## Known Release Gaps
 
-- Transaction/concurrency behavior has a focused parallel Firestore emulator harness for duplicate same-user support and verification writes; a full API-level race matrix remains future hardening.
+- Transaction/concurrency behavior has a focused parallel Firestore emulator harness for duplicate same-user support, verification, duplicate evidence, and status-transition writes; a full API-level race matrix remains future hardening.
 - Browser E2E and automated accessibility checks use seeded synthetic emulator data; live Gemini/Maps golden-path evidence requires production secrets and deployment approval.
 - Firebase vendor chunk remains above Vite's 500 kB warning threshold.
 - Cloud Run deployment and public URL verification require credentials and explicit approval.

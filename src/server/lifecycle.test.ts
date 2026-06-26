@@ -13,11 +13,12 @@ describe("civic lifecycle approvals", () => {
     const server = readProjectFile("server.ts");
 
     expect(server).toContain("Closure evidence and assessment are required before resolving.");
-    expect(server).toContain('ref.collection("approvals").add');
+    expect(server).toContain('tx.set(ref.collection("approvals").doc()');
     expect(server).toContain("closure_resolution");
     expect(server).toContain("routing_action_packet");
     expect(server).toContain("escalation_finalization");
     expect(server).toContain("Operator rationale is required");
+    expect(server).toContain("adminDb.runTransaction");
   });
 
   it("threads operator rationale through frontend lifecycle actions", () => {

@@ -51,7 +51,7 @@ describe("release security gate coverage", () => {
     expect(server).toContain('app.post("/api/issues/update-status"');
     expect(server).toContain("Illegal transition:");
     expect(server).toContain("Closure evidence and assessment are required before resolving.");
-    expect(server).toContain('ref.collection("approvals").add');
+    expect(server).toContain('tx.set(ref.collection("approvals").doc()');
     expect(server).toContain("humanApproved: true");
     expect(server).toContain("Operator rationale is required.");
   });
@@ -82,6 +82,8 @@ describe("release security gate coverage", () => {
     expect(server).toContain('name: "verify_closure"');
     expect(server).toContain('name: "record_event"');
     expect(server).toContain("Unknown tool:");
+    expect(server).toContain("server-loaded candidate set");
+    expect(server).toContain("const cid = result?.candidateId");
   });
 
   it("stores canonical status keys and rejects browser-authored agent traces", () => {

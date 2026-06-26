@@ -38,6 +38,6 @@ describe("server-owned data integrity", () => {
     expect(server).toContain('app.post("/api/issues/:issueId/evidence"');
     expect(server).toContain('app.post("/api/issues/:issueId/support"');
     expect(server).toContain('app.post("/api/issues/:issueId/verification"');
-    expect(server.match(/runTransaction/g)?.length || 0).toBeGreaterThanOrEqual(4);
+    expect(server.match(/runTransaction/g)?.length || 0).toBeGreaterThanOrEqual(5);
   });
 });

@@ -318,11 +318,11 @@ Files changed:
 Validation commands:
 - `npm ci`: passed in about 2 minutes; 880 packages installed and 881 audited. The install audit reported 3 moderate dev-dependency vulnerabilities; the production audit below is clean. Warnings: deprecated `json-ptr@3.1.1`, `node-domexception@1.0.0`, and `glob@10.5.0`.
 - `npm run lint`: passed (`tsc --noEmit`).
-- `npm test`: passed (12 test files passed, 2 emulator-only files skipped by default; 57 tests passed, 5 skipped).
+- `npm test`: passed (12 test files passed, 2 emulator-only files skipped by default; 57 tests passed, 7 skipped).
 - `npm run build`: passed. Warnings remain: Firebase chunk is larger than 500 kB (`assets/firebase-DO9hihec.js`, 717.41 kB / 179.53 kB gzip), and `src/services/issues.ts` is still both dynamically and statically imported.
 - `npm audit --omit=dev`: passed; 0 vulnerabilities.
 - `npm run test:rules`: passed (1 emulator rules test file, 3 tests) against the Firestore and Storage emulators. Expected emulator denial warnings appeared for intentionally rejected writes.
-- `npm run test:concurrency`: passed (1 Firestore emulator test file, 2 tests). Expected duplicate-document warnings appeared for intentionally raced same-user support and verification writes.
+- `npm run test:concurrency`: passed (1 Firestore emulator test file, 4 tests). Expected duplicate/conflict warnings appeared for intentionally raced support, verification, duplicate evidence, and status-transition writes.
 - `npm run test:e2e`: passed (4 Playwright/Chromium tests) against Auth/Firestore/Storage emulators and Vite; checks cover mobile, tablet, desktop, synthetic demo operator queue, horizontal overflow, and axe serious/critical violations.
 - Local production start probe: `NODE_ENV=production PORT=3101 node dist/server.cjs` started successfully; `GET /health` returned 200. `GET /readyz` returned 503 because `GEMINI_API_KEY` was absent, with startup warnings for empty `CIVICLENS_OPERATOR_EMAILS` and missing server-side `GOOGLE_MAPS_PLATFORM_KEY`.
 - Placeholder/secret scan: release-facing docs and `.env.example` did not contain fake key values or pending license/attribution copy; matches remained only in negative test assertions.
@@ -338,7 +338,7 @@ Remaining risks:
 - Public Cloud Run deployment and smoke tests require Firebase/GCP credentials, billing, and explicit approval.
 - Production readiness requires `GEMINI_API_KEY` and the intended operator/maps configuration before `/readyz` can pass.
 - Public Google Doc and demo video still need to be created and verified by the user or in an approved deployment/submission turn.
-- Transaction/concurrency behavior now has focused parallel Firestore emulator coverage for same-user support and verification writes; a full API-level race matrix remains future hardening.
+- Transaction/concurrency behavior now has focused parallel Firestore emulator coverage for support, verification, duplicate evidence, and status-transition writes; a full API-level race matrix remains future hardening.
 - Browser E2E uses seeded synthetic emulator data; live Gemini/Maps golden-path evidence still requires production secrets and deployment approval.
 
 ## Completion Audit Follow-up: Status, Trace, and Concurrency Hardening
@@ -348,26 +348,31 @@ Files changed:
 - `src/constants/status.ts`, `src/types.ts`, `src/services/issues.ts`, and status-rendering components: migrated stored issue lifecycle state to canonical enum keys (`submitted`, `verified`, `in_progress`, `resolved`) while deriving human-readable labels in UI code.
 - `server.ts` and `src/services/issues.ts`: removed browser-supplied privileged agent trace arrays from resolution plan, closure assessment, and escalation saves; stored resolution plans are now generated from server-loaded issue data, and server endpoints append server-generated trace entries for those actions.
 - `server.ts`, `src/components/AgentTraceTimeline.tsx`, `src/server/agent-workflow.test.ts`, and `src/server/release-security.test.ts`: aligned the persisted agent loop with the required tool names (`search_nearby_cases`, `compare_candidate_evidence`, `calculate_priority`, `find_responsible_authority`, `draft_action_packet`, `request_human_approval`, `verify_closure`, `record_event`) and structured grounding source metadata.
-- `src/emulator-concurrency.test.ts` and `package.json`: added `npm run test:concurrency`, a focused Firestore emulator harness that races duplicate same-user support and verification writes.
+- `src/emulator-concurrency.test.ts` and `package.json`: added `npm run test:concurrency`, a focused Firestore emulator harness that races duplicate support, verification, evidence, and status-transition writes.
 - `README.md`, `ARCHITECTURE.md`, `security_spec.md`, `docs/FINAL_EVIDENCE_REPORT.md`, and this log: updated validation and remaining-risk language to match the implemented hardening.
+- `docs/CODEX_MASTER_PLAN.md`: marked locally verified checklist items complete and left only credential/account-gated screenshot, deployed smoke-test, and public URL/evidence items unchecked.
+- `docs/evidence/README.md`: added real-evidence capture rules so future screenshots/URLs are recorded without placeholders.
 
 Validation commands:
 - `npm run lint`: passed (`tsc --noEmit`).
-- `npm test`: passed after the status/trace hardening (12 test files passed, 2 emulator-only files skipped by default; 57 tests passed, 5 skipped).
+- `npm test`: passed after the status/trace hardening (12 test files passed, 2 emulator-only files skipped by default; 57 tests passed, 7 skipped).
 - `npm run build`: passed after the server-owned resolution-plan change; known Firebase chunk and `src/services/issues.ts` mixed import warnings remain.
 - `npm audit --omit=dev`: passed after the server-owned resolution-plan change; 0 vulnerabilities.
-- `npm run test:concurrency`: passed (1 emulator test file, 2 tests). Expected emulator `entity already exists` warnings appeared for intentionally raced duplicate writes.
+- `npm run test:concurrency`: passed (1 emulator test file, 4 tests). Expected emulator duplicate/conflict warnings appeared for intentionally raced writes.
 - `npm run test:e2e`: passed after the operator resolution-plan widget change (4 Playwright/Chromium tests).
 - Local production start probe after the server-owned resolution-plan change: `/health` returned 200; `/readyz` returned 503 because `GEMINI_API_KEY` is not set locally.
+- Placeholder/secret scan: release-facing docs and `.env.example` did not contain fake key values or pending license/attribution copy.
+- Stale-source scan: browser-authored resolution-plan and privileged-trace persistence patterns were absent from implementation code; matches remained only in negative test assertions.
 - Full final validation was rerun after the documentation updates; results are recorded in `docs/FINAL_EVIDENCE_REPORT.md`.
 
 Decisions:
 - Kept legacy display strings supported only as read-time normalization so old local documents can render, but all new writes use canonical status keys.
 - Treated closure, escalation, resolution plans, and resolution trace entries as server evidence only. The browser may request work, but cannot supply privileged trace arrays or persisted plan objects.
 - Documented the new concurrency gate as focused coverage, not exhaustive proof of every mutation race path.
+- Kept deployment smoke testing, real screenshot capture, and public URL/evidence recording unchecked in the master plan because they require external account access and explicit approval.
 
 Remaining risks:
-- The focused concurrency harness covers support and community verification duplicate-write races. It does not yet exhaustively race every API mutation, merge, approval, and lifecycle transition path.
+- The focused concurrency harness covers support, community verification, duplicate evidence, and status-transition races. It does not yet exhaustively race every API mutation path.
 - External deployment, live Gemini/Maps golden-path evidence, public URLs, Google Doc publication, demo video, and final submission remain approval/credential-gated.
 
 ## Decision log

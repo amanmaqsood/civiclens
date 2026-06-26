@@ -461,63 +461,82 @@ async function startServer() {
       const ref = adminDb.collection("issues").doc(issueId);
       const snap = await ref.get();
       if (!snap.exists) return sendApiError(res, 404, "Issue not found.");
-      const issueData = snap.data();
-      if (!requireOperatorForIssue(issueData, actor, res)) return;
-
-      const current = normalizeIssueStatus(issueData.status);
       const allowed: Record<IssueStatusKey, IssueStatusKey[]> = {
         submitted: ["verified"],
         verified: ["in_progress"],
         in_progress: ["resolved", "submitted"],
         resolved: ["in_progress"],
       };
-      if (!(allowed[current] || []).includes(newStatus)) {
-        return sendApiError(res, 409, `Illegal transition: ${issueStatusLabel(current)} -> ${issueStatusLabel(newStatus)}.`);
-      }
-
       const nowIso = new Date().toISOString();
-      const updates: any = { status: newStatus, updatedAt: nowIso };
       if (!rationale || rationale.length < 8) {
         return sendApiError(res, 400, "Operator rationale is required for lifecycle transitions.");
       }
-      if (newStatus === "verified") updates.triagedAt = nowIso;
-      if (newStatus === "in_progress") {
-        updates.workStartedAt = nowIso;
-        if (!issueData.assignedAt) updates.assignedAt = nowIso;
-      }
-      if (newStatus === "resolved") {
-        if (!issueData.closureAssessment) {
-          return sendApiError(res, 409, "Closure evidence and assessment are required before resolving.");
+
+      const authIssueData = snap.data();
+      if (!requireOperatorForIssue(authIssueData, actor, res)) return;
+
+      let responsePayload: any = null;
+      await adminDb.runTransaction(async (tx: any) => {
+        const txSnap = await tx.get(ref);
+        if (!txSnap.exists) throw new Error("NOT_FOUND");
+        const issueData = txSnap.data() || {};
+        if (!(actor?.isRealOperator || (actor?.isDemoOperator && issueData?.isDemoData === true))) {
+          throw new Error("FORBIDDEN_OPERATOR");
         }
-        updates.resolvedAt = nowIso;
-      }
-      if (current === "resolved" || newStatus === "submitted") {
-        updates.reopenedAt = nowIso;
-      }
-      await ref.update(updates);
 
-      await ref.collection("approvals").add({
-        type: newStatus === "resolved" ? "closure_resolution" : current === "resolved" ? "reopen" : "status_transition",
-        fromStatus: current,
-        toStatus: newStatus,
-        rationale,
-        humanApproved: true,
-        createdAt: nowIso,
-        byUid: actor?.uid,
-        byRole: actor?.role,
+        const current = normalizeIssueStatus(issueData.status);
+        if (!(allowed[current] || []).includes(newStatus)) {
+          const transitionError: any = new Error("INVALID_TRANSITION");
+          transitionError.current = current;
+          throw transitionError;
+        }
+
+        const updates: any = { status: newStatus, updatedAt: nowIso };
+        if (newStatus === "verified") updates.triagedAt = nowIso;
+        if (newStatus === "in_progress") {
+          updates.workStartedAt = nowIso;
+          if (!issueData.assignedAt) updates.assignedAt = nowIso;
+        }
+        if (newStatus === "resolved") {
+          if (!issueData.closureAssessment) {
+            throw new Error("MISSING_CLOSURE");
+          }
+          updates.resolvedAt = nowIso;
+        }
+        if (current === "resolved" || newStatus === "submitted") {
+          updates.reopenedAt = nowIso;
+        }
+
+        tx.update(ref, updates);
+        tx.set(ref.collection("approvals").doc(), {
+          type: newStatus === "resolved" ? "closure_resolution" : current === "resolved" ? "reopen" : "status_transition",
+          fromStatus: current,
+          toStatus: newStatus,
+          rationale,
+          humanApproved: true,
+          createdAt: nowIso,
+          byUid: actor?.uid,
+          byRole: actor?.role,
+        });
+        tx.set(ref.collection("activity").doc(), {
+          actorType: "operator",
+          eventType: "status_changed",
+          message: `Status advanced to ${issueStatusLabel(newStatus)} by server-authorized operator. Rationale: ${rationale}`,
+          timestamp: nowIso,
+          byUid: actor?.uid,
+          byRole: actor?.role,
+        });
+        responsePayload = { success: true, status: newStatus, resolvedAt: updates.resolvedAt || null };
       });
 
-      await ref.collection("activity").add({
-        actorType: "operator",
-        eventType: "status_changed",
-        message: `Status advanced to ${issueStatusLabel(newStatus)} by server-authorized operator. Rationale: ${rationale}`,
-        timestamp: nowIso,
-        byUid: actor?.uid,
-        byRole: actor?.role,
-      });
-
-      res.json({ success: true, status: newStatus, resolvedAt: updates.resolvedAt || null });
+      res.json(responsePayload);
     } catch (e: any) {
+      if (e?.message === "NOT_FOUND") return sendApiError(res, 404, "Issue not found.");
+      if (e?.message === "FORBIDDEN_OPERATOR") return sendApiError(res, 403, "Operator authorization failed for this issue.");
+      if (e?.message === "INVALID_TRANSITION") {
+        return sendApiError(res, 409, `Illegal transition: ${issueStatusLabel(e.current)} -> ${issueStatusLabel(newStatus)}.`);
+      }
+      if (e?.message === "MISSING_CLOSURE") return sendApiError(res, 409, "Closure evidence and assessment are required before resolving.");
       sendApiError(res, 500, "Status update failed.", e);
     }
   });
@@ -2292,7 +2311,19 @@ Output ONLY valid JSON and nothing else.`;
           return { score: roundedScore };
         }
         if (name === "compare_candidate_evidence") {
-          return { candidateId: args.candidateId || "none", similarity: args.similarity ?? null };
+          const candidateId = cleanText(args.candidateId, "none", 160);
+          if (!candidateId || candidateId === "none") {
+            return { candidateId: "none", similarity: null };
+          }
+          if (!safeCandidates.some((candidate) => candidate.id === candidateId)) {
+            return {
+              candidateId: "none",
+              similarity: null,
+              rejected: true,
+              reason: "Candidate id was not part of the server-loaded candidate set.",
+            };
+          }
+          return { candidateId, similarity: cleanNumber(args.similarity, 0, 0, 1) };
         }
         if (name === "find_responsible_authority") {
           try {
@@ -2400,11 +2431,11 @@ Steps: 1) call search_nearby_cases, 2) call compare_candidate_evidence using can
         }
 
         if (fc.name === "compare_candidate_evidence") {
-          const cid = fc.args?.candidateId;
+          const cid = result?.candidateId;
           if (cid && cid !== "none" && cid !== "") {
             duplicateCandidateId = cid;
-            duplicateSimilarity = fc.args?.similarity || null;
-            duplicateReasoning = fc.args?.reasoning || null;
+            duplicateSimilarity = result?.similarity ?? null;
+            duplicateReasoning = cleanText(fc.args?.reasoning, "", 1000) || null;
           }
         }
 

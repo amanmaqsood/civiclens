@@ -70,7 +70,7 @@ Source-level release tests cover:
 - SSRF-restricted closure image fetch.
 - Firestore and Storage rules matrix.
 - Persisted server agent runs/steps and idempotency.
-- Focused Firestore emulator transaction/concurrency checks for duplicate same-user support and verification writes.
+- Focused Firestore emulator transaction/concurrency checks for duplicate same-user support, verification, duplicate evidence, and status-transition writes.
 - Golden-path UI wiring and key accessibility markers.
 
 Executed local release gates also include:
@@ -82,6 +82,6 @@ Latest command results are recorded in `docs/FINAL_EVIDENCE_REPORT.md`.
 
 ## Remaining Security Gaps
 
-- The concurrency emulator gate covers representative same-user support and verification races, not every API mutation race path.
+- The concurrency emulator gate covers representative support, verification, duplicate evidence, and status-transition races, not every API mutation race path.
 - Browser E2E currently uses seeded synthetic emulator data; live Gemini/Maps golden-path evidence requires production secrets and deployment approval.
 - Production App Check token wiring and Cloud Run readiness have not been smoke-tested because deployment credentials and explicit approval are not available in this local rebuild.

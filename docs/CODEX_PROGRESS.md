@@ -440,6 +440,30 @@ Remaining risks:
 - Production App Check enforcement remains off until the deployed frontend site key and `X-Firebase-AppCheck` request path are smoke-tested.
 - Live Gemini/Maps golden-path evidence still requires the approved deployed environment.
 
+## GitHub Sync Checkpoint
+Status: completed on 2026-06-27
+
+Files changed:
+- `docs/CODEX_PROGRESS.md` and `docs/FINAL_EVIDENCE_REPORT.md`: recorded GitHub sync evidence without secret values.
+
+Repository actions:
+- Confirmed the working folder was `C:\Users\apexm\Downloads\civiclens-`.
+- Confirmed local history included production checkpoint commit `522e5b1`.
+- Added `origin` as `https://github.com/amanmaqsood/civiclens.git` because no remote was configured locally.
+- Detected the remote default branch as `main`.
+- Fetched `origin/main` and found an unrelated older GitHub history. Created merge commit `9474060` with the local release tree and remote history as the second parent, then pushed to `main` without force.
+- Pushed milestone and release tags to GitHub.
+- Browser-verified the GitHub repository was public, README rendered, latest commit was visible, `docs/`, `LICENSE`, and `ATTRIBUTIONS.md` were visible, and the root repository listing did not show `.env.production.local`.
+
+Secret scan:
+- Ran tracked-file `git grep` checks for Gemini key assignment, private key markers, Firebase Admin SDK service-account naming, Google browser key-shaped values, and `.env.production.local`.
+- No private key, service-account, or local production env file was tracked.
+- The only Google key-shaped tracked value was the expected public Firebase browser config in `firebase-applet-config.json`; the value was not printed.
+
+Remaining risks:
+- Cloud Run deployment remains the next approval-gated step.
+- Public app smoke tests, live Gemini/Maps evidence, screenshots, Google Doc publication, demo video, and submission remain external/approval-gated.
+
 ## Decision log
 - 2026-06-26: Initialized a valid project-local Git repository because the existing `.git` directory was empty/invalid and Git was resolving to `C:/Users/apexm`.
 - 2026-06-26: Captured the untouched prototype before dependency repair as commit `ffd4ebc` and tag `baseline/original-prototype`.

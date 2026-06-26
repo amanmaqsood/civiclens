@@ -33,6 +33,19 @@ This checkpoint was performed on 2026-06-26 against project `gen-lang-client-087
 - Config change: `firebase.json` now pins the Firestore Rules target to the named production database so Firebase CLI does not default to `(default)`.
 - Remaining next step: Cloud Run deployment and public `/health` plus `/readyz` smoke tests after explicit approval.
 
+## GitHub Sync Checkpoint
+
+This checkpoint was performed on 2026-06-27 against `https://github.com/amanmaqsood/civiclens`. It synchronized the local CivicLens release to GitHub only; it did not deploy Cloud Run, change billing, rotate keys, delete resources, publish docs/video, or submit the project.
+
+- Remote branch pushed: `main`.
+- Local production checkpoint included: `522e5b1 chore: record production firebase checkpoint`.
+- GitHub sync commit: `9474060 chore: sync local release with github history`.
+- Sync method: preserved the older unrelated GitHub history as a merge parent while keeping the local audited release tree, then pushed to `main` without force.
+- Tags: milestone and release tags were pushed to GitHub.
+- GitHub browser verification: repository was public; README rendered; latest commit was visible; `docs/`, `LICENSE`, and `ATTRIBUTIONS.md` were visible; the root repository listing did not show `.env.production.local`.
+- Secret scan: tracked-file scans found no private key marker, Firebase Admin SDK service-account string, or tracked local production env file. A public Firebase browser config key-shaped value exists in `firebase-applet-config.json`; the value is not recorded here.
+- Remaining next step: Cloud Run deployment and public smoke tests after explicit approval.
+
 ## Latest Completed Validation
 
 Production rules and Secret Manager checkpoint validation results:

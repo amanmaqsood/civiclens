@@ -22,6 +22,10 @@ interface IssueDetailPageProps {
 
 const STATUS_STEPS = ISSUE_STATUS_KEYS;
 
+function finiteNumber(value: unknown): number | null {
+  return typeof value === "number" && Number.isFinite(value) ? value : null;
+}
+
 export default function IssueDetailPage({
   issue,
   onBack,
@@ -69,6 +73,9 @@ export default function IssueDetailPage({
 
   const severityInfo = getSeverityStyle(issue.severity);
   const currentStatusIndex = STATUS_STEPS.indexOf(issue.status as any);
+  const confidence = finiteNumber(issue.confidence);
+  const closureConfidence = finiteNumber(issue.closureAssessment?.confidence);
+  const hasCoordinates = finiteNumber(issue.lat) !== null && finiteNumber(issue.lng) !== null;
 
   const [activities, setActivities] = useState<IssueActivity[]>([]);
   const [loadingAct, setLoadingAct] = useState(true);
@@ -261,9 +268,9 @@ export default function IssueDetailPage({
                 ? (issue.titleHi || issue.title || "Geotagged Civic Incident")
                 : (issue.title || "Geotagged Civic Incident")}
             </h1>
-            {issue.confidence !== undefined && (
+            {confidence !== null && (
               <span className="text-sm font-mono bg-paper text-ink font-semibold px-2 py-1 rounded-lg border border-hairline flex-shrink-0">
-                AI Confidence {(issue.confidence * 100).toFixed(0)}%
+                AI Confidence {(confidence * 100).toFixed(0)}%
               </span>
             )}
           </div>
@@ -434,7 +441,7 @@ export default function IssueDetailPage({
             <div className="flex items-center justify-between text-sm font-mono">
               <div className="flex items-center gap-1.5">
                 <span className="text-slate uppercase">Visual Match Metrics</span>
-                <span className="font-semibold text-verify">{(issue.closureAssessment.confidence * 100).toFixed(0)}% matched</span>
+                <span className="font-semibold text-verify">{closureConfidence !== null ? `${(closureConfidence * 100).toFixed(0)}% matched` : "Match not recorded"}</span>
               </div>
               <div className="flex items-center gap-1">
                 <span className="text-slate uppercase">Type</span>
@@ -457,9 +464,9 @@ export default function IssueDetailPage({
             <p className="text-base font-semibold text-ink leading-tight">
               {issue.locationName || "Reported Location"}
             </p>
-            {issue.lat !== undefined && issue.lng !== undefined && (
+            {hasCoordinates && (
               <span className="text-sm font-mono text-slate block mt-0.5 select-all">
-                COORD: {issue.lat.toFixed(6)} N, {issue.lng.toFixed(6)} E
+                COORD: {finiteNumber(issue.lat)!.toFixed(6)} N, {finiteNumber(issue.lng)!.toFixed(6)} E
               </span>
             )}
           </div>

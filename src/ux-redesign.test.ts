@@ -68,6 +68,8 @@ describe("UX redesign contract", () => {
     expect(trace).toContain("request_human_approval");
     expect(detail).toContain("fetchLatestAgentRun(issue.id)");
     expect(detail).toContain("Persisted run");
+    expect(detail).toContain("finiteNumber(issue.confidence)");
+    expect(detail).toContain("hasCoordinates");
     expect(queue).toContain("Demo actions are server-limited");
     expect(closure).toContain("recommendation");
     expect(closure).toContain("capture=\"environment\"");

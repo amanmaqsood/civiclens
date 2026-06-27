@@ -1,5 +1,5 @@
 {
-  "capturedAt": "2026-06-27T06:41:31.233Z",
+  "capturedAt": "2026-06-27T06:48:46.891Z",
   "browser": "chrome",
   "source": "Playwright page-content fallback; authenticated Chrome extension control was unavailable.",
   "baseUrl": "https://civiclens-py7ixxgroq-as.a.run.app",
@@ -83,6 +83,41 @@
       "file": "closure-recommendation-status-fullpage-public-chrome-content-2026-06-27.png",
       "description": "Full-page synthetic demo issue detail showing closure recommendation and status timeline so non-auto-resolution can be verified visually.",
       "browser": "chrome"
+    },
+    {
+      "file": "gcp-cloud-run-service-cli-evidence-2026-06-27.png",
+      "description": "CivicLens Cloud Run Service Evidence (sanitized CLI/API rendering, not an authenticated console screenshot).",
+      "browser": "chrome"
+    },
+    {
+      "file": "gcp-health-readyz-cli-evidence-2026-06-27.png",
+      "description": "CivicLens Health and Readiness Evidence (sanitized CLI/API rendering, not an authenticated console screenshot).",
+      "browser": "chrome"
+    },
+    {
+      "file": "firebase-rules-releases-cli-evidence-2026-06-27.png",
+      "description": "CivicLens Firebase Rules Release Evidence (sanitized CLI/API rendering, not an authenticated console screenshot).",
+      "browser": "chrome"
+    },
+    {
+      "file": "secret-manager-name-only-cli-evidence-2026-06-27.png",
+      "description": "CivicLens Secret Manager Name-Only Evidence (sanitized CLI/API rendering, not an authenticated console screenshot).",
+      "browser": "chrome"
+    },
+    {
+      "file": "firebase-auth-providers-cli-evidence-2026-06-27.png",
+      "description": "CivicLens Firebase Auth Providers Evidence (sanitized CLI/API rendering, not an authenticated console screenshot).",
+      "browser": "chrome"
+    },
+    {
+      "file": "maps-browser-key-restriction-cli-evidence-2026-06-27.png",
+      "description": "CivicLens Maps Browser Key Restriction Evidence (sanitized CLI/API rendering, not an authenticated console screenshot).",
+      "browser": "chrome"
+    },
+    {
+      "file": "ai-studio-evidence-status-cli-evidence-2026-06-27.png",
+      "description": "CivicLens AI Studio Evidence Status (sanitized CLI/API rendering, not an authenticated console screenshot).",
+      "browser": "chrome"
     }
   ],
   "apiBoundaryEvidence": {
@@ -95,5 +130,11 @@
     "Headless page-content screenshots do not include the browser address bar; URLs are recorded in this manifest and evidence docs.",
     "Authenticated GCP/Firebase/AI Studio console screenshots still require an approved authenticated Chrome session.",
     "No secret values, tokens, billing data, or authenticated account pages are captured in this public screenshot set."
-  ]
+  ],
+  "sanitizedCliEvidence": {
+    "file": "SANITIZED_GCP_FIREBASE_EVIDENCE-2026-06-27.json",
+    "tokenSaved": false,
+    "tokenPrinted": false,
+    "secretValuesRequested": false
+  }
 }

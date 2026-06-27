@@ -139,7 +139,7 @@ See `docs/FINAL_EVIDENCE_REPORT.md` for exact command outputs, warnings, commit 
 
 ## Screenshots List
 
-The public screenshot package is stored under `docs/evidence/final/` with `PUBLIC_SCREENSHOT_MANIFEST-2026-06-27.json`. These are Chrome/Playwright page-content screenshots, so they do not include the browser address bar; exact URLs are recorded in the manifest and evidence report. Authenticated GCP/Firebase/AI Studio console screenshots still require an approved authenticated Chrome session.
+The public screenshot package is stored under `docs/evidence/final/` with `PUBLIC_SCREENSHOT_MANIFEST-2026-06-27.json`. These are Chrome/Playwright page-content screenshots, so they do not include the browser address bar; exact URLs are recorded in the manifest and evidence report. Sanitized CLI/API-backed infrastructure evidence is stored in `SANITIZED_GCP_FIREBASE_EVIDENCE-2026-06-27.json` and related `*-cli-evidence-2026-06-27.png` files. Authenticated GCP/Firebase/AI Studio console screenshots still require an approved authenticated Chrome session.
 
 Captured public screenshot targets:
 
@@ -159,6 +159,11 @@ Captured public screenshot targets:
 - `/health` 200.
 - `/readyz` 200.
 - GitHub public repository page.
+- CLI/API-rendered Cloud Run service metadata.
+- CLI/API-rendered Firestore and Storage Rules release metadata.
+- CLI/API-rendered Secret Manager name-only metadata.
+- CLI/API-rendered Firebase Auth provider metadata.
+- CLI/API-rendered Maps key restriction metadata.
 
 Remaining authenticated console screenshot targets:
 

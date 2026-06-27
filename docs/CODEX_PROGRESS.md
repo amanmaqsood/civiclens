@@ -525,6 +525,7 @@ Files changed:
 - `docs/GOOGLE_DOC_DRAFT.md`: expanded into final copy-ready Google Doc content with live app/GitHub links, demo-video status, problem statement, journey, features, agent workflow, Google technologies, architecture, human oversight, metrics, testing/deployment evidence, screenshot checklist, limitations, attributions, and links.
 - `docs/FINAL_EVIDENCE_REPORT.md` and `docs/CODEX_PROGRESS.md`: recorded the final evidence checkpoint, public health/readiness checks, Maps key restrictions, App Check enforcement wording, validation results, public screenshot capture, and authenticated-console screenshot blocker.
 - `docs/evidence/final/`: added public Chrome/Playwright page-content screenshots plus `PUBLIC_SCREENSHOT_MANIFEST-2026-06-27.json`.
+- `docs/evidence/final/`: added sanitized CLI/API-backed infrastructure evidence screenshots and `SANITIZED_GCP_FIREBASE_EVIDENCE-2026-06-27.json` for Cloud Run, health/readiness, Firestore/Storage Rules releases, Secret Manager name-only metadata, Firebase Auth providers, Maps key restrictions, and AI Studio evidence status.
 - `README.md`: updated deployment status to state that Maps key restrictions are now applied and App Check enforcement remains disabled for judge access.
 - `src/docs-readiness.test.ts`: aligned the documentation readiness assertion with the now-real public app and GitHub links while continuing to guard against unclaimed demo-video and screenshot evidence.
 
@@ -542,10 +543,12 @@ Validation commands:
 - `npm run build`: passed with known Firebase chunk-size and `src/services/issues.ts` mixed static/dynamic import warnings.
 - `npm audit --omit=dev`: passed; 0 vulnerabilities.
 - After adding public screenshots and updating screenshot-status wording, `npm run lint` passed, the first `npm test` run failed because `src/docs-readiness.test.ts` still expected the older no-screenshot guard, the assertion was updated to the authenticated-console screenshot guard, `npm test` then passed again (15 files passed, 2 skipped; 71 tests passed, 7 skipped), `npm run build` passed with the same known warnings, and `npm audit --omit=dev` passed with 0 vulnerabilities.
+- After adding sanitized CLI/API infrastructure evidence screenshots and updating the evidence wording, `npm run lint` passed, `npm test` passed (15 files passed, 2 skipped; 71 tests passed, 7 skipped), `npm run build` passed with the same known warnings, and `npm audit --omit=dev` passed with 0 vulnerabilities.
 
 Screenshot status:
 - Public, non-authenticated screenshots were captured with Chrome through a Playwright page-content fallback and recorded in `docs/evidence/final/PUBLIC_SCREENSHOT_MANIFEST-2026-06-27.json`.
 - Captured public targets include app homepage, report flow start, synthetic/demo label, map, saved issue detail, persisted agent tool steps, post-refresh persisted trace, demo operator synthetic-only view, live 403 API denial for demo operator on a non-demo issue, closure recommendation with status timeline, desktop layout, mobile layout, `/health` 200, `/readyz` 200, and the public GitHub repository page.
+- Sanitized CLI/API-backed screenshots now cover Cloud Run service metadata, health/readiness, Firestore/Storage Rules releases, Secret Manager secret name only, enabled Firebase Auth providers, Maps key restrictions, and AI Studio evidence status. They are not authenticated console screenshots.
 - Headless page-content screenshots do not include the browser address bar; exact URLs are recorded in the manifest and evidence docs.
 - Authenticated Cloud Run/Firebase/Secret Manager/AI Studio console screenshots remain pending because Chrome extension communication failed twice and opening a fresh Chrome window/profile requires user permission.
 

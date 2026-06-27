@@ -124,6 +124,8 @@ Screenshot status:
 
 - Public, non-authenticated screenshots were captured under `docs/evidence/final/` using Chrome through a Playwright page-content fallback. The manifest is `docs/evidence/final/PUBLIC_SCREENSHOT_MANIFEST-2026-06-27.json`.
 - Captured public targets include app homepage, report flow start, synthetic/demo label, map, saved issue detail, persisted agent tool steps, post-refresh persisted trace, demo operator synthetic-only view, live 403 API denial for demo operator on a non-demo issue, closure recommendation with status timeline, desktop layout, mobile layout, `/health` 200, `/readyz` 200, and the public GitHub repository page.
+- Sanitized CLI/API-backed infrastructure evidence was also rendered to screenshots and JSON metadata: `SANITIZED_GCP_FIREBASE_EVIDENCE-2026-06-27.json`, `gcp-cloud-run-service-cli-evidence-2026-06-27.png`, `gcp-health-readyz-cli-evidence-2026-06-27.png`, `firebase-rules-releases-cli-evidence-2026-06-27.png`, `secret-manager-name-only-cli-evidence-2026-06-27.png`, `firebase-auth-providers-cli-evidence-2026-06-27.png`, `maps-browser-key-restriction-cli-evidence-2026-06-27.png`, and `ai-studio-evidence-status-cli-evidence-2026-06-27.png`.
+- The CLI/API metadata confirms Cloud Run revision `civiclens-00034-82x` at 100 percent traffic, Firestore and Storage Rules release/ruleset IDs, `GEMINI_API_KEY` secret name only, enabled anonymous and Google Auth providers, Maps referrer/API restrictions, and that AI Studio evidence still requires authenticated capture if available.
 - Headless page-content screenshots do not include the browser address bar; exact URLs are recorded in the manifest and this report.
 - Authenticated GCP/Firebase/AI Studio console screenshots were not captured because Chrome extension communication failed twice and opening a fresh authenticated Chrome window/profile still requires user approval.
 
@@ -136,6 +138,7 @@ Final evidence checkpoint validation results:
 - `npm run build`: passed. Warnings remain: Firebase chunk is larger than 500 kB (`assets/firebase-Ct40zCNZ.js`, 718.27 kB / 179.73 kB gzip), and `src/services/issues.ts` is still both dynamically and statically imported.
 - `npm audit --omit=dev`: passed; 0 vulnerabilities.
 - After adding the public screenshot package and updating screenshot-status wording, `npm run lint` passed, the first `npm test` run failed because `src/docs-readiness.test.ts` still expected the old "no screenshots" guard, the assertion was updated to the authenticated-console screenshot guard, `npm test` then passed again (15 files passed, 2 skipped; 71 tests passed, 7 skipped), `npm run build` passed with the same known warnings, and `npm audit --omit=dev` passed with 0 vulnerabilities.
+- After adding sanitized CLI/API infrastructure evidence screenshots and updating the evidence wording, `npm run lint` passed, `npm test` passed (15 files passed, 2 skipped; 71 tests passed, 7 skipped), `npm run build` passed with the same known warnings, and `npm audit --omit=dev` passed with 0 vulnerabilities.
 
 Previously completed deployment validation also included:
 

@@ -1,0 +1,87 @@
+{
+  "capturedAt": "2026-06-27T06:48:44.010Z",
+  "projectId": "gen-lang-client-0871796745",
+  "projectNumber": "802067002365",
+  "cloudRun": {
+    "service": "civiclens",
+    "region": "asia-southeast1",
+    "url": "https://civiclens-py7ixxgroq-as.a.run.app",
+    "latestReadyRevisionName": "civiclens-00034-82x",
+    "latestCreatedRevisionName": "civiclens-00034-82x",
+    "traffic": [
+      {
+        "revisionName": "civiclens-00034-82x",
+        "percent": 100,
+        "latestRevision": true
+      }
+    ]
+  },
+  "endpoints": {
+    "health": {
+      "status": "ok",
+      "service": "civiclens",
+      "mode": "production",
+      "timestamp": "2026-06-27T06:48:43.613Z"
+    },
+    "readyz": {
+      "status": "ready",
+      "ready": true,
+      "checks": {
+        "adminDb": true,
+        "geminiConfigured": true,
+        "configValid": true
+      },
+      "missing": [],
+      "warnings": [
+        "CIVICLENS_REQUIRE_APP_CHECK is not true; backend App Check enforcement is disabled."
+      ],
+      "timestamp": "2026-06-27T06:48:43.899Z"
+    }
+  },
+  "firebaseRules": [
+    {
+      "name": "projects/gen-lang-client-0871796745/releases/cloud.firestore/ai-studio-cd9d785c-f851-4555-9ebe-71e0746f69aa",
+      "rulesetName": "projects/gen-lang-client-0871796745/rulesets/ffdf5e64-98bb-4d43-882e-cdb6d340b827",
+      "createTime": "2026-06-22T16:01:33.453992Z",
+      "updateTime": "2026-06-26T18:31:31.298967Z"
+    },
+    {
+      "name": "projects/gen-lang-client-0871796745/releases/firebase.storage/gen-lang-client-0871796745.firebasestorage.app",
+      "rulesetName": "projects/gen-lang-client-0871796745/rulesets/890af86e-f468-4b3b-87c4-29055f09d7ce",
+      "createTime": "2026-06-22T18:25:33.776915Z",
+      "updateTime": "2026-06-26T18:31:28.674043Z"
+    }
+  ],
+  "secretManager": {
+    "name": "projects/802067002365/secrets/GEMINI_API_KEY",
+    "createTime": "2026-06-26T18:32:10.408991Z",
+    "replication": "automatic"
+  },
+  "authProviders": [
+    {
+      "id": "anonymous",
+      "enabled": true
+    },
+    {
+      "id": "google.com",
+      "enabled": true
+    }
+  ],
+  "mapsBrowserKey": {
+    "name": "projects/802067002365/locations/global/keys/40791961-8f4f-4f92-8a0b-292dbfe48c88",
+    "displayName": "Browser key (auto created by Firebase)",
+    "allowedReferrers": [
+      "https://civiclens-py7ixxgroq-as.a.run.app/*",
+      "https://civiclens-802067002365.asia-southeast1.run.app/*",
+      "http://localhost:*"
+    ],
+    "apiTargets": [
+      "maps-backend.googleapis.com"
+    ],
+    "updateTime": "2026-06-27T06:22:02.908789Z"
+  },
+  "aiStudioEvidence": {
+    "status": "not captured by CLI evidence script",
+    "note": "Requires authenticated AI Studio/Chrome console capture if available; no AI Studio screenshot is fabricated here."
+  }
+}

@@ -18,12 +18,14 @@ describe("UX redesign contract", () => {
     expect(app).toContain("AppBottomNav");
     expect(app).toContain("FloatingReportAction");
     expect(app).toContain('id="operator-command-center"');
+    expect(app).not.toContain("flex-1 overflow-y-auto pb-28");
     expect(bottomNav).toContain('id="mobile-bottom-nav"');
     expect(floatingAction).toContain('id="floating-report-cta"');
     expect(header).toContain("sticky top-0");
-    expect(header).toContain("min-h-[44px]");
+    expect(header).toContain("z-50");
     expect(header).toContain('id="header-account-button"');
     expect(header).toContain('id="account-menu"');
+    expect(header).toContain('id="account-auth-error"');
     expect(header).toContain("Citizen session");
     expect(header).toContain("Operator access status");
     expect(header).toContain("Sign in with Google");
@@ -37,6 +39,8 @@ describe("UX redesign contract", () => {
     expect(landing).toContain("Demo stories");
     expect(landing).toContain("Synthetic demo visible");
     expect(landing).toContain("slice(0, 3)");
+    expect(landing).toContain("defaultStories");
+    expect(landing).toContain("visibleIssues.length");
     expect(landing).toContain('id="show-all-demo-data"');
     expect(landing).toContain("isInternalSmokeTestIssue");
     expect(landing).toContain("They are not live civic complaints");
@@ -48,20 +52,31 @@ describe("UX redesign contract", () => {
     const clarification = readProjectFile("src/components/ReportClarificationView.tsx");
 
     expect(report).toContain('id="report-stepper"');
-    expect(report).toContain("Use my location");
+    expect(report).toContain("Use my current location");
     expect(report).toContain('id="manual-pin-fallback"');
-    expect(report).toContain("Use manual map pin");
-    expect(report).toContain("Coordinates missing. Use location or manual pin.");
-    expect(report).toContain("Take photo or upload proof");
-    expect(report.match(/capture="environment"/g)?.length || 0).toBeGreaterThanOrEqual(2);
+    expect(report).toContain("Drop pin manually");
+    expect(report).toContain("Continue with approximate location");
+    expect(report).toContain("Location permission is blocked or unavailable. Drop a pin manually or type a nearby landmark.");
+    expect(report).toContain("Use a live photo on site, or upload an existing image from your gallery.");
+    expect(report).toContain('id="report-live-photo-input"');
+    expect(report).toContain('id="report-gallery-upload-input"');
+    expect(report).toContain("Take live photo");
+    expect(report).toContain("Upload from gallery");
+    const reportLiveInput = report.slice(report.indexOf('id="report-live-photo-input"'), report.indexOf('id="report-gallery-upload-input"'));
+    const reportGalleryInput = report.slice(report.indexOf('id="report-gallery-upload-input"'), report.indexOf("{!image ?"));
+    expect(reportLiveInput).toContain('accept="image/*"');
+    expect(reportLiveInput).toContain('capture="environment"');
+    expect(reportGalleryInput).toContain('accept="image/*"');
+    expect(reportGalleryInput).not.toContain("capture=");
     expect(clarification).toContain("Low-confidence Gemini triage");
   });
 
-  it("keeps persisted agent trace and operator demo boundary visible", () => {
+  it("keeps success copy, persisted agent trace, closure upload choices, and operator demo boundary visible", () => {
     const trace = readProjectFile("src/components/AgentTraceTimeline.tsx");
     const detail = readProjectFile("src/components/IssueDetailPage.tsx");
     const queue = readProjectFile("src/components/OperatorQueue.tsx");
     const closure = readProjectFile("src/components/ClosureVerificationPanel.tsx");
+    const success = readProjectFile("src/components/SuccessPage.tsx");
 
     expect(trace).toContain("Agent tool timeline");
     expect(trace).toContain("Persisted server run");
@@ -72,7 +87,15 @@ describe("UX redesign contract", () => {
     expect(detail).toContain("hasCoordinates");
     expect(queue).toContain("Demo actions are server-limited");
     expect(closure).toContain("recommendation");
-    expect(closure).toContain("capture=\"environment\"");
+    expect(closure).toContain('id="after-image-live-photo-input"');
+    expect(closure).toContain('id="after-image-gallery-upload-input"');
+    expect(closure).toContain('capture="environment"');
+    const closureGalleryInput = closure.slice(closure.indexOf('id="after-image-gallery-upload-input"'), closure.indexOf("<div className=\"flex flex-col items-center"));
+    expect(closureGalleryInput).toContain('accept="image/*"');
+    expect(closureGalleryInput).not.toContain("capture=");
     expect(closure).not.toContain("auto-resolve");
+    expect(success).toContain("CivicLens Ticket ID");
+    expect(success).not.toContain("Ticket Registration Number");
+    expect(success).toContain("Pilot record - not a government filing");
   });
 });

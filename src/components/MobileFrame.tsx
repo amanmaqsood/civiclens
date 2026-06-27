@@ -6,7 +6,7 @@ interface MobileFrameProps {
 
 export default function MobileFrame({ children }: MobileFrameProps) {
   return (
-    <div className="min-h-screen w-full bg-paper font-sans antialiased text-ink overflow-x-hidden">
+    <div className="min-h-screen w-full bg-paper font-sans antialiased text-ink overflow-x-clip">
       <div
         className="min-h-screen w-full bg-paper flex flex-col"
         style={{

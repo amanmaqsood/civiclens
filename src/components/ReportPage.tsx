@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useRef } from "react";
-import { Camera, MapPin, MapPinned, Trash2, CheckCircle2, ChevronRight, Loader2, Mic, MicOff, Sparkles, ArrowLeft } from "lucide-react";
+import { Camera, ImagePlus, MapPin, MapPinned, Trash2, CheckCircle2, ChevronRight, Loader2, Mic, MicOff, ArrowLeft } from "lucide-react";
 import { IssueReport } from "../types";
 import { getCurrentLocation, LocationData } from "../utils/location";
 import { useLanguage } from "../context/LanguageContext";
@@ -52,6 +52,7 @@ export default function ReportPage({ onBack, onSubmit, prefilledLocation, prefil
   );
   const [locLoading, setLocLoading] = useState(false);
   const [locError, setLocError] = useState<string | null>(null);
+  const [imageError, setImageError] = useState<string | null>(null);
   const [manualAddress, setManualAddress] = useState(prefilledData?.locationName || "");
 
   const [isListening, setIsListening] = useState(false);
@@ -69,7 +70,8 @@ export default function ReportPage({ onBack, onSubmit, prefilledLocation, prefil
   const [isEditableConfirmMode, setIsEditableConfirmMode] = useState(false);
   const [isFallbackManualMode, setIsFallbackManualMode] = useState(false);
 
-  const fileInputRef = useRef<HTMLInputElement>(null);
+  const liveFileInputRef = useRef<HTMLInputElement>(null);
+  const galleryFileInputRef = useRef<HTMLInputElement>(null);
 
   const stages = [
     { label: "Evidence Optimization", detail: "Compressing proof photo client-side..." },
@@ -133,21 +135,32 @@ export default function ReportPage({ onBack, onSubmit, prefilledLocation, prefil
   };
 
   const handleImageChange = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const input = e.currentTarget;
     const file = e.target.files?.[0];
     if (file) {
       const allowedTypes = ["image/jpeg", "image/png", "image/webp"];
       if (!allowedTypes.includes(file.type)) {
-        setLocError("Unsupported format. Please upload JPEG, PNG, or WebP proof files.");
+        input.value = "";
+        setImageError("Unsupported format. Please upload JPEG, PNG, or WebP proof files.");
         return;
       }
       try {
-        setLocError(null);
+        setImageError(null);
         const compressedBase64 = await compressImage(file);
         setImage(compressedBase64);
       } catch (err: any) {
-        setLocError("Failed to process image. Try another photo.");
+        setImageError("Failed to process image. Try another photo.");
+      } finally {
+        input.value = "";
       }
     }
+  };
+
+  const clearImage = () => {
+    setImage(null);
+    setImageError(null);
+    if (liveFileInputRef.current) liveFileInputRef.current.value = "";
+    if (galleryFileInputRef.current) galleryFileInputRef.current.value = "";
   };
 
   const toggleListening = () => {
@@ -354,47 +367,88 @@ export default function ReportPage({ onBack, onSubmit, prefilledLocation, prefil
       {/* Upload proof */}
       <div className="flex flex-col gap-1.5">
         <label className="text-sm font-mono text-[#334155] block">Proof photograph</label>
+        <input
+          id="report-live-photo-input"
+          type="file"
+          ref={liveFileInputRef}
+          onChange={handleImageChange}
+          accept="image/*"
+          capture="environment"
+          className="hidden"
+        />
+        <input
+          id="report-gallery-upload-input"
+          type="file"
+          ref={galleryFileInputRef}
+          onChange={handleImageChange}
+          accept="image/*"
+          className="hidden"
+        />
+        {imageError && (
+          <p role="alert" className="rounded-lg border border-alert/20 bg-alert/10 p-2 text-sm font-semibold text-alert">
+            {imageError}
+          </p>
+        )}
         {!image ? (
-          <div
-            onClick={() => fileInputRef.current?.click()}
-            className="border-2 border-dashed border-hairline hover:border-marigold rounded-2xl p-6 bg-paper flex flex-col items-center justify-center gap-3 cursor-pointer group min-h-[140px] transition-all"
-          >
-            <input
-              type="file"
-              ref={fileInputRef}
-              onChange={handleImageChange}
-              accept="image/*"
-              capture="environment"
-              className="hidden"
-            />
-            <div className="w-10 h-10 rounded-full bg-white flex items-center justify-center border border-hairline group-hover:text-marigold transition-all select-none">
-              <Camera className="w-5 h-5 text-slate group-hover:text-marigold" />
+          <div className="rounded-2xl border-2 border-dashed border-hairline bg-paper p-5 transition-all">
+            <div className="flex flex-col items-center justify-center gap-3 text-center">
+              <div className="w-10 h-10 rounded-full bg-white flex items-center justify-center border border-hairline select-none">
+                <Camera className="w-5 h-5 text-slate" />
+              </div>
+              <div>
+                <p className="text-base font-semibold text-ink">Add proof photograph</p>
+                <p className="text-sm text-[#334155] mt-0.5">
+                  Use a live photo on site, or upload an existing image from your gallery.
+                </p>
+                <p className="text-sm text-[#334155] mt-0.5">JPEG, PNG, or WebP. The browser compresses it before upload.</p>
+              </div>
             </div>
-            <div className="text-center">
-              <p className="text-base font-semibold text-ink">Take photo or upload proof</p>
-              <p className="text-sm text-[#334155] mt-0.5">JPEG, PNG, or WebP. The browser compresses it before upload.</p>
+            <div className="mt-4 grid gap-2 sm:grid-cols-2">
+              <button
+                type="button"
+                onClick={() => liveFileInputRef.current?.click()}
+                className="inline-flex min-h-[44px] items-center justify-center gap-2 rounded-xl bg-ink px-4 text-base font-bold text-paper hover:bg-ink/90"
+              >
+                <Camera className="h-4 w-4 text-marigold" />
+                Take live photo
+              </button>
+              <button
+                type="button"
+                onClick={() => galleryFileInputRef.current?.click()}
+                className="inline-flex min-h-[44px] items-center justify-center gap-2 rounded-xl border border-hairline bg-white px-4 text-base font-bold text-ink hover:bg-paper"
+              >
+                <ImagePlus className="h-4 w-4 text-marigold" />
+                Upload from gallery
+              </button>
             </div>
           </div>
         ) : (
           <div className="relative rounded-2xl overflow-hidden border border-hairline bg-ink min-h-[140px] max-h-[200px] flex items-center justify-center select-none">
             <img src={image} alt="Civic preview" className="object-contain max-h-[200px] w-full" />
-            <div className="absolute bottom-3 flex justify-center gap-2 w-full px-4">
+            <div className="absolute bottom-3 grid w-full grid-cols-[1fr_1fr_auto] gap-2 px-4">
               <button
                 type="button"
-                onClick={() => fileInputRef.current?.click()}
-                className="min-h-[44px] flex-1 bg-ink/90 hover:bg-marigold text-white hover:text-ink border border-white/15 px-3 py-2 rounded-lg text-sm font-bold transition-all cursor-pointer shadow-xs text-center"
+                onClick={() => liveFileInputRef.current?.click()}
+                className="min-h-[44px] bg-ink/90 hover:bg-marigold text-white hover:text-ink border border-white/15 px-3 py-2 rounded-lg text-sm font-bold transition-all cursor-pointer shadow-xs text-center"
               >
-                Change
+                Retake
               </button>
               <button
                 type="button"
-                onClick={() => { setImage(null); if (fileInputRef.current) fileInputRef.current.value = ""; }}
+                onClick={() => galleryFileInputRef.current?.click()}
+                className="min-h-[44px] bg-ink/90 hover:bg-marigold text-white hover:text-ink border border-white/15 px-3 py-2 rounded-lg text-sm font-bold transition-all cursor-pointer shadow-xs text-center"
+              >
+                Gallery
+              </button>
+              <button
+                type="button"
+                onClick={clearImage}
+                aria-label="Remove proof photograph"
                 className="flex min-h-[44px] min-w-[44px] items-center justify-center bg-alert/90 hover:bg-alert text-white rounded-lg transition-colors cursor-pointer"
               >
                 <Trash2 className="w-4 h-4 mx-auto" />
               </button>
             </div>
-            <input type="file" ref={fileInputRef} onChange={handleImageChange} accept="image/*" capture="environment" className="hidden" />
           </div>
         )}
       </div>
@@ -416,7 +470,7 @@ export default function ReportPage({ onBack, onSubmit, prefilledLocation, prefil
           )}
           {!locLoading && locError && (
             <span className="text-alert flex items-center gap-1">
-              Location access denied or unavailable. Manual input required.
+              Location permission is blocked or unavailable. Drop a pin manually or type a nearby landmark.
             </span>
           )}
           {!locLoading && !location && !locError && (
@@ -450,7 +504,7 @@ export default function ReportPage({ onBack, onSubmit, prefilledLocation, prefil
             className="w-full flex min-h-[44px] items-center justify-center gap-2 border border-hairline bg-white hover:bg-paper text-slate hover:text-ink py-2 px-3 rounded-lg text-base font-semibold cursor-pointer shadow-2xs"
           >
             {locLoading ? <Loader2 className="w-3.5 h-3.5 animate-spin text-marigold" /> : <MapPin className="w-3.5 h-3.5 text-marigold" />}
-            <span>Use my location</span>
+            <span>Use my current location</span>
           </button>
         )}
         {(locError || !location) && (
@@ -458,9 +512,9 @@ export default function ReportPage({ onBack, onSubmit, prefilledLocation, prefil
             <div className="flex items-start gap-3">
               <MapPinned className="mt-0.5 h-5 w-5 shrink-0 text-marigold" />
               <div className="flex-1">
-                <p className="text-base font-bold text-ink">Manual map pin fallback</p>
+                <p className="text-base font-bold text-ink">Drop pin manually</p>
                 <p className="mt-1 text-sm leading-relaxed text-[#334155]">
-                  If GPS is denied, use an approximate pin and add a landmark below.
+                  If GPS is blocked, use an approximate pin or type a nearby landmark below.
                 </p>
               </div>
             </div>
@@ -470,7 +524,10 @@ export default function ReportPage({ onBack, onSubmit, prefilledLocation, prefil
               className="mt-3 inline-flex min-h-[44px] w-full items-center justify-center gap-2 rounded-xl bg-ink px-4 text-base font-bold text-paper hover:bg-ink/90"
             >
               <MapPinned className="h-4 w-4 text-marigold" />
-              Use manual map pin
+              <span className="flex flex-col leading-tight">
+                <span>Drop pin manually</span>
+                <span className="text-sm font-semibold text-paper/80">Continue with approximate location</span>
+              </span>
             </button>
           </div>
         )}
@@ -510,7 +567,6 @@ export default function ReportPage({ onBack, onSubmit, prefilledLocation, prefil
                 ? "bg-alert text-white border-alert/20 animate-pulse"
                 : "bg-white text-ink border-hairline hover:bg-slate-50 shadow-2xs"
             }`}
-            style={{ minHeight: "40px" }}
           >
             {isListening ? (
               <>

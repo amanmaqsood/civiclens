@@ -16,6 +16,7 @@ export default function Header({ currentView, onNavigate, persona, onTogglePerso
   const { user, signInWithGoogle, signOutUser, loading } = useFirebase();
   const { language, setLanguage } = useLanguage();
   const [accountOpen, setAccountOpen] = useState(false);
+  const [accountError, setAccountError] = useState<string | null>(null);
   const accountMenuRef = useRef<HTMLDivElement>(null);
   const signedInWithGoogle = !!user && !user.isAnonymous;
   const canShowOperatorDesk = operatorAccess !== "none";
@@ -43,17 +44,27 @@ export default function Header({ currentView, onNavigate, persona, onTogglePerso
   }, [accountOpen]);
 
   const handleAuthAction = async () => {
-    setAccountOpen(false);
-    if (signedInWithGoogle) {
-      await signOutUser();
-    } else {
-      await signInWithGoogle();
+    setAccountError(null);
+    try {
+      if (signedInWithGoogle) {
+        await signOutUser();
+      } else {
+        await signInWithGoogle();
+      }
+      setAccountOpen(false);
+    } catch {
+      setAccountOpen(true);
+      setAccountError(
+        signedInWithGoogle
+          ? "Sign out could not complete. Please check your connection and try again."
+          : "Google sign-in could not start. Check popup permissions or the authorized domain; anonymous reporting still works."
+      );
     }
   };
 
   return (
     <header
-      className="sticky top-0 z-40 flex flex-wrap items-center justify-between gap-3 border-b border-white/10 bg-ink px-3 pb-3 font-sans shadow-[0_2px_15px_-3px_rgba(0,0,0,0.5)] sm:px-5"
+      className="sticky top-0 z-50 flex flex-wrap items-center justify-between gap-3 border-b border-white/10 bg-ink px-3 pb-3 font-sans shadow-[0_2px_15px_-3px_rgba(0,0,0,0.5)] sm:px-5"
       style={{ paddingTop: "max(env(safe-area-inset-top), 12px)" }}
     >
       <div className="flex min-w-0 items-center gap-2">
@@ -169,7 +180,10 @@ export default function Header({ currentView, onNavigate, persona, onTogglePerso
             <button
               id="header-account-button"
               type="button"
-              onClick={() => setAccountOpen((open) => !open)}
+              onClick={() => {
+                if (!accountOpen) setAccountError(null);
+                setAccountOpen((open) => !open);
+              }}
               className="flex min-h-[44px] items-center gap-2 rounded-lg border border-white/10 bg-white/5 px-2 py-1 text-paper transition-colors hover:bg-white/10 hover:text-white"
               title="Open account menu"
               aria-label="Open account menu"
@@ -187,7 +201,7 @@ export default function Header({ currentView, onNavigate, persona, onTogglePerso
                 id="account-menu"
                 role="dialog"
                 aria-label="Account menu"
-                className="absolute right-0 top-[calc(100%+0.5rem)] z-50 w-[min(18rem,calc(100vw-1.5rem))] rounded-2xl border border-hairline bg-white p-3 text-ink shadow-xl"
+                className="absolute right-0 top-[calc(100%+0.5rem)] z-[60] w-[min(18rem,calc(100vw-1.5rem))] rounded-2xl border border-hairline bg-white p-3 text-ink shadow-xl"
               >
                 <div className="flex items-start gap-2 rounded-xl bg-paper p-3">
                   <UserCircle className="mt-0.5 h-5 w-5 shrink-0 text-marigold" />
@@ -212,6 +226,15 @@ export default function Header({ currentView, onNavigate, persona, onTogglePerso
                   <p className="mt-0.5 text-sm leading-relaxed text-[#334155]">
                     Optional for citizen continuity. Anonymous reporting stays available.
                   </p>
+                  {accountError && (
+                    <p
+                      id="account-auth-error"
+                      role="alert"
+                      className="mt-2 rounded-lg border border-alert/20 bg-alert/10 p-2 text-sm font-semibold leading-relaxed text-alert"
+                    >
+                      {accountError}
+                    </p>
+                  )}
                   <button
                     type="button"
                     onClick={handleAuthAction}

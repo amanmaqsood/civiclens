@@ -11,6 +11,10 @@ const extraDemoIssueIds = ["e2e-demo-water", "e2e-demo-light", "e2e-demo-hidden"
 const smokeIssueId = "e2e-smoke-hidden";
 const projectId = process.env.FIREBASE_PROJECT_ID || process.env.GOOGLE_CLOUD_PROJECT || process.env.GCLOUD_PROJECT || "demo-civiclens";
 const databaseId = process.env.FIRESTORE_DATABASE_ID || "(default)";
+const tinyPng = Buffer.from(
+  "iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mP8/x8AAwMCAO+/p9sAAAAASUVORK5CYII=",
+  "base64"
+);
 
 async function seedDemoIssue() {
   const app = getApps()[0] || initializeApp({ projectId });
@@ -202,14 +206,23 @@ async function expectNoHighImpactAxeViolations(page: Page) {
   expect(highImpact).toEqual([]);
 }
 
+async function expectHeaderPinnedAfterScroll(page: Page) {
+  const header = page.locator("header");
+  await expect(header).toBeVisible();
+  await page.evaluate(() => window.scrollTo(0, Math.min(900, document.documentElement.scrollHeight - window.innerHeight)));
+  await expect.poll(async () => {
+    return Math.round(await header.evaluate((element) => element.getBoundingClientRect().top));
+  }).toBe(0);
+}
+
 test.beforeEach(async () => {
   await seedDemoIssue();
 });
 
 for (const viewport of [
-  { name: "mobile", width: 360, height: 740 },
-  { name: "tablet", width: 768, height: 900 },
-  { name: "desktop", width: 1280, height: 900 },
+  { name: "mobile", width: 390, height: 844 },
+  { name: "tablet", width: 768, height: 1024 },
+  { name: "desktop", width: 1440, height: 900 },
 ]) {
   test(`landing page is usable and accessible at ${viewport.name}`, async ({ page }) => {
     await preparePage(page, viewport);
@@ -222,13 +235,15 @@ for (const viewport of [
     await expect(page.getByText("Synthetic Cloud Run smoke test pothole")).toHaveCount(0);
     await expect(page.getByText("Metrics are calculated from the records currently loaded")).toBeVisible();
     await expect(page.locator("header")).toHaveCSS("position", "sticky");
+    await expectHeaderPinnedAfterScroll(page);
 
     if (viewport.name === "mobile") {
       await expect(page.locator("#mobile-bottom-nav")).toBeVisible();
       await expect(page.locator("#mobile-bottom-nav")).toHaveCSS("position", "fixed");
       await expect(page.locator("#floating-report-cta")).toBeVisible();
-      await page.evaluate(() => window.scrollTo(0, document.body.scrollHeight));
-      await expect(page.locator("header")).toBeVisible();
+      const bottomNavBox = await page.locator("#mobile-bottom-nav").boundingBox();
+      expect(bottomNavBox?.y || 0).toBeGreaterThan(0);
+      expect((bottomNavBox?.y || 0) + (bottomNavBox?.height || 0)).toBeLessThanOrEqual(viewport.height + 2);
     }
 
     await expectNoHorizontalOverflow(page);
@@ -257,16 +272,36 @@ test("mobile report flow exposes stepper, location denial, and manual pin fallba
 
   await page.locator("#floating-report-cta").click();
   await expect(page.locator("#report-stepper")).toBeVisible();
-  await expect(page.locator('input[type="file"][accept="image/*"]').first()).toHaveAttribute("capture", "environment");
-  await expect(page.getByRole("button", { name: /Use my location/i })).toBeVisible();
+  await expect(page.getByRole("button", { name: "Take live photo" })).toBeVisible();
+  await expect(page.getByRole("button", { name: "Upload from gallery" })).toBeVisible();
+
+  const liveInput = page.locator("#report-live-photo-input");
+  const galleryInput = page.locator("#report-gallery-upload-input");
+  await expect(liveInput).toHaveAttribute("accept", "image/*");
+  await expect(liveInput).toHaveAttribute("capture", "environment");
+  await expect(galleryInput).toHaveAttribute("accept", "image/*");
+  await expect(galleryInput).not.toHaveAttribute("capture", /.+/);
+
+  await galleryInput.setInputFiles({ name: "gallery-pothole.png", mimeType: "image/png", buffer: tinyPng });
+  await expect(page.getByAltText("Civic preview")).toBeVisible();
+  await page.getByRole("button", { name: "Remove proof photograph" }).click();
+  await liveInput.setInputFiles({ name: "live-pothole.png", mimeType: "image/png", buffer: tinyPng });
+  await expect(page.getByAltText("Civic preview")).toBeVisible();
+
+  await expect(page.getByRole("button", { name: /Use my current location/i })).toBeVisible();
+  await expect(page.getByText("Location permission is blocked or unavailable. Drop a pin manually or type a nearby landmark.")).toBeVisible();
   await expect(page.locator("#manual-pin-fallback")).toBeVisible();
-  await page.getByRole("button", { name: /Use manual map pin/i }).click();
+  await page.getByRole("button", { name: /Drop pin manually/i }).click();
   await expect(page.getByText("Coordinates locked.")).toBeVisible();
+  await expectHeaderPinnedAfterScroll(page);
   await expectNoHorizontalOverflow(page);
   await expectNoHighImpactAxeViolations(page);
 });
 
 test("header account menu explains citizen session and operator access", async ({ page }) => {
+  await page.addInitScript(() => {
+    window.open = () => null;
+  });
   await preparePage(page, { width: 1280, height: 900 });
 
   await expect(page.locator("#header-account-button")).toBeVisible();
@@ -277,6 +312,18 @@ test("header account menu explains citizen session and operator access", async (
   await expect(page.getByText("Citizen session")).toBeVisible();
   await expect(page.getByText("Sign in with Google").first()).toBeVisible();
   await expect(page.getByText(/Operator access status: (none|demo|real)/)).toBeVisible();
+  await expect(page.locator("#account-menu button")).toHaveCount(1);
+
+  await page.keyboard.press("Escape");
+  await expect(page.locator("#account-menu")).toHaveCount(0);
+  await page.locator("#header-account-button").click();
+  await expect(page.locator("#account-menu")).toBeVisible();
+  await page.mouse.click(10, 10);
+  await expect(page.locator("#account-menu")).toHaveCount(0);
+
+  await page.locator("#header-account-button").click();
+  await page.getByRole("button", { name: "Sign in with Google" }).click();
+  await expect(page.locator("#account-auth-error")).toBeVisible();
 });
 
 test("persisted agent run remains visible after refresh", async ({ page }) => {

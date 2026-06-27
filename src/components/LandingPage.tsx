@@ -49,16 +49,17 @@ export default function LandingPage({
     const curatedDemo = [...demo]
       .sort((a, b) => (b.priorityScore || 0) - (a.priorityScore || 0))
       .slice(0, 3);
+    const defaultStories = curatedDemo.length > 0 ? curatedDemo : real.slice(0, 3);
     return {
-      visibleIssues: showAllDemoData ? publicIssues : [...real, ...curatedDemo],
+      visibleIssues: showAllDemoData ? publicIssues : defaultStories,
       demoIssues: demo,
       hiddenDemoCount: Math.max(0, demo.length - curatedDemo.length),
       publicIssues,
     };
   }, [issues, showAllDemoData]);
 
-  const activeCount = publicIssues.filter((issue) => issue.status === "submitted" || issue.status === "verified" || issue.status === "in_progress").length;
-  const resolvedCount = publicIssues.filter((issue) => issue.status === "resolved").length;
+  const activeCount = visibleIssues.filter((issue) => issue.status === "submitted" || issue.status === "verified" || issue.status === "in_progress").length;
+  const resolvedCount = visibleIssues.filter((issue) => issue.status === "resolved").length;
 
   const proofCards = [
     {
@@ -183,8 +184,8 @@ export default function LandingPage({
       <section className="grid gap-4 md:grid-cols-3">
         <div className="rounded-2xl border border-hairline bg-white p-5 shadow-xs">
           <p className="text-sm font-bold text-[#334155]">Loaded records</p>
-          <p id="stats-total-reported" className="mt-2 text-4xl font-black text-marigold">{publicIssues.length}</p>
-          <p className="mt-1 text-base text-[#334155]">Current query page only</p>
+          <p id="stats-total-reported" className="mt-2 text-4xl font-black text-marigold">{visibleIssues.length}</p>
+          <p className="mt-1 text-base text-[#334155]">Visible records only</p>
         </div>
         <div className="rounded-2xl border border-hairline bg-white p-5 shadow-xs">
           <p className="text-sm font-bold text-[#334155]">Active cases</p>

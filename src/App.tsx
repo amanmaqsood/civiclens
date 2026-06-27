@@ -479,7 +479,7 @@ export default function App() {
       )}
 
       {/* View Router */}
-      <main id="main-content" className="flex flex-col flex-1 overflow-y-auto pb-28 md:pb-0">
+      <main id="main-content" className="flex flex-col flex-1 pb-28 md:pb-0">
         {loadError ? (
           <div className="flex-1 flex flex-col justify-center items-center p-6 text-center font-sans">
             <div className="bg-white border border-alert/20 p-6 rounded-2xl max-w-sm shadow-xs flex flex-col items-center gap-4">

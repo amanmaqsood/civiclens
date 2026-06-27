@@ -1,7 +1,7 @@
-import React, { useState } from "react";
+import React, { useRef, useState } from "react";
 import { IssueReport, ClosureAssessment } from "../types";
 import { submitClosureAssessment } from "../services/issues";
-import { Check, Upload, Sparkles, RefreshCw, AlertCircle } from "lucide-react";
+import { Camera, ImagePlus, Sparkles, RefreshCw, AlertCircle } from "lucide-react";
 import { compressImage } from "../utils/compression";
 
 interface ClosureVerificationPanelProps {
@@ -13,13 +13,17 @@ export default function ClosureVerificationPanel({ issue, onVerified }: ClosureV
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [afterPreview, setAfterPreview] = useState<string | null>(null);
+  const liveAfterInputRef = useRef<HTMLInputElement>(null);
+  const galleryAfterInputRef = useRef<HTMLInputElement>(null);
 
   const handleFileChange = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const input = e.currentTarget;
     const file = e.target.files?.[0];
     if (!file) return;
 
     const allowedTypes = ["image/jpeg", "image/png", "image/webp"];
     if (!allowedTypes.includes(file.type)) {
+      input.value = "";
       setError("Please select a JPEG, PNG, or WebP image file.");
       return;
     }
@@ -30,6 +34,8 @@ export default function ClosureVerificationPanel({ issue, onVerified }: ClosureV
       setError(null);
     } catch {
       setError("Failed to optimize image file.");
+    } finally {
+      input.value = "";
     }
   };
 
@@ -154,18 +160,49 @@ export default function ClosureVerificationPanel({ issue, onVerified }: ClosureV
       {issue.status === "in_progress" && (
         <div className="flex flex-col gap-2.5">
           {!assessment && (
-            <div className="flex flex-col items-center justify-center border-2 border-dashed border-slate-200 rounded-xl p-4 bg-slate-50 hover:bg-slate-100/50 relative cursor-pointer">
+            <div className="flex flex-col gap-3 rounded-xl border-2 border-dashed border-slate-200 bg-slate-50 p-4">
               <input
-                id="after-image-verification-file-input"
+                id="after-image-live-photo-input"
                 type="file"
                 accept="image/*"
                 capture="environment"
+                ref={liveAfterInputRef}
                 onChange={handleFileChange}
-                className="absolute inset-0 opacity-0 cursor-pointer w-full h-full"
+                className="hidden"
               />
-              <Upload className="w-5 h-5 text-slate-400 mb-1" />
-              <span className="text-base font-bold text-slate-600">Upload repair after image</span>
-              <span className="text-sm text-slate-500 mt-0.5">Camera snap or file select</span>
+              <input
+                id="after-image-gallery-upload-input"
+                type="file"
+                accept="image/*"
+                ref={galleryAfterInputRef}
+                onChange={handleFileChange}
+                className="hidden"
+              />
+              <div className="flex flex-col items-center justify-center text-center">
+                <Camera className="mb-1 h-5 w-5 text-slate-400" />
+                <span className="text-base font-bold text-slate-600">Repair evidence photo</span>
+                <span className="mt-0.5 text-sm text-slate-500">
+                  Use a live photo on site, or upload an existing image from your gallery.
+                </span>
+              </div>
+              <div className="grid gap-2 sm:grid-cols-2">
+                <button
+                  type="button"
+                  onClick={() => liveAfterInputRef.current?.click()}
+                  className="inline-flex min-h-[44px] items-center justify-center gap-2 rounded-xl bg-slate-900 px-4 text-base font-bold text-white hover:bg-slate-800"
+                >
+                  <Camera className="h-4 w-4 text-amber-400" />
+                  Take live photo
+                </button>
+                <button
+                  type="button"
+                  onClick={() => galleryAfterInputRef.current?.click()}
+                  className="inline-flex min-h-[44px] items-center justify-center gap-2 rounded-xl border border-slate-200 bg-white px-4 text-base font-bold text-slate-700 hover:bg-slate-50"
+                >
+                  <ImagePlus className="h-4 w-4 text-amber-500" />
+                  Upload from gallery
+                </button>
+              </div>
             </div>
           )}
 

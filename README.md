@@ -85,4 +85,10 @@ The latest local validation results are recorded in `docs/FINAL_EVIDENCE_REPORT.
 
 ## Deployment Status
 
-Cloud Run is the target deployment path, documented in `docs/DEPLOYMENT_CLOUD_RUN.md`. Deployment, public URL smoke tests, demo video publication, Google Doc publication, and final hackathon submission require Firebase/GCP credentials, billing, and explicit approval. They have not been performed in this local rebuild.
+Cloud Run deployment is documented in `docs/DEPLOYMENT_CLOUD_RUN.md` and was performed after explicit approval on 2026-06-27.
+
+- Public app URL: `https://civiclens-py7ixxgroq-as.a.run.app`
+- Final deployed revision: `civiclens-00034-82x`
+- Final deployed commit: `fcf8946`
+
+Demo video publication, Google Doc publication, final screenshot packaging, App Check enforcement, Maps key origin restriction, and final hackathon submission still require explicit approval.

@@ -146,7 +146,7 @@ Acceptance:
 - [x] Closure tests proving recommendation does not auto-resolve.
 - [x] UI integration tests for report, duplicate confirmation, operator approval, closure/reopen.
 - [x] End-to-end golden path against local/emulated services.
-- [ ] Run deployed smoke test when authenticated GCP/Firebase credentials, billing, and explicit deployment approval are available.
+- [x] Run deployed smoke test when authenticated GCP/Firebase credentials, billing, and explicit deployment approval are available.
 - [x] Accessibility checks on critical screens.
 - [x] Dependency/security audit triage with upgrades or documented mitigations.
 
@@ -184,7 +184,7 @@ Acceptance:
 - [x] Prepare a 90–120 second demo script showing the complete live agent loop and human approvals.
 - [x] Prepare Google Doc-ready content covering all mandatory headings plus architecture, innovation, safety, testing, impact, demo instructions, limitations, and links.
 - [x] Prepare Cloud Run config/scripts and verify production-start behavior locally.
-- [ ] When authenticated GCP access is present, deploy, smoke-test in incognito/mobile, and record the public URL and evidence. Do not perform irreversible submission without user approval.
+- [x] When authenticated GCP access is present, deploy, smoke-test browser/API/mobile viewport paths, and record the public URL and evidence. Do not perform irreversible submission without user approval.
 - [x] Produce `docs/FINAL_EVIDENCE_REPORT.md` and final release checklist.
 
 Acceptance:

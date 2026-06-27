@@ -1,10 +1,10 @@
 # Final Evidence Report
 
-Generated during the local CivicLens rebuild on 2026-06-26.
+Generated during the CivicLens rebuild and deployment checkpoints on 2026-06-26 and 2026-06-27.
 
 ## Scope
 
-This report records local validation and readiness evidence. It does not claim public deployment, public GitHub availability, public Google Doc publication, demo video publication, or hackathon submission.
+This report records local validation, GitHub sync, Firebase Rules deployment, Secret Manager verification, and Cloud Run deployment evidence. It does not claim Google Doc publication, demo video publication, or hackathon submission.
 
 ## Repository State
 
@@ -20,7 +20,7 @@ This report records local validation and readiness evidence. It does not claim p
   - `milestone-7-reliability-metrics`
   - `milestone-8-release-gates`
   - `milestone-9-docs-readiness`
-- `docs/CODEX_MASTER_PLAN.md` is updated as the final release checklist. Locally verifiable items are checked. The only unchecked items are deployed smoke testing, real screenshot capture, and public URL/evidence recording, each blocked on external credentials/account actions and explicit approval.
+- `docs/CODEX_MASTER_PLAN.md` is updated as the final release checklist. Locally verifiable items and the approved Cloud Run deployment smoke are recorded. Remaining publication/submission items still require explicit external approval.
 
 ## Production Firebase Rules and Secret Manager Checkpoint
 
@@ -31,7 +31,7 @@ This checkpoint was performed on 2026-06-26 against project `gen-lang-client-087
 - Storage Rules: dry-run compiled successfully, then deployed successfully to the Firebase Storage rules release for the project.
 - Secret Manager: `GEMINI_API_KEY` exists with version `1` in state `ENABLED`. The secret value came from ignored local `.env.production.local` and is not recorded in this report.
 - Config change: `firebase.json` now pins the Firestore Rules target to the named production database so Firebase CLI does not default to `(default)`.
-- Remaining next step: Cloud Run deployment and public `/health` plus `/readyz` smoke tests after explicit approval.
+- Later follow-up: Cloud Run deployment and public `/health` plus `/readyz` smoke tests were completed in the Cloud Run Deployment Checkpoint below.
 
 ## GitHub Sync Checkpoint
 
@@ -44,11 +44,45 @@ This checkpoint was performed on 2026-06-27 against `https://github.com/amanmaqs
 - Tags: milestone and release tags were pushed to GitHub.
 - GitHub browser verification: repository was public; README rendered; latest commit was visible; `docs/`, `LICENSE`, and `ATTRIBUTIONS.md` were visible; the root repository listing did not show `.env.production.local`.
 - Secret scan: tracked-file scans found no private key marker, Firebase Admin SDK service-account string, or tracked local production env file. A public Firebase browser config key-shaped value exists in `firebase-applet-config.json`; the value is not recorded here.
-- Remaining next step: Cloud Run deployment and public smoke tests after explicit approval.
+- Later follow-up: Cloud Run deployment and public smoke tests were completed in the Cloud Run Deployment Checkpoint below.
+
+## Cloud Run Deployment Checkpoint
+
+This checkpoint was performed on 2026-06-27 after explicit user approval to run `gcloud auth login` and deploy with an empty Firebase measurement ID. It deployed the app to Cloud Run and smoke-tested the public URL. It did not publish a Google Doc, publish a demo video, or submit the project.
+
+- Project ID: `gen-lang-client-0871796745`.
+- Region: `asia-southeast1`.
+- Service: `civiclens`.
+- Firestore database: `ai-studio-cd9d785c-f851-4555-9ebe-71e0746f69aa`.
+- Final deployed commit: `fcf8946 fix: make app title prototype scoped`.
+- Final Cloud Build ID: `13a7b4ed-50a2-438b-b139-5020ccb1f0c4`.
+- Final image: `asia-southeast1-docker.pkg.dev/gen-lang-client-0871796745/civiclens/civiclens:fcf8946`.
+- Final image digest: `sha256:5970094fceabbec2a244c4552a252664110c7f95556ecf541a45d6eb108f9ba8`.
+- Final Cloud Run revision: `civiclens-00034-82x`, serving 100 percent traffic.
+- Canonical public URL: `https://civiclens-py7ixxgroq-as.a.run.app`.
+- Alternate public URL: `https://civiclens-802067002365.asia-southeast1.run.app`.
+- Deployment evidence timestamp: `2026-06-27T06:15:47.5789177+05:30`.
+- Runtime secret handling: Cloud Run uses `GEMINI_API_KEY=GEMINI_API_KEY:latest`; the secret value is not recorded here.
+- Runtime warning: `/readyz` reports `CIVICLENS_REQUIRE_APP_CHECK is not true; backend App Check enforcement is disabled.`
+
+Deployment actions:
+
+- Enabled/used Cloud Run, Artifact Registry, Cloud Build, Secret Manager, and related Google services for the approved deployment flow.
+- Created Artifact Registry repository `civiclens` in `asia-southeast1`.
+- Granted the Cloud Run runtime service account least-privilege `roles/secretmanager.secretAccessor` on `GEMINI_API_KEY`.
+- Removed stale AI Studio/source-build annotations from the existing Cloud Run service metadata so an Artifact Registry image could serve normally.
+- Deployed with `VITE_FIREBASE_MEASUREMENT_ID` intentionally empty because the Firebase web config did not include a measurement ID and the user explicitly approved that condition.
+
+Release-blocking fixes found during deployed smoke:
+
+- `b2c24b5`: waited for Firebase auth before loading the issue feed, fixing production Firestore read-denial UI errors.
+- `5032145`: fixed closure verifier response parsing so it no longer shadowed the `cleanText` sanitizer.
+- `602fb57`: omitted undefined optional closure image fields before Firestore writes.
+- `fcf8946`: changed the document title to prototype-scoped language.
 
 ## Latest Completed Validation
 
-Production rules and Secret Manager checkpoint validation results:
+Final deployment validation results:
 
 - `npm run lint`: passed (`tsc --noEmit`).
 - `npm test`: passed (15 test files passed, 2 emulator-only files skipped by default; 71 tests passed, 7 skipped).
@@ -56,6 +90,13 @@ Production rules and Secret Manager checkpoint validation results:
 - `npm audit --omit=dev`: passed; 0 vulnerabilities.
 - `npm run test:rules`: passed (1 Firestore/Storage emulator test file, 3 tests).
 - `npm run test:concurrency`: passed (1 Firestore emulator test file, 4 tests).
+- Cloud Run `/health`: 200 on both public hostnames.
+- Cloud Run `/readyz`: 200 on both public hostnames with `ready: true`, `adminDb: true`, `geminiConfigured: true`, `configValid: true`, and no missing config values.
+- Browser smoke on the final deployed URL: title `CivicLens - Civic Issue Reporting Prototype`; CivicLens branding visible; synthetic/prototype labels visible; map surface visible; report action visible; issue/feed text visible; console errors empty; unsupported autonomous/official/government filing language absent.
+- Playwright viewport smoke: desktop `1440x900` and mobile `390x844` both passed with no console errors, no horizontal overflow, map/report action visible, synthetic/prototype labels visible, and unsupported language absent.
+- Final live API smoke on commit `fcf8946`: Gemini triage success with confidence `0.9`; synthetic issue `smoke-fcf8946-7319a90e` saved as `submitted`; persisted agent run `smoke-fcf8946-7319a90e_agent-smoke-fcf8946-7319a90e` returned 8 server tool steps; latest agent run fetched twice with persisted trace intact.
+- Operator boundary smoke: anonymous citizen lifecycle transition denied with 403; demo operator denied with 403 on the non-demo smoke issue; demo operator successfully transitioned synthetic demo issue `JOaqBXiJNnyWgWqfqpwI` from `in_progress` to `submitted`.
+- Closure smoke: Gemini returned recommendation `resolve`, closure assessment persisted, and the demo issue remained `submitted` rather than auto-resolving.
 
 ## Local Release Evidence
 
@@ -87,20 +128,22 @@ Production rules and Secret Manager checkpoint validation results:
 
 ## External Blockers
 
-- Firebase/GCP credentials and billing are required before Cloud Run deployment.
-- Explicit user approval is required before deployment, public URL publication, demo video publication, Google Doc publication, or hackathon submission.
-- Real screenshots are not present because no approved AI Studio/GCP/deployment account action was performed in this local rebuild.
-- Public app URL: not created in this local rebuild.
-- Public GitHub URL: not provided in this local rebuild.
-- Public Google Doc URL: not created in this local rebuild.
-- Demo video URL: not created in this local rebuild.
+- Explicit user approval is still required before demo video publication, Google Doc publication, final public screenshot packaging, or hackathon submission.
+- Real final screenshots for AI Studio/GCP/Cloud Run evidence still need capture and packaging.
+- Public GitHub URL: `https://github.com/amanmaqsood/civiclens`.
+- Public app URL: `https://civiclens-py7ixxgroq-as.a.run.app`.
+- Public Google Doc URL: not created in this checkpoint.
+- Demo video URL: not created in this checkpoint.
 
 ## Remaining Local Gaps
 
 - Transaction/concurrency behavior has focused parallel emulator coverage for support, verification, duplicate evidence, and status-transition writes; a full API-level race matrix remains future hardening.
-- Browser E2E uses seeded synthetic emulator data; a live Gemini/Maps golden path still requires real production secrets and deployment approval.
-- Local production `/readyz` fails without production secrets, as expected. Cloud Run `/readyz` has not been smoke-tested in a deployed environment.
+- Browser E2E uses seeded synthetic emulator data; the deployed smoke used live Gemini/API calls and synthetic images, but final judge-facing screenshot/video packaging is still pending.
+- Local production `/readyz` fails without production secrets, as expected. Cloud Run `/readyz` is passing in the deployed environment.
 - Production App Check enforcement has not been deployed or smoke-tested. Keep `CIVICLENS_REQUIRE_APP_CHECK=false` until a Firebase App Check site key is configured and browser requests are verified to send `X-Firebase-AppCheck`.
+- Restrict the Maps browser key to the final Cloud Run origin before broader public sharing.
+- Cloud Build install stage still reports 3 moderate dev-dependency vulnerabilities. Runtime install and `npm audit --omit=dev` report 0 production vulnerabilities.
+- Chrome UI file upload automation was blocked by the Codex extension file URL setting; API-backed smoke covered report save/Gemini/agent/closure with synthetic inline image payloads, and manual photo upload should still be checked in Chrome.
 
 ## Historical Milestone 9 Validation
 
@@ -133,4 +176,4 @@ This final local gate ran after the environment-driven Admin config, Firebase we
 - Local production start probe: `/health` returned 200; `/readyz` returned 503 because production secrets/config were intentionally absent.
 - Unsupported-copy/config scan: no implementation hits remained for the removed government-adjacent initiative phrase, old hardcoded Admin project/database IDs, or old client-side issue seed/clear write helpers; matches remain only in regression tests or explicitly synthetic server demo markers.
 
-No deployment, public URL smoke test, Google Doc publication, demo video publication, or hackathon submission was performed.
+Cloud Run deployment and public URL smoke testing were performed after explicit approval. Google Doc publication, demo video publication, final public screenshot packaging, and hackathon submission were not performed.

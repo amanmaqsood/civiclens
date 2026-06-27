@@ -4,7 +4,7 @@ Generated during the CivicLens rebuild and deployment checkpoints on 2026-06-26 
 
 ## Scope
 
-This report records local validation, GitHub sync, Firebase Rules deployment, Secret Manager verification, Cloud Run deployment evidence, Maps browser-key restriction, public screenshot capture, and Google Doc draft preparation. It does not claim Google Doc publication, demo video publication, authenticated console screenshot capture completion, or hackathon submission.
+This report records local validation, GitHub sync, Firebase Rules deployment, Secret Manager verification, Cloud Run deployment evidence, Maps browser-key restriction, public screenshot capture, Google Doc draft preparation, and public Google Doc publication. It does not claim demo video publication, authenticated console screenshot capture completion, or hackathon submission.
 
 ## Repository State
 
@@ -82,7 +82,7 @@ Release-blocking fixes found during deployed smoke:
 
 ## Final Evidence, Public-Key Restriction, and Google Doc Preparation Checkpoint
 
-This checkpoint was performed on 2026-06-27 against the deployed Cloud Run service and repository state. It did not submit to BlockseBlock, change billing, delete resources, rotate keys, print secret values, publish a Google Doc, or publish a demo video.
+This checkpoint was performed on 2026-06-27 against the deployed Cloud Run service and repository state. It did not submit to BlockseBlock, change billing, delete resources, rotate keys, print secret values, or publish a demo video.
 
 Repository state at checkpoint start:
 
@@ -119,6 +119,8 @@ Google Doc draft:
 - `docs/GOOGLE_DOC_DRAFT.md` was rewritten as final copy-ready draft content with live app link, GitHub link, optional demo-video status, problem statement, product thesis, user journey, implemented features, agentic workflow, Google technologies, architecture, security/human oversight, innovation, product experience, metrics, testing/deployment evidence, screenshot checklist, walkthrough, limitations, attributions, and links.
 - The draft explicitly states that CivicLens is a prototype and avoids claims of official filing, automatic authority submission, legal verification, immutable audit guarantees, App Check enforcement, or fake metrics.
 - Demo data is described as synthetic.
+- Public Google Doc: `https://docs.google.com/document/d/19nFBVMLHUOqlKipMi7tsML25BW2h_Q2s82cQukuzlMk/edit?usp=sharing`.
+- Public viewer verification: unauthenticated text export returned HTTP 200 and included the expected `Live Application`, `GitHub Repository`, `Technologies Used`, and `Prototype Limitations` headings.
 
 Screenshot status:
 
@@ -139,6 +141,7 @@ Final evidence checkpoint validation results:
 - `npm audit --omit=dev`: passed; 0 vulnerabilities.
 - After adding the public screenshot package and updating screenshot-status wording, `npm run lint` passed, the first `npm test` run failed because `src/docs-readiness.test.ts` still expected the old "no screenshots" guard, the assertion was updated to the authenticated-console screenshot guard, `npm test` then passed again (15 files passed, 2 skipped; 71 tests passed, 7 skipped), `npm run build` passed with the same known warnings, and `npm audit --omit=dev` passed with 0 vulnerabilities.
 - After adding sanitized CLI/API infrastructure evidence screenshots and updating the evidence wording, `npm run lint` passed, `npm test` passed (15 files passed, 2 skipped; 71 tests passed, 7 skipped), `npm run build` passed with the same known warnings, and `npm audit --omit=dev` passed with 0 vulnerabilities.
+- Google Doc publication checkpoint validation: `npm run lint` passed; first `npm test` failed because `src/docs-readiness.test.ts` still required the old unpublished-Google-Doc evidence guard; the guard was updated to require the exact public Google Doc URL; `npm test` then passed (15 files passed, 2 skipped; 71 tests passed, 7 skipped); `npm run build` passed with the same known Firebase chunk-size and `src/services/issues.ts` mixed static/dynamic import warnings; `npm audit --omit=dev` passed with 0 vulnerabilities.
 
 Previously completed deployment validation also included:
 
@@ -182,11 +185,11 @@ Previously completed deployment validation also included:
 
 ## External Blockers
 
-- Explicit user approval is still required before demo video publication, Google Doc publication, authenticated console screenshot packaging, or hackathon submission.
+- Explicit user approval is still required before demo video publication, authenticated console screenshot packaging, or hackathon submission.
 - Authenticated final screenshots for AI Studio/GCP/Firebase console evidence still need capture and packaging.
 - Public GitHub URL: `https://github.com/amanmaqsood/civiclens`.
 - Public app URL: `https://civiclens-py7ixxgroq-as.a.run.app`.
-- Public Google Doc URL: not created in this checkpoint.
+- Public Google Doc URL: `https://docs.google.com/document/d/19nFBVMLHUOqlKipMi7tsML25BW2h_Q2s82cQukuzlMk/edit?usp=sharing`.
 - Demo video URL: not created in this checkpoint.
 - Public screenshot package: captured in `docs/evidence/final/` with a manifest. Authenticated GCP/Firebase/AI Studio screenshots remain uncaptured because Chrome extension communication failed and opening a fresh Chrome window/profile still requires user approval.
 
@@ -231,4 +234,4 @@ This final local gate ran after the environment-driven Admin config, Firebase we
 - Local production start probe: `/health` returned 200; `/readyz` returned 503 because production secrets/config were intentionally absent.
 - Unsupported-copy/config scan: no implementation hits remained for the removed government-adjacent initiative phrase, old hardcoded Admin project/database IDs, or old client-side issue seed/clear write helpers; matches remain only in regression tests or explicitly synthetic server demo markers.
 
-Cloud Run deployment and public URL smoke testing were performed after explicit approval. Google Doc publication, demo video publication, final public screenshot packaging, and hackathon submission were not performed.
+Cloud Run deployment, public URL smoke testing, public screenshot packaging, and Google Doc publication were performed after explicit approval. Demo video publication, authenticated console screenshot packaging, and hackathon submission were not performed.

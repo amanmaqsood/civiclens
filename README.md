@@ -38,6 +38,7 @@ Target deployment path: Google Cloud Run
 - [docs/GOOGLE_DOC_DRAFT.md](docs/GOOGLE_DOC_DRAFT.md)
 - [docs/FINAL_EVIDENCE_REPORT.md](docs/FINAL_EVIDENCE_REPORT.md)
 - [docs/CODEX_PROGRESS.md](docs/CODEX_PROGRESS.md)
+- Public Google Doc: [CivicLens - Community Hero: Hyperlocal Problem Solver](https://docs.google.com/document/d/19nFBVMLHUOqlKipMi7tsML25BW2h_Q2s82cQukuzlMk/edit?usp=sharing)
 
 ## Run Locally
 
@@ -93,4 +94,4 @@ Cloud Run deployment is documented in `docs/DEPLOYMENT_CLOUD_RUN.md` and was per
 
 Maps browser-key restrictions were applied for the public Cloud Run origins and localhost during the final evidence checkpoint. App Check integration exists, but enforcement is disabled for this hackathon deployment to avoid blocking judge access.
 
-Demo video publication, Google Doc publication, final screenshot packaging, App Check enforcement, and final hackathon submission still require explicit approval.
+The public Google Doc is published with anyone-with-link viewer access. Demo video publication, authenticated console screenshot packaging, App Check enforcement, and final hackathon submission still require explicit approval.

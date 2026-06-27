@@ -1,6 +1,8 @@
 # CivicLens Google Doc Draft
 
-Copy this content into the required public Google Doc after reviewing the final live app and evidence package. Do not add unavailable links or claims. CivicLens is a prototype, not a government service.
+Published Google Doc: https://docs.google.com/document/d/19nFBVMLHUOqlKipMi7tsML25BW2h_Q2s82cQukuzlMk/edit?usp=sharing
+
+CivicLens is a prototype, not a government service. Do not add unavailable links or claims.
 
 ## Live Application
 
@@ -62,6 +64,16 @@ The system is intentionally human-governed. Gemini recommends and drafts; determ
 - Real operator mode resolved server-side from Firebase identity, custom claims, or verified allowlisted email.
 - Responsive citizen and operator layouts for desktop and mobile.
 - Metrics separated between real records and synthetic demo data, with "Not enough data" shown where denominators are insufficient.
+
+## Technologies Used
+
+- React 19, TypeScript, Vite, and Tailwind CSS for the frontend.
+- Express and esbuild for the TypeScript server bundle.
+- Firebase Auth, Firestore, Storage, Admin SDK, and optional App Check integration for identity, data, storage, and server-owned writes.
+- Gemini through `@google/genai` for multimodal analysis, structured output, translation, drafting, and agent tool loops.
+- Google Maps Platform through `@vis.gl/react-google-maps` for map rendering.
+- Google Cloud Run, Cloud Build, Artifact Registry, and Secret Manager for deployment and runtime configuration.
+- Vitest, Firebase Emulator Suite, Playwright, and axe-core for validation.
 
 ## Agentic Workflow
 
@@ -199,6 +211,10 @@ Do not claim authenticated console screenshot capture until those files exist an
 - No demo video is included in this checkpoint.
 - Final hackathon submission has not been performed in this repository checkpoint.
 
+## Attributions
+
+No third-party project code was copied wholesale. CivicLens is original hackathon prototype work assembled in this repository.
+
 ## Open-source Attributions
 
 Primary libraries and services include React, TypeScript, Vite, Express, Firebase JavaScript SDK, Firebase Admin SDK, `@google/genai`, `@vis.gl/react-google-maps`, Tailwind CSS, lucide-react, motion, canvas-confetti, Vitest, Playwright, axe-core, esbuild, and Firebase Tools. See `ATTRIBUTIONS.md` for the full attribution list and demo image source notes.
@@ -208,6 +224,7 @@ Primary libraries and services include React, TypeScript, Vite, Express, Firebas
 - Live application: https://civiclens-py7ixxgroq-as.a.run.app
 - Alternate Cloud Run URL: https://civiclens-802067002365.asia-southeast1.run.app
 - GitHub repository: https://github.com/amanmaqsood/civiclens
+- Public Google Doc: https://docs.google.com/document/d/19nFBVMLHUOqlKipMi7tsML25BW2h_Q2s82cQukuzlMk/edit?usp=sharing
 - Architecture: `ARCHITECTURE.md`
 - Security spec: `security_spec.md`
 - Deployment runbook: `docs/DEPLOYMENT_CLOUD_RUN.md`

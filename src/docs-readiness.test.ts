@@ -40,13 +40,15 @@ describe("documentation release readiness", () => {
     expect(readme).toContain("[ATTRIBUTIONS.md](ATTRIBUTIONS.md)");
   });
 
-  it("records deployed app URL while keeping unpublished artifacts unclaimed", () => {
+  it("records deployed app and Google Doc URLs while keeping unpublished artifacts unclaimed", () => {
     const evidence = readProjectFile("docs/FINAL_EVIDENCE_REPORT.md");
     const demo = readProjectFile("docs/DEMO_SCRIPT.md");
     const docDraft = readProjectFile("docs/GOOGLE_DOC_DRAFT.md");
 
     expect(evidence).toContain("Public app URL: `https://civiclens-py7ixxgroq-as.a.run.app`.");
-    expect(evidence).toContain("Public Google Doc URL: not created in this checkpoint.");
+    expect(evidence).toContain(
+      "Public Google Doc URL: `https://docs.google.com/document/d/19nFBVMLHUOqlKipMi7tsML25BW2h_Q2s82cQukuzlMk/edit?usp=sharing`.",
+    );
     expect(evidence).toContain("Demo video URL: not created in this checkpoint.");
     expect(demo).toContain("not created in this local rebuild");
     expect(docDraft).toContain("Live application: https://civiclens-py7ixxgroq-as.a.run.app");

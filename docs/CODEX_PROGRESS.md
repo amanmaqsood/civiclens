@@ -7,7 +7,7 @@ Current branch/commit:
 - Branch: `master`
 - Original prototype baseline commit: `ffd4ebc chore: capture original prototype baseline`
 - Original prototype rollback tag: `baseline/original-prototype`
-- Current rebuild state: milestones 0-9 have been completed locally and the approved Cloud Run deployment/public smoke checkpoint is complete. The Maps browser key has been restricted for the public Cloud Run origins and localhost. Google Doc publication, demo video/public screenshot packaging, App Check enforcement, and final submission remain external approval-gated.
+- Current rebuild state: milestones 0-9 have been completed locally and the approved Cloud Run deployment/public smoke checkpoint is complete. The Maps browser key has been restricted for the public Cloud Run origins and localhost. The public Google Doc has been published and verified with anyone-with-link viewer access. Demo video publication, authenticated console screenshot packaging, App Check enforcement, and final submission remain external approval-gated.
 
 Validation commands:
 - `npm install --package-lock-only`: passed; generated a real lockfile from the previously empty `package-lock.json`; initial audit reported 8 moderate vulnerabilities.
@@ -37,7 +37,7 @@ Baseline architecture and data-ownership map captured before Milestone 2:
 
 Current blockers:
 - No external blocker for local work.
-- Google Doc URL, demo video/public screenshot packaging, App Check enforcement, and BlockseBlock submission remain external/approval-gated for Milestone 9 follow-up.
+- Demo video publication, authenticated console screenshot packaging, App Check enforcement, and BlockseBlock submission remain external/approval-gated for Milestone 9 follow-up.
 
 Rollback instructions:
 - Return to the untouched prototype with `git checkout baseline/original-prototype`.
@@ -55,7 +55,7 @@ Rollback instructions:
 | 6 UX/accessibility | Complete | Fake phone shell removed; responsive operator workspace added; touched controls gained labels/44px targets/dialog semantics; focused UI regression tests added; required commands passed. |
 | 7 Metrics/performance | Complete | Dashboard metrics use persisted fields and split real/demo data; paged issue loading, code splitting, closure image compression, structured logs, readiness, and config validation added; required commands passed. |
 | 8 Tests/security | Complete | Release-gate tests cover named security/rules/lifecycle/agent/UI cases; required commands passed. |
-| 9 Release/submission | Complete through Cloud Run smoke | License, attribution, architecture, deployment, AI Studio evidence, demo script, Google Doc draft, final evidence report, emulator rules gate, browser a11y/E2E gate, env docs, README, security spec, Cloud Run deployment, and public smoke checks are complete; Google Doc/video/submission still require explicit approval. |
+| 9 Release/submission | Complete through Cloud Run smoke and Google Doc publication | License, attribution, architecture, deployment, AI Studio evidence, demo script, Google Doc draft/public link, final evidence report, emulator rules gate, browser a11y/E2E gate, env docs, README, security spec, Cloud Run deployment, public smoke checks, and public Google Doc verification are complete; demo video/authenticated console screenshots/submission still require explicit approval. |
 
 ## Milestone 1: Credibility / Truth Boundary
 Status: completed on 2026-06-26
@@ -516,7 +516,7 @@ Remaining risks:
 - The final smoke created synthetic non-demo report documents and mutated one synthetic demo document; all smoke titles/descriptions are labelled synthetic/prototype.
 - Cloud Build install stage still reports 3 moderate dev-dependency vulnerabilities, while runtime `npm ci --omit=dev` and local `npm audit --omit=dev` report 0 production vulnerabilities.
 - Chrome UI file upload automation remained blocked; browser and API smoke covered the deployed flow, but manual photo upload should still be checked with Chrome extension file URL access enabled or by a human.
-- Google Doc publication, demo video/public screenshots, final deployed audit packaging, and BlockseBlock submission were not performed and still require explicit approval.
+- Google Doc publication and public screenshot packaging were completed later. Demo video publication, final deployed audit packaging, authenticated console screenshot packaging, and BlockseBlock submission still require explicit approval.
 
 ## Final Evidence, Public-Key Restriction, and Google Doc Preparation Checkpoint
 Status: public evidence captured; authenticated console screenshots still pending on 2026-06-27
@@ -524,6 +524,7 @@ Status: public evidence captured; authenticated console screenshots still pendin
 Files changed:
 - `docs/GOOGLE_DOC_DRAFT.md`: expanded into final copy-ready Google Doc content with live app/GitHub links, demo-video status, problem statement, journey, features, agent workflow, Google technologies, architecture, human oversight, metrics, testing/deployment evidence, screenshot checklist, limitations, attributions, and links.
 - `docs/FINAL_EVIDENCE_REPORT.md` and `docs/CODEX_PROGRESS.md`: recorded the final evidence checkpoint, public health/readiness checks, Maps key restrictions, App Check enforcement wording, validation results, public screenshot capture, and authenticated-console screenshot blocker.
+- `README.md`, `docs/FINAL_EVIDENCE_REPORT.md`, `docs/CODEX_PROGRESS.md`, and `docs/GOOGLE_DOC_DRAFT.md`: added the verified public Google Doc link.
 - `docs/evidence/final/`: added public Chrome/Playwright page-content screenshots plus `PUBLIC_SCREENSHOT_MANIFEST-2026-06-27.json`.
 - `docs/evidence/final/`: added sanitized CLI/API-backed infrastructure evidence screenshots and `SANITIZED_GCP_FIREBASE_EVIDENCE-2026-06-27.json` for Cloud Run, health/readiness, Firestore/Storage Rules releases, Secret Manager name-only metadata, Firebase Auth providers, Maps key restrictions, and AI Studio evidence status.
 - `README.md`: updated deployment status to state that Maps key restrictions are now applied and App Check enforcement remains disabled for judge access.
@@ -544,6 +545,7 @@ Validation commands:
 - `npm audit --omit=dev`: passed; 0 vulnerabilities.
 - After adding public screenshots and updating screenshot-status wording, `npm run lint` passed, the first `npm test` run failed because `src/docs-readiness.test.ts` still expected the older no-screenshot guard, the assertion was updated to the authenticated-console screenshot guard, `npm test` then passed again (15 files passed, 2 skipped; 71 tests passed, 7 skipped), `npm run build` passed with the same known warnings, and `npm audit --omit=dev` passed with 0 vulnerabilities.
 - After adding sanitized CLI/API infrastructure evidence screenshots and updating the evidence wording, `npm run lint` passed, `npm test` passed (15 files passed, 2 skipped; 71 tests passed, 7 skipped), `npm run build` passed with the same known warnings, and `npm audit --omit=dev` passed with 0 vulnerabilities.
+- Google Doc publication checkpoint validation: `npm run lint` passed; first `npm test` failed because `src/docs-readiness.test.ts` still required the old unpublished-Google-Doc evidence guard; the guard was updated to require the exact public Google Doc URL; `npm test` then passed (15 files passed, 2 skipped; 71 tests passed, 7 skipped); `npm run build` passed with the same known Firebase chunk-size and `src/services/issues.ts` mixed static/dynamic import warnings; `npm audit --omit=dev` passed with 0 vulnerabilities.
 
 Screenshot status:
 - Public, non-authenticated screenshots were captured with Chrome through a Playwright page-content fallback and recorded in `docs/evidence/final/PUBLIC_SCREENSHOT_MANIFEST-2026-06-27.json`.
@@ -554,11 +556,11 @@ Screenshot status:
 
 Decisions:
 - Kept `CIVICLENS_REQUIRE_APP_CHECK=false` and documented the exact truth boundary: App Check integration exists, but enforcement is disabled for this hackathon deployment to avoid blocking judge access.
-- Did not change billing, delete resources, rotate keys, print secret values, publish a Google Doc, publish a demo video, submit to BlockseBlock, or make unrelated product changes.
+- Did not change billing, delete resources, rotate keys, print secret values, publish a demo video, submit to BlockseBlock, or make unrelated product changes.
 
 Remaining risks:
 - Authenticated GCP/Firebase/AI Studio screenshot package still needs capture in an authenticated Chrome session after the user approves opening a fresh Chrome window/profile or captures them manually.
-- Google Doc publication, optional demo video, and BlockseBlock submission still require explicit user action/approval.
+- Optional demo video and BlockseBlock submission still require explicit user action/approval.
 - Production App Check enforcement remains disabled until a Firebase App Check site key is configured and verified on the public deployment.
 
 ## Decision log
@@ -594,10 +596,11 @@ Remaining risks:
 - 2026-06-27: Fixed production-only smoke blockers found during deployment: issue-feed reads now wait for Firebase auth, closure verifier parsing no longer shadows `cleanText`, undefined optional closure image fields are omitted from Firestore writes, and the page title uses prototype language.
 - 2026-06-27: Restricted the public Maps browser key to the two Cloud Run origins and localhost with Maps API access only, after confirming it is distinct from the Firebase browser API key and not used for server-side Maps calls.
 - 2026-06-27: Prepared the final Google Doc draft and recorded that App Check integration exists while enforcement remains disabled for judge access.
+- 2026-06-27: Published the public Google Doc at `https://docs.google.com/document/d/19nFBVMLHUOqlKipMi7tsML25BW2h_Q2s82cQukuzlMk/edit?usp=sharing` and verified unauthenticated access by text export.
 
 ## External blockers
-- Google Doc URL, demo video/public screenshot capture, final deployed audit packaging, and BlockseBlock submission require user/account approval before final submission actions.
+- Demo video publication, authenticated console screenshot capture, final deployed audit packaging, and BlockseBlock submission require user/account approval before final submission actions.
 - Production App Check enforcement requires a Firebase App Check site key and verified public browser tokens before enabling `CIVICLENS_REQUIRE_APP_CHECK=true`.
 
 ## Next milestone
-External approval/credential step: retry Chrome/GCP/Firebase/AI Studio screenshot capture in an approved authenticated Chrome session, publish the Google Doc/demo video if desired, complete final deployed audit packaging, and submit only after explicit user approval.
+External approval/credential step: retry Chrome/GCP/Firebase/AI Studio screenshot capture in an approved authenticated Chrome session, publish a demo video if desired, complete final deployed audit packaging, and submit only after explicit user approval.

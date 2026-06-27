@@ -1,3 +1,4 @@
+import { signInAnonymously } from "firebase/auth";
 import { auth, getFirebaseAppCheckToken } from "../lib/firebase";
 import { buildApiHeaders } from "./api-headers";
 
@@ -16,13 +17,25 @@ interface ApiFetchOptions {
   demoOperator?: boolean;
 }
 
+async function getFirebaseIdTokenForApi(): Promise<string | null> {
+  if (typeof (auth as any).authStateReady === "function") {
+    await (auth as any).authStateReady();
+  }
+
+  if (!auth.currentUser) {
+    await signInAnonymously(auth);
+  }
+
+  return auth.currentUser ? auth.currentUser.getIdToken() : null;
+}
+
 export async function apiFetch(input: RequestInfo | URL, init: RequestInit = {}, options: ApiFetchOptions = {}) {
   const headers = await buildApiHeaders(
     init.headers,
     init.body,
     options,
     { isDev: !!(import.meta as any).env?.DEV },
-    async () => auth.currentUser ? auth.currentUser.getIdToken() : null,
+    getFirebaseIdTokenForApi,
     getFirebaseAppCheckToken
   );
 

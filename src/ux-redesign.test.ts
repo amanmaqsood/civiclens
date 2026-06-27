@@ -101,4 +101,12 @@ describe("UX redesign contract", () => {
     expect(success).not.toContain("Ticket Registration Number");
     expect(success).toContain("Pilot record - not a government filing");
   });
+
+  it("waits for Firebase anonymous auth before protected API calls", () => {
+    const api = readProjectFile("src/services/api.ts");
+
+    expect(api).toContain("authStateReady");
+    expect(api).toContain("signInAnonymously(auth)");
+    expect(api).toContain("getFirebaseIdTokenForApi");
+  });
 });

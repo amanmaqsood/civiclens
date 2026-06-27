@@ -131,6 +131,65 @@ Screenshot status:
 - Headless page-content screenshots do not include the browser address bar; exact URLs are recorded in the manifest and this report.
 - Authenticated GCP/Firebase/AI Studio console screenshots were not captured because Chrome extension communication failed twice and opening a fresh authenticated Chrome window/profile still requires user approval.
 
+## Final Deployed Audit Before Submission
+
+This audit was performed on 2026-06-27 at `2026-06-27T13:30:19.2932581+05:30`. It did not submit to BlockseBlock, deploy a new revision, change billing, delete resources, rotate keys, print secret values, or add features.
+
+Repository and public links:
+
+- Local repository was clean at the start of the audit.
+- Local latest commit: `38f509e docs: publish final google doc link`.
+- GitHub repository: `https://github.com/amanmaqsood/civiclens`.
+- GitHub API verification showed the repository is public, default branch is `main`, latest `main` commit is `38f509e`, README/docs/LICENSE/ATTRIBUTIONS are visible, and `.env.production.local` is not visible at the repository root.
+- Public Google Doc: `https://docs.google.com/document/d/19nFBVMLHUOqlKipMi7tsML25BW2h_Q2s82cQukuzlMk/edit?usp=sharing`.
+- Unauthenticated Google Doc text export returned HTTP 200 and contained the required problem, solution, features, technologies, Google technologies, agentic workflow, deployment evidence, testing evidence, limitations, and attribution headings.
+
+Public Cloud Run:
+
+- `/health`: HTTP 200, `status: ok`, `service: civiclens`, `mode: production`, timestamp `2026-06-27T07:46:13.822Z`.
+- `/readyz`: HTTP 200, `ready: true`, `adminDb: true`, `geminiConfigured: true`, `configValid: true`, no missing values, timestamp `2026-06-27T07:46:13.971Z`.
+- `/readyz` warning remains expected and truthful: `CIVICLENS_REQUIRE_APP_CHECK is not true; backend App Check enforcement is disabled.`
+
+Fresh deployed smoke:
+
+- Browser smoke loaded the homepage with title `CivicLens - Civic Issue Reporting Prototype`.
+- Desktop `1440x900`: homepage, map surface, report action, prototype/synthetic labels, report flow start, and image upload preview path all worked with no horizontal overflow.
+- Mobile `390x844`: homepage, map/report action, and layout checks passed with no horizontal overflow.
+- Page crash count: `0`.
+- Browser warnings observed: geolocation permission fallback and Google Maps Marker deprecation notice. These did not block the workflow.
+- Live API smoke used synthetic audit issue `final-audit-1782546888994`.
+- Gemini triage succeeded with category `drainage` and confidence `0.5`.
+- Synthetic non-demo issue save succeeded with status `submitted`.
+- Anonymous/citizen privileged real-case mutation was denied with HTTP 403.
+- Demo-operator mutation of the same non-demo issue was denied with HTTP 403.
+- Persisted server agent run returned 8 tool steps: `agent.search_nearby_cases`, `agent.compare_candidate_evidence`, `agent.calculate_priority`, `agent.find_responsible_authority`, `agent.draft_action_packet`, `agent.request_human_approval`, `agent.verify_closure`, and `agent.record_event`.
+- Fetching the latest agent run twice returned the persisted 8-step trace, matching a refresh-survival check.
+- Synthetic demo issue `JOaqBXiJNnyWgWqfqpwI` was mutated by demo operator from `submitted` to `verified`.
+- Closure verification on that synthetic demo issue returned recommendation `request_more_evidence`; the closure assessment persisted and the issue status remained `verified`, proving no auto-resolve occurred.
+- The live app's own browser-origin Firebase Auth path succeeded. Direct Node-side anonymous sign-in using the local fallback browser config was blocked by referrer restrictions, which is consistent with restricted public browser keys; the smoke used the deployed app's in-browser auth token without printing it.
+
+Release text and secret scans:
+
+- No matches for placeholder markers, pending-task markers, or old Google Doc link markers.
+- High-risk public-claim phrase matches were limited to negative test guards, truthful disclaimers, or reference-only historical audit files.
+- No tracked private key marker, Firebase Admin SDK service-account marker, or tracked `.env` production file was found.
+- `GEMINI_API_KEY` appears only in `.env.example` and documentation/runbook references; no secret value is recorded.
+
+Final validation:
+
+- `npm ci`: passed; 880 packages installed and 881 audited. The clean install audit still reports 3 moderate dev-dependency vulnerabilities; production dependency audit below is clean.
+- `npm run lint`: passed (`tsc --noEmit`).
+- `npm test`: passed (15 files passed, 2 skipped; 71 tests passed, 7 skipped).
+- `npm run build`: passed with known warnings for the Firebase chunk over 500 kB and `src/services/issues.ts` mixed static/dynamic import chunking.
+- `npm audit --omit=dev`: passed with 0 vulnerabilities.
+
+Final known limitations before submission:
+
+- App Check integration exists, but enforcement is disabled for this hackathon deployment to avoid blocking judge access.
+- Authenticated GCP/Firebase/AI Studio console screenshots remain pending unless captured manually in an approved authenticated session.
+- Optional demo video is not included.
+- Next step: submit the live app, public GitHub repository, and public Google Doc through BlockseBlock only after explicit user approval.
+
 ## Latest Completed Validation
 
 Final evidence checkpoint validation results:

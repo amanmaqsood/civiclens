@@ -48,7 +48,7 @@ function RouteLoading({ label }: { label: string }) {
 }
 
 export default function App() {
-  const { user } = useFirebase();
+  const { user, loading: authLoading } = useFirebase();
   const [currentView, setCurrentView] = useState<ActiveView>("landing");
   const [latestReport, setLatestReport] = useState<Partial<IssueReport> | null>(null);
   const [issues, setIssues] = useState<IssueReport[]>([]);
@@ -120,8 +120,19 @@ export default function App() {
   };
 
   useEffect(() => {
+    if (authLoading) {
+      setIssuesLoading(true);
+      return;
+    }
+    if (!user) {
+      setIssues([]);
+      setIssueCursor(null);
+      setHasMoreIssues(false);
+      setIssuesLoading(false);
+      return;
+    }
     loadIssues();
-  }, [currentView]);
+  }, [currentView, authLoading, user?.uid]);
 
   useEffect(() => {
     let active = true;

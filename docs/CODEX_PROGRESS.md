@@ -7,7 +7,7 @@ Current branch/commit:
 - Branch: `master`
 - Original prototype baseline commit: `ffd4ebc chore: capture original prototype baseline`
 - Original prototype rollback tag: `baseline/original-prototype`
-- Current rebuild state: milestones 0-9 have been completed locally and the approved Cloud Run deployment/public smoke checkpoint is complete. Google Doc publication, demo video/public screenshot packaging, App Check enforcement, Maps key origin restriction, and final submission remain external approval-gated.
+- Current rebuild state: milestones 0-9 have been completed locally and the approved Cloud Run deployment/public smoke checkpoint is complete. The Maps browser key has been restricted for the public Cloud Run origins and localhost. Google Doc publication, demo video/public screenshot packaging, App Check enforcement, and final submission remain external approval-gated.
 
 Validation commands:
 - `npm install --package-lock-only`: passed; generated a real lockfile from the previously empty `package-lock.json`; initial audit reported 8 moderate vulnerabilities.
@@ -37,7 +37,7 @@ Baseline architecture and data-ownership map captured before Milestone 2:
 
 Current blockers:
 - No external blocker for local work.
-- Google Doc URL, demo video/public screenshot packaging, App Check enforcement, Maps key origin restriction, and BlockseBlock submission remain external/approval-gated for Milestone 9 follow-up.
+- Google Doc URL, demo video/public screenshot packaging, App Check enforcement, and BlockseBlock submission remain external/approval-gated for Milestone 9 follow-up.
 
 Rollback instructions:
 - Return to the untouched prototype with `git checkout baseline/original-prototype`.
@@ -512,11 +512,48 @@ Decisions:
 
 Remaining risks:
 - App Check backend enforcement is disabled until a Firebase App Check site key is configured for the Cloud Run domain and browser requests are verified with `X-Firebase-AppCheck`.
-- The Maps browser key should be restricted to the final Cloud Run origin before broader public sharing.
+- The Maps browser key is now restricted to the final Cloud Run origins and localhost.
 - The final smoke created synthetic non-demo report documents and mutated one synthetic demo document; all smoke titles/descriptions are labelled synthetic/prototype.
 - Cloud Build install stage still reports 3 moderate dev-dependency vulnerabilities, while runtime `npm ci --omit=dev` and local `npm audit --omit=dev` report 0 production vulnerabilities.
 - Chrome UI file upload automation remained blocked; browser and API smoke covered the deployed flow, but manual photo upload should still be checked with Chrome extension file URL access enabled or by a human.
 - Google Doc publication, demo video/public screenshots, final deployed audit packaging, and BlockseBlock submission were not performed and still require explicit approval.
+
+## Final Evidence, Public-Key Restriction, and Google Doc Preparation Checkpoint
+Status: completed except Chrome/GCP screenshot capture on 2026-06-27
+
+Files changed:
+- `docs/GOOGLE_DOC_DRAFT.md`: expanded into final copy-ready Google Doc content with live app/GitHub links, demo-video status, problem statement, journey, features, agent workflow, Google technologies, architecture, human oversight, metrics, testing/deployment evidence, screenshot checklist, limitations, attributions, and links.
+- `docs/FINAL_EVIDENCE_REPORT.md` and `docs/CODEX_PROGRESS.md`: recorded the final evidence checkpoint, public health/readiness checks, Maps key restrictions, App Check enforcement wording, validation results, and screenshot blocker.
+- `README.md`: updated deployment status to state that Maps key restrictions are now applied and App Check enforcement remains disabled for judge access.
+- `src/docs-readiness.test.ts`: aligned the documentation readiness assertion with the now-real public app and GitHub links while continuing to guard against unclaimed demo-video and screenshot evidence.
+
+Production actions:
+- Confirmed public `/health` returned 200 with `status: ok`, `service: civiclens`, and `mode: production`.
+- Confirmed public `/readyz` returned 200 with `ready: true`, `adminDb: true`, `geminiConfigured: true`, `configValid: true`, no missing config, and the expected App Check enforcement-disabled warning.
+- Confirmed Cloud Run service `civiclens` in `asia-southeast1` serves revision `civiclens-00034-82x` at 100 percent traffic.
+- Confirmed the configured Maps browser key is distinct from the Firebase browser API key and not used for server-side Maps calls by the current code.
+- Restricted the Maps browser key resource `projects/802067002365/locations/global/keys/40791961-8f4f-4f92-8a0b-292dbfe48c88` to HTTP referrers `https://civiclens-py7ixxgroq-as.a.run.app/*`, `https://civiclens-802067002365.asia-southeast1.run.app/*`, and `http://localhost:*`, with API target `maps-backend.googleapis.com`.
+
+Validation commands:
+- `npm run lint`: passed (`tsc --noEmit`).
+- First `npm test`: failed because the expanded Google Doc draft used a banned high-risk phrase inside a negative disclaimer; the phrase was reworded to `public-agency status`.
+- `npm test` after the wording fix: passed (15 files passed, 2 skipped; 71 tests passed, 7 skipped).
+- `npm run build`: passed with known Firebase chunk-size and `src/services/issues.ts` mixed static/dynamic import warnings.
+- `npm audit --omit=dev`: passed; 0 vulnerabilities.
+
+Screenshot status:
+- `docs/evidence/final/` exists but remains empty.
+- Chrome extension communication failed twice before screenshot capture could start. Per the Chrome workflow, opening a fresh Chrome window/profile requires user permission; that permission was requested and was not available before this checkpoint documentation update.
+- No screenshots were committed.
+
+Decisions:
+- Kept `CIVICLENS_REQUIRE_APP_CHECK=false` and documented the exact truth boundary: App Check integration exists, but enforcement is disabled for this hackathon deployment to avoid blocking judge access.
+- Did not change billing, delete resources, rotate keys, print secret values, publish a Google Doc, publish a demo video, submit to BlockseBlock, or make unrelated product changes.
+
+Remaining risks:
+- Chrome/GCP/Firebase/AI Studio screenshot package still needs capture in an authenticated Chrome session after the user approves opening a fresh Chrome window/profile or captures them manually.
+- Google Doc publication, optional demo video, and BlockseBlock submission still require explicit user action/approval.
+- Production App Check enforcement remains disabled until a Firebase App Check site key is configured and verified on the public deployment.
 
 ## Decision log
 - 2026-06-26: Initialized a valid project-local Git repository because the existing `.git` directory was empty/invalid and Git was resolving to `C:/Users/apexm`.
@@ -549,10 +586,12 @@ Remaining risks:
 - 2026-06-26: Moved E2E emulator runs to the synthetic `demo-civiclens` project and removed old project-specific identifiers from the browser harness.
 - 2026-06-27: Deployed CivicLens to Cloud Run in `asia-southeast1` after explicit user approval, with `VITE_FIREBASE_MEASUREMENT_ID` intentionally empty.
 - 2026-06-27: Fixed production-only smoke blockers found during deployment: issue-feed reads now wait for Firebase auth, closure verifier parsing no longer shadows `cleanText`, undefined optional closure image fields are omitted from Firestore writes, and the page title uses prototype language.
+- 2026-06-27: Restricted the public Maps browser key to the two Cloud Run origins and localhost with Maps API access only, after confirming it is distinct from the Firebase browser API key and not used for server-side Maps calls.
+- 2026-06-27: Prepared the final Google Doc draft and recorded that App Check integration exists while enforcement remains disabled for judge access.
 
 ## External blockers
 - Google Doc URL, demo video/public screenshot capture, final deployed audit packaging, and BlockseBlock submission require user/account approval before final submission actions.
-- Production App Check enforcement and Maps key origin restriction require the final domain-specific Firebase/Google Cloud configuration choice.
+- Production App Check enforcement requires a Firebase App Check site key and verified public browser tokens before enabling `CIVICLENS_REQUIRE_APP_CHECK=true`.
 
 ## Next milestone
-External approval/credential step: capture AI Studio/Cloud Run evidence screenshots, publish the Google Doc/demo video, complete final deployed audit packaging, and submit only after explicit user approval.
+External approval/credential step: retry Chrome/GCP/Firebase/AI Studio screenshot capture in an approved authenticated Chrome session, publish the Google Doc/demo video if desired, complete final deployed audit packaging, and submit only after explicit user approval.

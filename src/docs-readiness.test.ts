@@ -49,7 +49,10 @@ describe("documentation release readiness", () => {
     expect(evidence).toContain("Public Google Doc URL: not created in this checkpoint.");
     expect(evidence).toContain("Demo video URL: not created in this checkpoint.");
     expect(demo).toContain("not created in this local rebuild");
-    expect(docDraft).toContain("Do not add public URLs until they exist.");
+    expect(docDraft).toContain("Live application: https://civiclens-py7ixxgroq-as.a.run.app");
+    expect(docDraft).toContain("GitHub repository: https://github.com/amanmaqsood/civiclens");
+    expect(docDraft).toContain("Optional demo video not included.");
+    expect(docDraft).toContain("Do not claim screenshot capture until files exist");
   });
 
   it("documents production Firebase, App Check, and Cloud Run configuration truthfully", () => {

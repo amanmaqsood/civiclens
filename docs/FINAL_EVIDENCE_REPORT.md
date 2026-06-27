@@ -4,7 +4,7 @@ Generated during the CivicLens rebuild and deployment checkpoints on 2026-06-26 
 
 ## Scope
 
-This report records local validation, GitHub sync, Firebase Rules deployment, Secret Manager verification, and Cloud Run deployment evidence. It does not claim Google Doc publication, demo video publication, or hackathon submission.
+This report records local validation, GitHub sync, Firebase Rules deployment, Secret Manager verification, Cloud Run deployment evidence, Maps browser-key restriction, and Google Doc draft preparation. It does not claim Google Doc publication, demo video publication, screenshot capture completion, or hackathon submission.
 
 ## Repository State
 
@@ -80,14 +80,63 @@ Release-blocking fixes found during deployed smoke:
 - `602fb57`: omitted undefined optional closure image fields before Firestore writes.
 - `fcf8946`: changed the document title to prototype-scoped language.
 
+## Final Evidence, Public-Key Restriction, and Google Doc Preparation Checkpoint
+
+This checkpoint was performed on 2026-06-27 against the deployed Cloud Run service and repository state. It did not submit to BlockseBlock, change billing, delete resources, rotate keys, print secret values, publish a Google Doc, or publish a demo video.
+
+Repository state at checkpoint start:
+
+- `git status --short`: clean.
+- `git log --oneline -5`: `a96e283`, `fcf8946`, `602fb57`, `5032145`, `b2c24b5`.
+- Remote: `https://github.com/amanmaqsood/civiclens.git`.
+- Branch: `master`.
+
+Public deployment health:
+
+- `https://civiclens-py7ixxgroq-as.a.run.app/health`: 200 with `status: ok`, `service: civiclens`, `mode: production`, timestamp `2026-06-27T06:26:12.736Z`.
+- `https://civiclens-py7ixxgroq-as.a.run.app/readyz`: 200 with `ready: true`, `adminDb: true`, `geminiConfigured: true`, `configValid: true`, no missing config values, and the warning `CIVICLENS_REQUIRE_APP_CHECK is not true; backend App Check enforcement is disabled.`
+- Cloud Run service metadata showed `civiclens-00034-82x` as latest ready and latest created revision, with 100 percent traffic and URL `https://civiclens-py7ixxgroq-as.a.run.app`.
+
+Maps browser key:
+
+- The configured browser Maps key was confirmed to be distinct from the Firebase browser API key and not used by server-side Maps calls in the current code.
+- The key resource is `projects/802067002365/locations/global/keys/40791961-8f4f-4f92-8a0b-292dbfe48c88`, display name `Browser key (auto created by Firebase)`.
+- Application restriction: HTTP referrers.
+- Allowed referrers:
+  - `https://civiclens-py7ixxgroq-as.a.run.app/*`
+  - `https://civiclens-802067002365.asia-southeast1.run.app/*`
+  - `http://localhost:*`
+- API target: `maps-backend.googleapis.com`.
+- Restriction update time reported by Google Cloud: `2026-06-27T06:22:02.908789Z`.
+
+App Check status:
+
+- App Check integration exists, but enforcement is disabled for this hackathon deployment to avoid blocking judge access.
+- `CIVICLENS_REQUIRE_APP_CHECK=false` remains the truthful deployment state until a Firebase App Check site key is configured and live browser requests are confirmed to send valid `X-Firebase-AppCheck` tokens.
+
+Google Doc draft:
+
+- `docs/GOOGLE_DOC_DRAFT.md` was rewritten as final copy-ready draft content with live app link, GitHub link, optional demo-video status, problem statement, product thesis, user journey, implemented features, agentic workflow, Google technologies, architecture, security/human oversight, innovation, product experience, metrics, testing/deployment evidence, screenshot checklist, walkthrough, limitations, attributions, and links.
+- The draft explicitly states that CivicLens is a prototype and avoids claims of official filing, automatic authority submission, legal verification, immutable audit guarantees, App Check enforcement, or fake metrics.
+- Demo data is described as synthetic.
+
+Screenshot status:
+
+- `docs/evidence/final/` exists, but no final screenshots were captured in this checkpoint.
+- Chrome extension communication failed twice before this checkpoint could capture Chrome/GCP/Firebase screenshots. The workflow requires user permission before opening a fresh Chrome window/profile to retry.
+- No screenshots were committed.
+
 ## Latest Completed Validation
 
-Final deployment validation results:
+Final evidence checkpoint validation results:
 
 - `npm run lint`: passed (`tsc --noEmit`).
 - `npm test`: passed (15 test files passed, 2 emulator-only files skipped by default; 71 tests passed, 7 skipped).
 - `npm run build`: passed. Warnings remain: Firebase chunk is larger than 500 kB (`assets/firebase-Ct40zCNZ.js`, 718.27 kB / 179.73 kB gzip), and `src/services/issues.ts` is still both dynamically and statically imported.
 - `npm audit --omit=dev`: passed; 0 vulnerabilities.
+
+Previously completed deployment validation also included:
+
 - `npm run test:rules`: passed (1 Firestore/Storage emulator test file, 3 tests).
 - `npm run test:concurrency`: passed (1 Firestore emulator test file, 4 tests).
 - Cloud Run `/health`: 200 on both public hostnames.
@@ -134,6 +183,7 @@ Final deployment validation results:
 - Public app URL: `https://civiclens-py7ixxgroq-as.a.run.app`.
 - Public Google Doc URL: not created in this checkpoint.
 - Demo video URL: not created in this checkpoint.
+- Final screenshot package: not captured in this checkpoint because Chrome extension communication failed and opening a fresh Chrome window/profile still requires user approval.
 
 ## Remaining Local Gaps
 
@@ -141,7 +191,7 @@ Final deployment validation results:
 - Browser E2E uses seeded synthetic emulator data; the deployed smoke used live Gemini/API calls and synthetic images, but final judge-facing screenshot/video packaging is still pending.
 - Local production `/readyz` fails without production secrets, as expected. Cloud Run `/readyz` is passing in the deployed environment.
 - Production App Check enforcement has not been deployed or smoke-tested. Keep `CIVICLENS_REQUIRE_APP_CHECK=false` until a Firebase App Check site key is configured and browser requests are verified to send `X-Firebase-AppCheck`.
-- Restrict the Maps browser key to the final Cloud Run origin before broader public sharing.
+- Maps browser-key referrer and API restrictions were applied during the final evidence checkpoint.
 - Cloud Build install stage still reports 3 moderate dev-dependency vulnerabilities. Runtime install and `npm audit --omit=dev` report 0 production vulnerabilities.
 - Chrome UI file upload automation was blocked by the Codex extension file URL setting; API-backed smoke covered report save/Gemini/agent/closure with synthetic inline image payloads, and manual photo upload should still be checked in Chrome.
 

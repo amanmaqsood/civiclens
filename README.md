@@ -91,4 +91,6 @@ Cloud Run deployment is documented in `docs/DEPLOYMENT_CLOUD_RUN.md` and was per
 - Final deployed revision: `civiclens-00034-82x`
 - Final deployed commit: `fcf8946`
 
-Demo video publication, Google Doc publication, final screenshot packaging, App Check enforcement, Maps key origin restriction, and final hackathon submission still require explicit approval.
+Maps browser-key restrictions were applied for the public Cloud Run origins and localhost during the final evidence checkpoint. App Check integration exists, but enforcement is disabled for this hackathon deployment to avoid blocking judge access.
+
+Demo video publication, Google Doc publication, final screenshot packaging, App Check enforcement, and final hackathon submission still require explicit approval.

@@ -22,6 +22,11 @@ describe("UX redesign contract", () => {
     expect(floatingAction).toContain('id="floating-report-cta"');
     expect(header).toContain("sticky top-0");
     expect(header).toContain("min-h-[44px]");
+    expect(header).toContain('id="header-account-button"');
+    expect(header).toContain('id="account-menu"');
+    expect(header).toContain("Citizen session");
+    expect(header).toContain("Operator access status");
+    expect(header).toContain("Sign in with Google");
   });
 
   it("keeps the landing page map-first and truthful about synthetic demo data", () => {
@@ -29,10 +34,13 @@ describe("UX redesign contract", () => {
 
     expect(landing).toContain("CivicLens Field Command Center");
     expect(landing).toContain("Review map cases");
+    expect(landing).toContain("Demo stories");
     expect(landing).toContain("Synthetic demo visible");
     expect(landing).toContain("slice(0, 3)");
     expect(landing).toContain('id="show-all-demo-data"');
+    expect(landing).toContain("isInternalSmokeTestIssue");
     expect(landing).toContain("They are not live civic complaints");
+    expect(landing).toContain("Independent civic pilot. Drafts stay inside CivicLens until a human acts outside the app.");
   });
 
   it("keeps the report flow stepper, location denial, and manual pin fallback", () => {
@@ -44,6 +52,8 @@ describe("UX redesign contract", () => {
     expect(report).toContain('id="manual-pin-fallback"');
     expect(report).toContain("Use manual map pin");
     expect(report).toContain("Coordinates missing. Use location or manual pin.");
+    expect(report).toContain("Take photo or upload proof");
+    expect(report.match(/capture="environment"/g)?.length || 0).toBeGreaterThanOrEqual(2);
     expect(clarification).toContain("Low-confidence Gemini triage");
   });
 
@@ -60,6 +70,7 @@ describe("UX redesign contract", () => {
     expect(detail).toContain("Persisted run");
     expect(queue).toContain("Demo actions are server-limited");
     expect(closure).toContain("recommendation");
+    expect(closure).toContain("capture=\"environment\"");
     expect(closure).not.toContain("auto-resolve");
   });
 });

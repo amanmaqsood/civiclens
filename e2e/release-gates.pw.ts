@@ -8,6 +8,7 @@ const require = createRequire(import.meta.url);
 const axeSource = readFileSync(require.resolve("axe-core/axe.min.js"), "utf8");
 const issueId = "e2e-demo-pothole";
 const extraDemoIssueIds = ["e2e-demo-water", "e2e-demo-light", "e2e-demo-hidden"];
+const smokeIssueId = "e2e-smoke-hidden";
 const projectId = process.env.FIREBASE_PROJECT_ID || process.env.GOOGLE_CLOUD_PROJECT || process.env.GCLOUD_PROJECT || "demo-civiclens";
 const databaseId = process.env.FIRESTORE_DATABASE_ID || "(default)";
 
@@ -38,6 +39,31 @@ async function seedDemoIssue() {
     urgency: "priority",
     priorityScore: 58,
     isDemoData: true,
+  });
+
+  await db.collection("issues").doc(smokeIssueId).set({
+    id: smokeIssueId,
+    ticketId: "CVL-E2E-SMOKE",
+    title: "Synthetic Cloud Run smoke test pothole",
+    summary: "Internal smoke-test record that must not appear in public feed or metrics.",
+    description: "Internal-test record from release validation.",
+    image: "",
+    lat: 12.9916,
+    lng: 77.6146,
+    locationName: "Cloud Run smoke test area",
+    category: "pothole",
+    status: "submitted",
+    timestamp: createdAt,
+    createdAt,
+    userId: "seeded-e2e",
+    citizenUpvotes: 0,
+    reportCount: 1,
+    confirmCount: 0,
+    disputeCount: 0,
+    severity: 2,
+    urgency: "routine",
+    priorityScore: 99,
+    isDemoData: false,
   });
 
   const extraDemoCases = [
@@ -190,15 +216,19 @@ for (const viewport of [
 
     await expect(page.getByRole("heading", { name: "CivicLens Field Command Center" })).toBeVisible();
     await expect(page.locator("#report-issue-btn")).toBeVisible();
-    await expect(page.getByText("Sample data")).toBeVisible();
+    await expect(page.getByText("Demo stories", { exact: true })).toBeVisible();
     await expect(page.getByText("E2E demo pothole")).toBeVisible();
     await expect(page.getByText("E2E hidden demo overflow")).toHaveCount(0);
+    await expect(page.getByText("Synthetic Cloud Run smoke test pothole")).toHaveCount(0);
     await expect(page.getByText("Metrics are calculated from the records currently loaded")).toBeVisible();
     await expect(page.locator("header")).toHaveCSS("position", "sticky");
 
     if (viewport.name === "mobile") {
       await expect(page.locator("#mobile-bottom-nav")).toBeVisible();
+      await expect(page.locator("#mobile-bottom-nav")).toHaveCSS("position", "fixed");
       await expect(page.locator("#floating-report-cta")).toBeVisible();
+      await page.evaluate(() => window.scrollTo(0, document.body.scrollHeight));
+      await expect(page.locator("header")).toBeVisible();
     }
 
     await expectNoHorizontalOverflow(page);
@@ -227,12 +257,26 @@ test("mobile report flow exposes stepper, location denial, and manual pin fallba
 
   await page.locator("#floating-report-cta").click();
   await expect(page.locator("#report-stepper")).toBeVisible();
+  await expect(page.locator('input[type="file"][accept="image/*"]').first()).toHaveAttribute("capture", "environment");
   await expect(page.getByRole("button", { name: /Use my location/i })).toBeVisible();
   await expect(page.locator("#manual-pin-fallback")).toBeVisible();
   await page.getByRole("button", { name: /Use manual map pin/i }).click();
   await expect(page.getByText("Coordinates locked.")).toBeVisible();
   await expectNoHorizontalOverflow(page);
   await expectNoHighImpactAxeViolations(page);
+});
+
+test("header account menu explains citizen session and operator access", async ({ page }) => {
+  await preparePage(page, { width: 1280, height: 900 });
+
+  await expect(page.locator("#header-account-button")).toBeVisible();
+  await expect(page.locator("#header-account-button")).toHaveAccessibleName("Open account menu");
+  await page.locator("#header-account-button").click();
+
+  await expect(page.locator("#account-menu")).toBeVisible();
+  await expect(page.getByText("Citizen session")).toBeVisible();
+  await expect(page.getByText("Sign in with Google").first()).toBeVisible();
+  await expect(page.getByText(/Operator access status: (none|demo|real)/)).toBeVisible();
 });
 
 test("persisted agent run remains visible after refresh", async ({ page }) => {

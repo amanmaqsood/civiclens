@@ -4,6 +4,7 @@ import { ActiveView, IssueReport } from "../types";
 import IssueListWithFilter from "./IssueListWithFilter";
 import Onboarding from "./Onboarding";
 import { useLanguage } from "../context/LanguageContext";
+import { isInternalSmokeTestIssue } from "../utils/issueVisibility";
 
 const HomeMap = lazy(() => import("./HomeMap"));
 
@@ -41,27 +42,29 @@ export default function LandingPage({
   });
   const [showAllDemoData, setShowAllDemoData] = useState(false);
 
-  const { visibleIssues, demoIssues, hiddenDemoCount } = useMemo(() => {
-    const real = issues.filter((issue) => !issue.isDemoData);
-    const demo = issues.filter((issue) => issue.isDemoData);
+  const { visibleIssues, demoIssues, hiddenDemoCount, publicIssues } = useMemo(() => {
+    const publicIssues = issues.filter((issue) => !isInternalSmokeTestIssue(issue));
+    const real = publicIssues.filter((issue) => !issue.isDemoData);
+    const demo = publicIssues.filter((issue) => issue.isDemoData);
     const curatedDemo = [...demo]
       .sort((a, b) => (b.priorityScore || 0) - (a.priorityScore || 0))
       .slice(0, 3);
     return {
-      visibleIssues: showAllDemoData ? issues : [...real, ...curatedDemo],
+      visibleIssues: showAllDemoData ? publicIssues : [...real, ...curatedDemo],
       demoIssues: demo,
       hiddenDemoCount: Math.max(0, demo.length - curatedDemo.length),
+      publicIssues,
     };
   }, [issues, showAllDemoData]);
 
-  const activeCount = issues.filter((issue) => issue.status === "submitted" || issue.status === "verified" || issue.status === "in_progress").length;
-  const resolvedCount = issues.filter((issue) => issue.status === "resolved").length;
+  const activeCount = publicIssues.filter((issue) => issue.status === "submitted" || issue.status === "verified" || issue.status === "in_progress").length;
+  const resolvedCount = publicIssues.filter((issue) => issue.status === "resolved").length;
 
   const proofCards = [
     {
       icon: Camera,
       title: "Field report",
-      body: "Photo, description, and location are captured as a draft prototype case.",
+      body: "Photo, description, and location are captured as a draft pilot case.",
     },
     {
       icon: Sparkles,
@@ -86,7 +89,7 @@ export default function LandingPage({
               <Users className="h-5 w-5" />
             </div>
             <div className="min-w-0 flex-1">
-              <p className="text-base font-bold">Sample data</p>
+              <p className="text-base font-bold">Demo stories</p>
               <p className="mt-1 max-w-3xl text-base leading-relaxed text-[#334155]">
                 These Bengaluru cases are synthetic demo stories for judging the workflow. They are not live civic complaints.
               </p>
@@ -95,7 +98,7 @@ export default function LandingPage({
               type="button"
               onClick={() => setShowDemoBanner(false)}
               className="flex min-h-[44px] min-w-[44px] items-center justify-center rounded-xl text-xl font-bold text-slate hover:bg-white/70 hover:text-ink"
-              aria-label="Dismiss sample data notice"
+              aria-label="Dismiss demo stories notice"
             >
               &times;
             </button>
@@ -108,7 +111,7 @@ export default function LandingPage({
           <div className="relative z-10 flex h-full min-h-[360px] flex-col justify-between gap-8">
             <div className="flex flex-col gap-5">
               <span className="w-fit rounded-lg bg-marigold px-3 py-1 text-sm font-bold text-ink">
-                CivicLens prototype
+                CivicLens pilot
               </span>
               <div className="max-w-2xl">
                 <h2 className="text-4xl font-black leading-[1.02] tracking-normal text-white sm:text-5xl lg:text-6xl">
@@ -158,7 +161,7 @@ export default function LandingPage({
           <div className="mb-3 flex items-center justify-between gap-3">
             <div>
               <h3 className="text-xl font-bold text-ink">Live map</h3>
-              <p className="mt-1 text-base text-[#334155]">Map-first preview of saved prototype cases.</p>
+              <p className="mt-1 text-base text-[#334155]">Map-first preview of saved pilot cases.</p>
             </div>
             {demoIssues.length > 0 && (
               <span className="rounded-lg border border-marigold/30 bg-marigold/10 px-3 py-1 text-sm font-bold text-[#7A4300]">
@@ -180,7 +183,7 @@ export default function LandingPage({
       <section className="grid gap-4 md:grid-cols-3">
         <div className="rounded-2xl border border-hairline bg-white p-5 shadow-xs">
           <p className="text-sm font-bold text-[#334155]">Loaded records</p>
-          <p id="stats-total-reported" className="mt-2 text-4xl font-black text-marigold">{issues.length}</p>
+          <p id="stats-total-reported" className="mt-2 text-4xl font-black text-marigold">{publicIssues.length}</p>
           <p className="mt-1 text-base text-[#334155]">Current query page only</p>
         </div>
         <div className="rounded-2xl border border-hairline bg-white p-5 shadow-xs">
@@ -246,7 +249,7 @@ export default function LandingPage({
       <div className="flex items-center justify-center gap-2 py-2 text-center">
         <CheckCircle2 className="h-4 w-4 text-verify" />
         <span className="text-sm font-semibold text-[#334155]">
-          Independent civic prototype. Drafts stay inside CivicLens until a human acts outside the app.
+          Independent civic pilot. Drafts stay inside CivicLens until a human acts outside the app.
         </span>
       </div>
     </div>

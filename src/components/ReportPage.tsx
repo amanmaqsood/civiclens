@@ -364,13 +364,14 @@ export default function ReportPage({ onBack, onSubmit, prefilledLocation, prefil
               ref={fileInputRef}
               onChange={handleImageChange}
               accept="image/*"
+              capture="environment"
               className="hidden"
             />
             <div className="w-10 h-10 rounded-full bg-white flex items-center justify-center border border-hairline group-hover:text-marigold transition-all select-none">
               <Camera className="w-5 h-5 text-slate group-hover:text-marigold" />
             </div>
             <div className="text-center">
-              <p className="text-base font-semibold text-ink">Attach photo proof</p>
+              <p className="text-base font-semibold text-ink">Take photo or upload proof</p>
               <p className="text-sm text-[#334155] mt-0.5">JPEG, PNG, or WebP. The browser compresses it before upload.</p>
             </div>
           </div>
@@ -393,7 +394,7 @@ export default function ReportPage({ onBack, onSubmit, prefilledLocation, prefil
                 <Trash2 className="w-4 h-4 mx-auto" />
               </button>
             </div>
-            <input type="file" ref={fileInputRef} onChange={handleImageChange} accept="image/*" className="hidden" />
+            <input type="file" ref={fileInputRef} onChange={handleImageChange} accept="image/*" capture="environment" className="hidden" />
           </div>
         )}
       </div>

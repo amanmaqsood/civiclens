@@ -2,6 +2,7 @@ import React, { useMemo, useState } from "react";
 import { IssueReport } from "../types";
 import { ArrowLeft, CheckCircle, Copy, Clock, Layers } from "lucide-react";
 import { ISSUE_STATUS_KEYS, IssueStatusKey, issueStatusLabel } from "../constants/status";
+import { isInternalSmokeTestIssue } from "../utils/issueVisibility";
 
 interface ImpactDashboardProps {
   issues: IssueReport[];
@@ -85,8 +86,9 @@ export default function ImpactDashboard({
   loadedPageSize = 50,
 }: ImpactDashboardProps) {
   const [scope, setScope] = useState<DashboardScope>("real");
-  const realIssues = useMemo(() => issues.filter((issue) => !issue.isDemoData), [issues]);
-  const demoIssues = useMemo(() => issues.filter((issue) => issue.isDemoData), [issues]);
+  const publicIssues = useMemo(() => issues.filter((issue) => !isInternalSmokeTestIssue(issue)), [issues]);
+  const realIssues = useMemo(() => publicIssues.filter((issue) => !issue.isDemoData), [publicIssues]);
+  const demoIssues = useMemo(() => publicIssues.filter((issue) => issue.isDemoData), [publicIssues]);
   const scopedIssues = scope === "real" ? realIssues : demoIssues;
   const metrics = useMemo(() => buildMetrics(scopedIssues), [scopedIssues]);
   const maxCategoryCount = Math.max(...Object.values(metrics.categoryCounts), 1);
@@ -110,7 +112,7 @@ export default function ImpactDashboard({
           <ArrowLeft className="w-4 h-4 text-ink" />
         </button>
         <div>
-          <span className="text-sm font-mono text-slate block">Prototype impact dashboard</span>
+          <span className="text-sm font-mono text-slate block">Pilot impact dashboard</span>
           <h2 className="text-3xl font-display font-black text-ink">Loaded incident ledger</h2>
         </div>
       </div>

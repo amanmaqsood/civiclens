@@ -37,7 +37,7 @@ export default function ReportAiEditForm({
       <div className="bg-marigold/10 border border-marigold/15 p-3 rounded-xl flex items-start gap-2.5">
         <Info className="w-4 h-4 text-marigold shrink-0 mt-0.5" />
         <p className="text-base text-ink/90 font-medium font-sans leading-relaxed">
-          Gemini drafted this report summary. Review and edit it before saving it to the CivicLens prototype.
+          Gemini drafted this report summary. Review and edit it before saving it to the CivicLens pilot.
         </p>
       </div>
 

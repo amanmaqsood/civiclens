@@ -159,6 +159,7 @@ export default function ClosureVerificationPanel({ issue, onVerified }: ClosureV
                 id="after-image-verification-file-input"
                 type="file"
                 accept="image/*"
+                capture="environment"
                 onChange={handleFileChange}
                 className="absolute inset-0 opacity-0 cursor-pointer w-full h-full"
               />

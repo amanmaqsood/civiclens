@@ -1,5 +1,5 @@
-import React from "react";
-import { ArrowLeft, BarChart3, LogIn, LogOut, UserCircle } from "lucide-react";
+import React, { useEffect, useRef, useState } from "react";
+import { ArrowLeft, BarChart3, ChevronDown, LogIn, LogOut, ShieldCheck, UserCircle } from "lucide-react";
 import { ActiveView } from "../types";
 import { useFirebase } from "../context/FirebaseContext";
 import { useLanguage } from "../context/LanguageContext";
@@ -15,8 +15,41 @@ interface HeaderProps {
 export default function Header({ currentView, onNavigate, persona, onTogglePersona, operatorAccess }: HeaderProps) {
   const { user, signInWithGoogle, signOutUser, loading } = useFirebase();
   const { language, setLanguage } = useLanguage();
+  const [accountOpen, setAccountOpen] = useState(false);
+  const accountMenuRef = useRef<HTMLDivElement>(null);
   const signedInWithGoogle = !!user && !user.isAnonymous;
   const canShowOperatorDesk = operatorAccess !== "none";
+  const citizenSessionLabel = signedInWithGoogle ? "Google signed in" : user ? "Anonymous active" : "Starting session";
+  const operatorAccessLabel = operatorAccess === "real" ? "real" : operatorAccess === "demo" ? "demo" : "none";
+
+  useEffect(() => {
+    if (!accountOpen) return;
+
+    const handlePointerDown = (event: MouseEvent) => {
+      if (!accountMenuRef.current?.contains(event.target as Node)) {
+        setAccountOpen(false);
+      }
+    };
+    const handleKeyDown = (event: KeyboardEvent) => {
+      if (event.key === "Escape") setAccountOpen(false);
+    };
+
+    document.addEventListener("mousedown", handlePointerDown);
+    document.addEventListener("keydown", handleKeyDown);
+    return () => {
+      document.removeEventListener("mousedown", handlePointerDown);
+      document.removeEventListener("keydown", handleKeyDown);
+    };
+  }, [accountOpen]);
+
+  const handleAuthAction = async () => {
+    setAccountOpen(false);
+    if (signedInWithGoogle) {
+      await signOutUser();
+    } else {
+      await signInWithGoogle();
+    }
+  };
 
   return (
     <header
@@ -50,7 +83,7 @@ export default function Header({ currentView, onNavigate, persona, onTogglePerso
             </h1>
             <p className="text-sm font-medium leading-tight text-[#94a3b8]">
               {persona === "citizen"
-                ? "India prototype reports"
+                ? "CivicLens field reports"
                 : operatorAccess === "real"
                   ? "Server-authorized operator"
                   : "Synthetic demo desk"}
@@ -132,16 +165,65 @@ export default function Header({ currentView, onNavigate, persona, onTogglePerso
         {loading ? (
           <div className="h-6 w-6 rounded-full bg-white/10 animate-pulse" />
         ) : (
-          <button
-            type="button"
-            onClick={() => signedInWithGoogle ? signOutUser() : signInWithGoogle()}
-            className="flex min-h-[44px] items-center gap-1 rounded-lg border border-white/10 bg-white/5 px-2 py-1 text-paper transition-colors hover:bg-white/10 hover:text-white"
-            title={signedInWithGoogle ? "Sign out" : "Sign in with Google"}
-            aria-label={signedInWithGoogle ? "Sign out" : "Sign in with Google"}
-          >
-            {signedInWithGoogle ? <LogOut className="h-3.5 w-3.5 text-marigold" /> : <LogIn className="h-3.5 w-3.5 text-marigold" />}
-            <UserCircle className="h-5 w-5 text-marigold" />
-          </button>
+          <div ref={accountMenuRef} className="relative">
+            <button
+              id="header-account-button"
+              type="button"
+              onClick={() => setAccountOpen((open) => !open)}
+              className="flex min-h-[44px] items-center gap-2 rounded-lg border border-white/10 bg-white/5 px-2 py-1 text-paper transition-colors hover:bg-white/10 hover:text-white"
+              title="Open account menu"
+              aria-label="Open account menu"
+              aria-haspopup="dialog"
+              aria-expanded={accountOpen}
+              aria-controls="account-menu"
+            >
+              <UserCircle className="h-5 w-5 text-marigold" />
+              <span className="hidden text-sm font-bold sm:inline">{signedInWithGoogle ? "Account" : "Sign in"}</span>
+              <ChevronDown className={`h-3.5 w-3.5 transition-transform ${accountOpen ? "rotate-180" : ""}`} />
+            </button>
+
+            {accountOpen && (
+              <div
+                id="account-menu"
+                role="dialog"
+                aria-label="Account menu"
+                className="absolute right-0 top-[calc(100%+0.5rem)] z-50 w-[min(18rem,calc(100vw-1.5rem))] rounded-2xl border border-hairline bg-white p-3 text-ink shadow-xl"
+              >
+                <div className="flex items-start gap-2 rounded-xl bg-paper p-3">
+                  <UserCircle className="mt-0.5 h-5 w-5 shrink-0 text-marigold" />
+                  <div>
+                    <p className="text-sm font-black text-ink">Citizen session</p>
+                    <p className="mt-0.5 text-sm font-semibold text-[#334155]">{citizenSessionLabel}</p>
+                  </div>
+                </div>
+
+                <div className="mt-2 flex items-start gap-2 rounded-xl border border-hairline p-3">
+                  <ShieldCheck className="mt-0.5 h-5 w-5 shrink-0 text-[#0F766E]" />
+                  <div>
+                    <p className="text-sm font-black text-ink">Operator access status: {operatorAccessLabel}</p>
+                    <p className="mt-0.5 text-sm leading-relaxed text-[#334155]">
+                      Demo operator actions are limited to synthetic cases; real operator actions require server authorization.
+                    </p>
+                  </div>
+                </div>
+
+                <div className="mt-2 rounded-xl border border-hairline p-3">
+                  <p className="text-sm font-black text-ink">Sign in with Google</p>
+                  <p className="mt-0.5 text-sm leading-relaxed text-[#334155]">
+                    Optional for citizen continuity. Anonymous reporting stays available.
+                  </p>
+                  <button
+                    type="button"
+                    onClick={handleAuthAction}
+                    className="mt-3 inline-flex min-h-[44px] w-full items-center justify-center gap-2 rounded-xl bg-ink px-4 text-base font-bold text-white hover:bg-[#1f314d]"
+                  >
+                    {signedInWithGoogle ? <LogOut className="h-4 w-4 text-marigold" /> : <LogIn className="h-4 w-4 text-marigold" />}
+                    {signedInWithGoogle ? "Sign out" : "Sign in with Google"}
+                  </button>
+                </div>
+              </div>
+            )}
+          </div>
         )}
       </div>
     </header>

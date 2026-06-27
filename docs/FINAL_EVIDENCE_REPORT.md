@@ -4,7 +4,7 @@ Generated during the CivicLens rebuild and deployment checkpoints on 2026-06-26 
 
 ## Scope
 
-This report records local validation, GitHub sync, Firebase Rules deployment, Secret Manager verification, Cloud Run deployment evidence, Maps browser-key restriction, and Google Doc draft preparation. It does not claim Google Doc publication, demo video publication, screenshot capture completion, or hackathon submission.
+This report records local validation, GitHub sync, Firebase Rules deployment, Secret Manager verification, Cloud Run deployment evidence, Maps browser-key restriction, public screenshot capture, and Google Doc draft preparation. It does not claim Google Doc publication, demo video publication, authenticated console screenshot capture completion, or hackathon submission.
 
 ## Repository State
 
@@ -122,9 +122,10 @@ Google Doc draft:
 
 Screenshot status:
 
-- `docs/evidence/final/` exists, but no final screenshots were captured in this checkpoint.
-- Chrome extension communication failed twice before this checkpoint could capture Chrome/GCP/Firebase screenshots. The workflow requires user permission before opening a fresh Chrome window/profile to retry.
-- No screenshots were committed.
+- Public, non-authenticated screenshots were captured under `docs/evidence/final/` using Chrome through a Playwright page-content fallback. The manifest is `docs/evidence/final/PUBLIC_SCREENSHOT_MANIFEST-2026-06-27.json`.
+- Captured public targets include app homepage, report flow start, synthetic/demo label, map, saved issue detail, persisted agent tool steps, post-refresh persisted trace, demo operator synthetic-only view, live 403 API denial for demo operator on a non-demo issue, closure recommendation with status timeline, desktop layout, mobile layout, `/health` 200, `/readyz` 200, and the public GitHub repository page.
+- Headless page-content screenshots do not include the browser address bar; exact URLs are recorded in the manifest and this report.
+- Authenticated GCP/Firebase/AI Studio console screenshots were not captured because Chrome extension communication failed twice and opening a fresh authenticated Chrome window/profile still requires user approval.
 
 ## Latest Completed Validation
 
@@ -134,6 +135,7 @@ Final evidence checkpoint validation results:
 - `npm test`: passed (15 test files passed, 2 emulator-only files skipped by default; 71 tests passed, 7 skipped).
 - `npm run build`: passed. Warnings remain: Firebase chunk is larger than 500 kB (`assets/firebase-Ct40zCNZ.js`, 718.27 kB / 179.73 kB gzip), and `src/services/issues.ts` is still both dynamically and statically imported.
 - `npm audit --omit=dev`: passed; 0 vulnerabilities.
+- After adding the public screenshot package and updating screenshot-status wording, `npm run lint` passed, the first `npm test` run failed because `src/docs-readiness.test.ts` still expected the old "no screenshots" guard, the assertion was updated to the authenticated-console screenshot guard, `npm test` then passed again (15 files passed, 2 skipped; 71 tests passed, 7 skipped), `npm run build` passed with the same known warnings, and `npm audit --omit=dev` passed with 0 vulnerabilities.
 
 Previously completed deployment validation also included:
 
@@ -177,18 +179,18 @@ Previously completed deployment validation also included:
 
 ## External Blockers
 
-- Explicit user approval is still required before demo video publication, Google Doc publication, final public screenshot packaging, or hackathon submission.
-- Real final screenshots for AI Studio/GCP/Cloud Run evidence still need capture and packaging.
+- Explicit user approval is still required before demo video publication, Google Doc publication, authenticated console screenshot packaging, or hackathon submission.
+- Authenticated final screenshots for AI Studio/GCP/Firebase console evidence still need capture and packaging.
 - Public GitHub URL: `https://github.com/amanmaqsood/civiclens`.
 - Public app URL: `https://civiclens-py7ixxgroq-as.a.run.app`.
 - Public Google Doc URL: not created in this checkpoint.
 - Demo video URL: not created in this checkpoint.
-- Final screenshot package: not captured in this checkpoint because Chrome extension communication failed and opening a fresh Chrome window/profile still requires user approval.
+- Public screenshot package: captured in `docs/evidence/final/` with a manifest. Authenticated GCP/Firebase/AI Studio screenshots remain uncaptured because Chrome extension communication failed and opening a fresh Chrome window/profile still requires user approval.
 
 ## Remaining Local Gaps
 
 - Transaction/concurrency behavior has focused parallel emulator coverage for support, verification, duplicate evidence, and status-transition writes; a full API-level race matrix remains future hardening.
-- Browser E2E uses seeded synthetic emulator data; the deployed smoke used live Gemini/API calls and synthetic images, but final judge-facing screenshot/video packaging is still pending.
+- Browser E2E uses seeded synthetic emulator data; the deployed smoke used live Gemini/API calls and synthetic images. Public screenshot packaging exists, while authenticated console screenshot/video packaging is still pending.
 - Local production `/readyz` fails without production secrets, as expected. Cloud Run `/readyz` is passing in the deployed environment.
 - Production App Check enforcement has not been deployed or smoke-tested. Keep `CIVICLENS_REQUIRE_APP_CHECK=false` until a Firebase App Check site key is configured and browser requests are verified to send `X-Firebase-AppCheck`.
 - Maps browser-key referrer and API restrictions were applied during the final evidence checkpoint.

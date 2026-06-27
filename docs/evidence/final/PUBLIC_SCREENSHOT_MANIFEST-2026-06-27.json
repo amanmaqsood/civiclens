@@ -1,0 +1,99 @@
+{
+  "capturedAt": "2026-06-27T06:41:31.233Z",
+  "browser": "chrome",
+  "source": "Playwright page-content fallback; authenticated Chrome extension control was unavailable.",
+  "baseUrl": "https://civiclens-py7ixxgroq-as.a.run.app",
+  "screenshots": [
+    {
+      "file": "agent-trace-after-refresh-public-chrome-content-2026-06-27.png",
+      "description": "After page reload and re-opening the saved issue, persisted agent trace/tool steps are still present.",
+      "browser": "chrome"
+    },
+    {
+      "file": "app-homepage-desktop-public-chrome-content-2026-06-27.png",
+      "description": "Public Cloud Run app homepage, desktop page content.",
+      "browser": "chrome"
+    },
+    {
+      "file": "closure-recommendation-not-auto-resolved-public-chrome-content-2026-06-27.png",
+      "description": "Synthetic demo issue showing persisted closure verdict while status remains submitted/not auto-resolved.",
+      "browser": "chrome"
+    },
+    {
+      "file": "demo-operator-synthetic-only-public-chrome-content-2026-06-27.png",
+      "description": "Synthetic demo operator desk; queue text states demo actions are server-limited to demo data and rows are labelled Demo.",
+      "browser": "chrome"
+    },
+    {
+      "file": "desktop-layout-public-chrome-content-2026-06-27.png",
+      "description": "Desktop responsive layout of the deployed app.",
+      "browser": "chrome"
+    },
+    {
+      "file": "github-public-repository-public-chrome-content-2026-06-27.png",
+      "description": "Public GitHub repository page for CivicLens.",
+      "browser": "chrome"
+    },
+    {
+      "file": "health-200-public-chrome-content-2026-06-27.png",
+      "description": "Public /health endpoint response screenshot.",
+      "browser": "chrome"
+    },
+    {
+      "file": "map-visible-public-chrome-content-2026-06-27.png",
+      "description": "Google Maps surface visible in the deployed app.",
+      "browser": "chrome"
+    },
+    {
+      "file": "mobile-layout-public-chrome-content-2026-06-27.png",
+      "description": "Mobile responsive layout of the deployed app.",
+      "browser": "chrome"
+    },
+    {
+      "file": "persisted-agent-run-tool-steps-public-chrome-content-2026-06-27.png",
+      "description": "Persisted server agent trace/tool steps for the saved smoke issue.",
+      "browser": "chrome"
+    },
+    {
+      "file": "readyz-200-public-chrome-content-2026-06-27.png",
+      "description": "Public /readyz endpoint response screenshot.",
+      "browser": "chrome"
+    },
+    {
+      "file": "real-case-mutation-denied-live-api-summary-public-chrome-content-2026-06-27.png",
+      "description": "Rendered live API result showing demo/anonymous operator denied on a non-demo smoke issue.",
+      "browser": "chrome"
+    },
+    {
+      "file": "report-flow-start-public-chrome-content-2026-06-27.png",
+      "description": "Report flow start screen with proof-photo, location, and description fields.",
+      "browser": "chrome"
+    },
+    {
+      "file": "saved-issue-detail-public-chrome-content-2026-06-27.png",
+      "description": "Saved synthetic smoke issue detail page loaded from the deployed app.",
+      "browser": "chrome"
+    },
+    {
+      "file": "synthetic-demo-label-public-chrome-content-2026-06-27.png",
+      "description": "Homepage/feed showing synthetic demo labels and sample-data disclosure.",
+      "browser": "chrome"
+    },
+    {
+      "file": "closure-recommendation-status-fullpage-public-chrome-content-2026-06-27.png",
+      "description": "Full-page synthetic demo issue detail showing closure recommendation and status timeline so non-auto-resolution can be verified visually.",
+      "browser": "chrome"
+    }
+  ],
+  "apiBoundaryEvidence": {
+    "file": "real-case-mutation-denied-live-api-summary-public-chrome-content-2026-06-27.png",
+    "status": 403,
+    "tokenSaved": false,
+    "tokenPrinted": false
+  },
+  "limitations": [
+    "Headless page-content screenshots do not include the browser address bar; URLs are recorded in this manifest and evidence docs.",
+    "Authenticated GCP/Firebase/AI Studio console screenshots still require an approved authenticated Chrome session.",
+    "No secret values, tokens, billing data, or authenticated account pages are captured in this public screenshot set."
+  ]
+}

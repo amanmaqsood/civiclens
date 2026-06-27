@@ -519,11 +519,12 @@ Remaining risks:
 - Google Doc publication, demo video/public screenshots, final deployed audit packaging, and BlockseBlock submission were not performed and still require explicit approval.
 
 ## Final Evidence, Public-Key Restriction, and Google Doc Preparation Checkpoint
-Status: completed except Chrome/GCP screenshot capture on 2026-06-27
+Status: public evidence captured; authenticated console screenshots still pending on 2026-06-27
 
 Files changed:
 - `docs/GOOGLE_DOC_DRAFT.md`: expanded into final copy-ready Google Doc content with live app/GitHub links, demo-video status, problem statement, journey, features, agent workflow, Google technologies, architecture, human oversight, metrics, testing/deployment evidence, screenshot checklist, limitations, attributions, and links.
-- `docs/FINAL_EVIDENCE_REPORT.md` and `docs/CODEX_PROGRESS.md`: recorded the final evidence checkpoint, public health/readiness checks, Maps key restrictions, App Check enforcement wording, validation results, and screenshot blocker.
+- `docs/FINAL_EVIDENCE_REPORT.md` and `docs/CODEX_PROGRESS.md`: recorded the final evidence checkpoint, public health/readiness checks, Maps key restrictions, App Check enforcement wording, validation results, public screenshot capture, and authenticated-console screenshot blocker.
+- `docs/evidence/final/`: added public Chrome/Playwright page-content screenshots plus `PUBLIC_SCREENSHOT_MANIFEST-2026-06-27.json`.
 - `README.md`: updated deployment status to state that Maps key restrictions are now applied and App Check enforcement remains disabled for judge access.
 - `src/docs-readiness.test.ts`: aligned the documentation readiness assertion with the now-real public app and GitHub links while continuing to guard against unclaimed demo-video and screenshot evidence.
 
@@ -540,18 +541,20 @@ Validation commands:
 - `npm test` after the wording fix: passed (15 files passed, 2 skipped; 71 tests passed, 7 skipped).
 - `npm run build`: passed with known Firebase chunk-size and `src/services/issues.ts` mixed static/dynamic import warnings.
 - `npm audit --omit=dev`: passed; 0 vulnerabilities.
+- After adding public screenshots and updating screenshot-status wording, `npm run lint` passed, the first `npm test` run failed because `src/docs-readiness.test.ts` still expected the older no-screenshot guard, the assertion was updated to the authenticated-console screenshot guard, `npm test` then passed again (15 files passed, 2 skipped; 71 tests passed, 7 skipped), `npm run build` passed with the same known warnings, and `npm audit --omit=dev` passed with 0 vulnerabilities.
 
 Screenshot status:
-- `docs/evidence/final/` exists but remains empty.
-- Chrome extension communication failed twice before screenshot capture could start. Per the Chrome workflow, opening a fresh Chrome window/profile requires user permission; that permission was requested and was not available before this checkpoint documentation update.
-- No screenshots were committed.
+- Public, non-authenticated screenshots were captured with Chrome through a Playwright page-content fallback and recorded in `docs/evidence/final/PUBLIC_SCREENSHOT_MANIFEST-2026-06-27.json`.
+- Captured public targets include app homepage, report flow start, synthetic/demo label, map, saved issue detail, persisted agent tool steps, post-refresh persisted trace, demo operator synthetic-only view, live 403 API denial for demo operator on a non-demo issue, closure recommendation with status timeline, desktop layout, mobile layout, `/health` 200, `/readyz` 200, and the public GitHub repository page.
+- Headless page-content screenshots do not include the browser address bar; exact URLs are recorded in the manifest and evidence docs.
+- Authenticated Cloud Run/Firebase/Secret Manager/AI Studio console screenshots remain pending because Chrome extension communication failed twice and opening a fresh Chrome window/profile requires user permission.
 
 Decisions:
 - Kept `CIVICLENS_REQUIRE_APP_CHECK=false` and documented the exact truth boundary: App Check integration exists, but enforcement is disabled for this hackathon deployment to avoid blocking judge access.
 - Did not change billing, delete resources, rotate keys, print secret values, publish a Google Doc, publish a demo video, submit to BlockseBlock, or make unrelated product changes.
 
 Remaining risks:
-- Chrome/GCP/Firebase/AI Studio screenshot package still needs capture in an authenticated Chrome session after the user approves opening a fresh Chrome window/profile or captures them manually.
+- Authenticated GCP/Firebase/AI Studio screenshot package still needs capture in an authenticated Chrome session after the user approves opening a fresh Chrome window/profile or captures them manually.
 - Google Doc publication, optional demo video, and BlockseBlock submission still require explicit user action/approval.
 - Production App Check enforcement remains disabled until a Firebase App Check site key is configured and verified on the public deployment.
 

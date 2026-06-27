@@ -52,7 +52,7 @@ describe("documentation release readiness", () => {
     expect(docDraft).toContain("Live application: https://civiclens-py7ixxgroq-as.a.run.app");
     expect(docDraft).toContain("GitHub repository: https://github.com/amanmaqsood/civiclens");
     expect(docDraft).toContain("Optional demo video not included.");
-    expect(docDraft).toContain("Do not claim screenshot capture until files exist");
+    expect(docDraft).toContain("Do not claim authenticated console screenshot capture until those files exist");
   });
 
   it("documents production Firebase, App Check, and Cloud Run configuration truthfully", () => {

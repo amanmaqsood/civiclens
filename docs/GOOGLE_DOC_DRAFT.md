@@ -139,9 +139,11 @@ See `docs/FINAL_EVIDENCE_REPORT.md` for exact command outputs, warnings, commit 
 
 ## Screenshots List
 
-The final screenshot package should be stored under `docs/evidence/final/` after capture and review for secrets or private account details. Required evidence targets:
+The public screenshot package is stored under `docs/evidence/final/` with `PUBLIC_SCREENSHOT_MANIFEST-2026-06-27.json`. These are Chrome/Playwright page-content screenshots, so they do not include the browser address bar; exact URLs are recorded in the manifest and evidence report. Authenticated GCP/Firebase/AI Studio console screenshots still require an approved authenticated Chrome session.
 
-- Cloud Run app homepage with URL visible.
+Captured public screenshot targets:
+
+- Cloud Run app homepage page content.
 - Report flow start.
 - Synthetic/demo label visible.
 - Map visible.
@@ -154,17 +156,20 @@ The final screenshot package should be stored under `docs/evidence/final/` after
 - Closure recommendation persisted but not auto-resolved.
 - Desktop layout.
 - Mobile layout.
-- Cloud Run service page with URL and active revision.
 - `/health` 200.
 - `/readyz` 200.
+- GitHub public repository page.
+
+Remaining authenticated console screenshot targets:
+
+- Cloud Run service page with URL and active revision.
 - Firestore Rules deployed.
 - Storage Rules deployed.
 - Secret Manager page showing `GEMINI_API_KEY` secret name only, not value.
 - Firebase Auth enabled providers.
 - AI Studio project/history/export/import/development evidence if available.
-- GitHub public repository page.
 
-At this checkpoint, Chrome extension screenshot automation was not completed. Do not claim screenshot capture until files exist and have been reviewed for secrets, tokens, private emails, billing information, or hidden sensitive data.
+Do not claim authenticated console screenshot capture until those files exist and have been reviewed for secrets, tokens, private emails, billing information, or hidden sensitive data.
 
 ## Demo Walkthrough
 

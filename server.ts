@@ -1840,11 +1840,11 @@ Return a STRICT JSON response adhering precisely to this schema. Do not include 
       const retried = result.retried;
 
       const responseText = (response.text || "").trim();
-      let cleanText = responseText;
+      let cleanResponseText = responseText;
       // Strip markdown code fences if present
-      cleanText = cleanText.replace(/^```(?:json)?\s*/i, "").replace(/```\s*$/, "").trim();
+      cleanResponseText = cleanResponseText.replace(/^```(?:json)?\s*/i, "").replace(/```\s*$/, "").trim();
 
-      const parsedResult = JSON.parse(cleanText);
+      const parsedResult = JSON.parse(cleanResponseText);
 
       const inputDigest = `Compare original vs afterImage`;
       const closureAssessment = {

@@ -563,6 +563,45 @@ Remaining risks:
 - Optional demo video and BlockseBlock submission still require explicit user action/approval.
 - Production App Check enforcement remains disabled until a Firebase App Check site key is configured and verified on the public deployment.
 
+## UX Redesign Planning Checkpoint
+Status: planning contract completed on 2026-06-27; no application code changed
+
+Files changed:
+- `docs/UX_REDESIGN_CONTRACT.md`: added the high-taste UI/UX sprint contract for the planned "CivicLens Field Command Center" redesign, including constraints, dependency order, risky files, acceptance criteria, validation, rollback, and scorecard.
+- `ATTRIBUTIONS.md`: recorded `Leonxlnx/taste-skill` and `obra/superpowers` as methodology references only, with no runtime code copied or vendored.
+- `docs/CODEX_PROGRESS.md`: recorded this planning checkpoint.
+
+Inspection performed:
+- Confirmed repo state was clean before the documentation edits; latest local commit was `9c1d899 docs: record final deployed audit`.
+- Reviewed the required project docs and the current release/evidence state.
+- Inspected current UI source in `src/App.tsx`, `Header`, `LandingPage`, `HomeMap`, `ReportPage`, `IssueDetailPage`, `AgentTraceTimeline`, `OperatorQueue`, `OperatorDetailView`, `ImpactDashboard`, and related panels.
+- Checked public `/health`: HTTP 200 with production liveness payload.
+- Checked public `/readyz`: HTTP 200 with `ready: true` and the expected App Check enforcement-disabled warning.
+- Ran headless deployed UI probes at 390x844, 768x1024, and 1440x900.
+
+Findings:
+- No horizontal overflow was observed at the checked viewports.
+- The deployed UI has a sticky top header but no mobile bottom navigation or floating mobile report action.
+- The deployed UI still has many visible sub-16px text elements and several sub-44px interactive controls.
+- The report flow has useful states but does not yet read as a clear stepper and lacks a manual map-pin fallback.
+- Demo records are labelled synthetic/demo, but too many appear by default for a sharp judge story.
+- Agent trace persistence exists, but the visual treatment and empty-state rules need a stronger story.
+- A headless browser run observed a Firebase anonymous-auth network error in console; this needs manual/deployed verification during the implementation sprint because prior public smoke runs reported no console errors.
+
+Decisions:
+- Did not install external skills because that would modify tool/global agent state rather than the CivicLens repository.
+- Treated Taste Skill and Superpowers as process references only and cited them in attributions.
+- Kept this checkpoint documentation-only: no deployment, submission, billing, key rotation, resource deletion, backend rewrite, or app-code implementation.
+
+Validation commands:
+- `git diff --check`: passed; line-ending warnings only for existing Windows checkout behavior.
+- `npm test -- src/docs-readiness.test.ts src/truth-boundary.test.ts`: passed (2 files, 6 tests).
+- `npm run lint`: passed (`tsc --noEmit`).
+- `npm test`: passed (15 files passed, 2 skipped; 71 tests passed, 7 skipped).
+
+Next step:
+- If approved, begin the UX sprint from `docs/UX_REDESIGN_CONTRACT.md` by tagging `pre-ux-redesign`, then implement and validate task-by-task before any deployment.
+
 ## Decision log
 - 2026-06-26: Initialized a valid project-local Git repository because the existing `.git` directory was empty/invalid and Git was resolving to `C:/Users/apexm`.
 - 2026-06-26: Captured the untouched prototype before dependency repair as commit `ffd4ebc` and tag `baseline/original-prototype`.

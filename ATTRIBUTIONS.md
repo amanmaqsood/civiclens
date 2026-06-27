@@ -47,3 +47,12 @@ Local Codex skills used as review checklists during the rebuild:
 - `release-gate`
 
 These skills informed review and verification. They were not copied into the application as runtime code.
+
+## UX Planning References
+
+External repositories referenced during the post-release UX planning checkpoint:
+
+- `Leonxlnx/taste-skill` (`https://github.com/Leonxlnx/taste-skill`) for redesign-audit methodology around hierarchy, typography, spacing, mobile states, and existing-project restraint.
+- `obra/superpowers` (`https://github.com/obra/superpowers`) for spec-first planning, task decomposition, TDD, and verification-before-claims methodology.
+
+These repositories were not installed into the project, vendored into `src/`, or copied into CivicLens runtime code.

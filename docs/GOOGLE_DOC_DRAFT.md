@@ -146,7 +146,7 @@ See `docs/FINAL_EVIDENCE_REPORT.md` for exact command outputs, warnings, commit 
 - Runtime source: final polish runtime commit `94246fe`; the earlier production base commit before UX refresh was `fcf8946`.
 - `/health`: passing on the public service.
 - `/readyz`: passing on the public service with App Check enforcement warning recorded.
-- Maps browser key restriction: HTTP referrers for the two Cloud Run origins and localhost, API target `maps-backend.googleapis.com`; confirmed again during the `civiclens-00036-dcb` evidence refresh.
+- Maps browser key restriction: HTTP referrers for the two Cloud Run origins and localhost, API target `maps-backend.googleapis.com`; confirmed again during the `civiclens-00038-9w7` final polish checkpoint.
 
 ## Screenshots List
 

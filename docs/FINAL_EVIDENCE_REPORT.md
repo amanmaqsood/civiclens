@@ -271,6 +271,7 @@ Public health/readiness after corrected deploy:
 
 - `/health`: HTTP 200, `status: ok`, `service: civiclens`, `mode: production`, timestamp `2026-06-27T13:38:13.186Z`.
 - `/readyz`: HTTP 200, `ready: true`, `adminDb: true`, `geminiConfigured: true`, `configValid: true`, no missing values, and expected warning that `CIVICLENS_REQUIRE_APP_CHECK` is not true.
+- Maps browser key: lookup confirmed the deployed `VITE_GOOGLE_MAPS_PLATFORM_KEY` maps to the restricted browser-key resource; final restriction has allowed referrers for both Cloud Run origins plus localhost and API target `maps-backend.googleapis.com`. No key rotation was performed.
 
 Final-polish implementation:
 

@@ -700,6 +700,7 @@ Production actions:
 - Built image `asia-southeast1-docker.pkg.dev/gen-lang-client-0871796745/civiclens/civiclens:94246fe` with Cloud Build `cde70b30-77b6-4be6-8af3-c99f206093e2`.
 - Deployed corrected revision `civiclens-00038-9w7`, serving 100 percent traffic.
 - Confirmed canonical `/health` returned `status: ok` and `/readyz` returned `ready: true`, `adminDb: true`, `geminiConfigured: true`, and `configValid: true` at `2026-06-27T13:38:13Z`, with the expected App Check enforcement-disabled warning.
+- Confirmed the deployed Maps browser key maps to the restricted key resource, then set/verified HTTP referrers for both Cloud Run origins plus localhost and API target `maps-backend.googleapis.com`. No key rotation was performed.
 
 Validation commands:
 - `npm ci`: passed; install audit still reports 3 moderate dev-dependency vulnerabilities, while production audit is clean.
@@ -718,6 +719,7 @@ Public smoke:
 
 Decisions:
 - Did not delete production smoke-test records; instead, the UI now hides clearly labelled smoke/internal-test records from the default public feed and metrics.
+- Completed the pending Maps browser-key API restriction by targeting `maps-backend.googleapis.com` while preserving the approved Cloud Run and localhost referrers.
 - Did not enable App Check enforcement. The accurate status remains: App Check integration exists, but enforcement is disabled for this hackathon deployment to avoid blocking judge access.
 - Did not change billing, rotate keys, delete resources, publish a demo video, edit BlockseBlock, or submit to BlockseBlock.
 

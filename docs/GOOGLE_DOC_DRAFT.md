@@ -55,6 +55,7 @@ The system is intentionally human-governed. Gemini recommends and drafts; determ
 
 - Public citizen report creation with Firebase anonymous auth.
 - Gemini multimodal triage and structured report summaries.
+- Low-confidence clarification guard for non-civic or unrelated images such as food/waffle negative tests.
 - Google Maps view for local issue context.
 - Nearby duplicate recommendation with human merge decision.
 - Community support and verification with per-user limits.
@@ -85,7 +86,7 @@ Agent output is used as recommendation material only. Human approval is required
 
 - Google AI Studio: used as the development and provenance environment for the prototype and Gemini integration.
 - Gemini via `@google/genai`: powers multimodal report triage, structured output, duplicate comparison support, translation, draft resolution planning, escalation/RTI draft text, closure image assessment, and the server-side tool workflow.
-- Firebase Auth: anonymous citizen sessions and Google sign-in/operator identity.
+- Firebase Auth: anonymous citizen sessions. Real operator identity is supported through server-verified Firebase identity/custom claims or allowlisted verified email, but Google sign-in is intentionally unavailable in the public judge build until authorized domains are verified.
 - Firestore: issues, evidence, approvals, support/verification actions, lifecycle fields, audit-style activity, `agentRuns`, and `agentSteps`.
 - Firebase Storage: report, evidence, and closure image uploads governed by Storage Rules.
 - Firebase Admin SDK: server-owned writes, transactions, role checks, and privileged lifecycle updates.
@@ -106,6 +107,8 @@ Firestore Rules deny direct browser writes to issue-owned privileged fields and 
 CivicLens does not claim public-agency status, authority acceptance, legal verification, immutable audit guarantees, automatic filing, or automatic routing. It records prototype workflow evidence inside the app.
 
 Real operator actions require verified Firebase identity and a server-authorized role. Demo operator actions are limited to records marked as synthetic demo data. Anonymous users can create and support reports, but they cannot perform privileged lifecycle transitions. Closure recommendations are persisted for review and do not auto-resolve a case.
+
+The public judge build waits for anonymous auth before protected API calls, so fast first-time report submissions do not hit the protected Gemini endpoints without a Firebase ID token.
 
 ## Innovation and Differentiation
 
@@ -132,6 +135,7 @@ Latest recorded validation covers:
 - Playwright/axe responsive browser coverage.
 - Public Cloud Run `/health` and `/readyz` smoke checks.
 - Live API smoke for Gemini triage, issue save, persisted agent steps, demo-operator boundary, anonymous denial, and closure recommendation without auto-resolution.
+- Public judge QA smoke verified a fresh anonymous visitor can submit Gemini triage without a 401 race, and a synthetic waffle/non-civic image is routed to a low-confidence clarification screen before saving.
 
 See `docs/FINAL_EVIDENCE_REPORT.md` for exact command outputs, warnings, commit references, and remaining gaps.
 
@@ -140,17 +144,17 @@ See `docs/FINAL_EVIDENCE_REPORT.md` for exact command outputs, warnings, commit 
 - Project: `gen-lang-client-0871796745`
 - Region: `asia-southeast1`
 - Cloud Run service: `civiclens`
-- Active revision: `civiclens-00041-m2n`
+- Active revision: `civiclens-00044-d5l`
 - Public app URL: https://civiclens-py7ixxgroq-as.a.run.app
 - Alternate URL: https://civiclens-802067002365.asia-southeast1.run.app
-- Runtime source: final QA commit `1121376`; the earlier production base commit before UX refresh was `fcf8946`.
+- Runtime source: final judge QA commit `bdfa464`; the earlier production base commit before UX refresh was `fcf8946`.
 - `/health`: passing on the public service.
 - `/readyz`: passing on the public service with App Check enforcement warning recorded.
-- Maps browser key restriction: HTTP referrers for the two Cloud Run origins and localhost, API target `maps-backend.googleapis.com`; confirmed again during the `civiclens-00041-m2n` final QA checkpoint.
+- Maps browser key restriction: HTTP referrers for the two Cloud Run origins and localhost, API target `maps-backend.googleapis.com`; confirmed again during the `civiclens-00044-d5l` final judge QA checkpoint.
 
 ## Screenshots List
 
-The public screenshot package is stored under `docs/evidence/final/` with `FINAL-QA-2026-06-27-MANIFEST.json`, `PUBLIC_SCREENSHOT_MANIFEST-2026-06-27.json`, `PUBLIC_SCREENSHOT_MANIFEST-UX-REFRESH-2026-06-27.json`, and `PUBLIC_SCREENSHOT_MANIFEST-FINAL-POLISH-2026-06-27.json`. These are Chrome/Playwright page-content screenshots, so they do not include the browser address bar; exact URLs are recorded in the manifests and evidence report. Sanitized CLI/API-backed infrastructure evidence is stored in `SANITIZED_GCP_FIREBASE_EVIDENCE-2026-06-27.json` and related `*-cli-evidence-2026-06-27.png` files. Authenticated GCP/Firebase/AI Studio console screenshots still require an approved authenticated Chrome session.
+The public screenshot package is stored under `docs/evidence/final/` with `JUDGE-QA-2026-06-27-MANIFEST.json`, `FINAL-QA-2026-06-27-MANIFEST.json`, `PUBLIC_SCREENSHOT_MANIFEST-2026-06-27.json`, `PUBLIC_SCREENSHOT_MANIFEST-UX-REFRESH-2026-06-27.json`, and `PUBLIC_SCREENSHOT_MANIFEST-FINAL-POLISH-2026-06-27.json`. These are Chrome/Playwright page-content screenshots, so they do not include the browser address bar; exact URLs are recorded in the manifests and evidence report. Sanitized CLI/API-backed infrastructure evidence is stored in `SANITIZED_GCP_FIREBASE_EVIDENCE-2026-06-27.json` and related `*-cli-evidence-2026-06-27.png` files. The final package also includes a redacted authenticated Cloud Run console screenshot for revision `civiclens-00044-d5l`; remaining Firebase/AI Studio console screenshots still require a safe authenticated capture if desired.
 
 Captured public screenshot targets:
 
@@ -159,6 +163,7 @@ Captured public screenshot targets:
 - Synthetic/demo label visible.
 - Map visible.
 - Gemini triage result.
+- Non-civic waffle negative test routed to low-confidence clarification.
 - Saved issue detail.
 - Persisted agent run with tool steps.
 - Page refreshed with agent trace still present.
@@ -183,7 +188,7 @@ Remaining authenticated console screenshot targets:
 - Storage Rules deployed.
 - Secret Manager page showing `GEMINI_API_KEY` secret name only, not value.
 - Firebase Auth enabled providers.
-- AI Studio project/history/export/import/development evidence if available.
+- Firebase or AI Studio project/history/export/import/development evidence if available.
 
 Do not claim authenticated console screenshot capture until those files exist and have been reviewed for secrets, tokens, private emails, billing information, or hidden sensitive data.
 
@@ -205,6 +210,7 @@ Do not claim authenticated console screenshot capture until those files exist an
 - CivicLens is not a government portal and does not submit complaints to government systems.
 - Draft routing/action packets, escalation letters, RTI text, and closure assessments require human review before any use outside the app.
 - App Check integration exists, but enforcement is disabled for this hackathon deployment to avoid blocking judge access.
+- Google sign-in is intentionally unavailable in the public judge build until Firebase Authorized Domains are verified. Anonymous reporting remains enabled.
 - Metrics are scoped to persisted app records and are not citywide impact claims.
 - Demo records are synthetic and labelled as such.
 - No demo video is included in this checkpoint.

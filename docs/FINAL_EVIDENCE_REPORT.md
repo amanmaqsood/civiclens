@@ -378,12 +378,12 @@ Full local gate rerun after the Google Doc sync audit:
 
 Google Doc live-sync audit after final QA:
 
-- `docs/GOOGLE_DOC_DRAFT.md` is the current copy-ready submission text and includes `civiclens-00041-m2n`, commit `1121376`, and `FINAL-QA-2026-06-27-MANIFEST.json`.
+- At that audit time, `docs/GOOGLE_DOC_DRAFT.md` had been refreshed for `civiclens-00041-m2n`, commit `1121376`, and `FINAL-QA-2026-06-27-MANIFEST.json`.
 - Public Google Doc text export still returned HTTP 200, proving the Doc remains publicly viewable.
 - The same public export was stale during this audit: it still contained the older `civiclens-00034-82x` deployment evidence and did not contain `civiclens-00041-m2n`, commit `1121376`, or `FINAL-QA-2026-06-27-MANIFEST.json`.
 - Google Docs API sync could not be completed with the active Cloud SDK credentials: the default token received HTTP 403 from the Docs API, and requesting Drive/Docs scopes required a fresh Google auth flow.
 - Browser sync could not be completed in the available browser session because the Google Doc opened as viewer-only with a sign-in prompt. A local paste preview did not update the public export.
-- Required next step before BlockseBlock submission: sign in to the Google account that owns/can edit the Doc, replace the body with `docs/GOOGLE_DOC_DRAFT.md`, then verify public text export contains `civiclens-00041-m2n`, `1121376`, and `FINAL-QA-2026-06-27-MANIFEST.json`.
+- That audit's required next step was superseded by the later `civiclens-00044-d5l` judge QA checkpoint below.
 
 Rubric score from verified current evidence:
 
@@ -395,6 +395,55 @@ Rubric score from verified current evidence:
 - Technical Implementation: 10/10.
 - Completeness & Usability: 4/5 while the public Google Doc remains stale.
 - Current verified score: 97/100 for app/repo implementation quality, but submission readiness is blocked until the public Google Doc is refreshed from `docs/GOOGLE_DOC_DRAFT.md`.
+
+## Final Judge QA Auth and Non-Civic Checkpoint
+
+This checkpoint was performed on 2026-06-27 after the public QA run found a first-visit anonymous-auth race on protected Gemini calls. It did not submit to BlockseBlock, change billing, delete resources, rotate keys, print secret values, or enable App Check enforcement.
+
+Source and deployment:
+
+- Source commit: `bdfa464 fix: wait for anonymous auth before api calls`.
+- Superseded image build: Cloud Build `4f209cc9-0ac3-401b-9593-f5c9fe948768`, image tag `bdfa464`, revision `civiclens-00043-dt5`. It was replaced because it was built without the production Vite Firebase/Maps build args and therefore fell back to the checked-in browser config.
+- Final configured image build: Cloud Build `9d9aa66b-1955-4401-b59d-ca83ed8c22c2`, image `asia-southeast1-docker.pkg.dev/gen-lang-client-0871796745/civiclens/civiclens:bdfa464-configured`.
+- Final active Cloud Run revision: `civiclens-00044-d5l`, serving 100 percent traffic.
+- Canonical URL: `https://civiclens-py7ixxgroq-as.a.run.app`.
+
+Public health:
+
+- `/health`: HTTP 200 with `status: ok`, `service: civiclens`, and `mode: production`.
+- `/readyz`: HTTP 200 with `ready: true`, `adminDb: true`, `geminiConfigured: true`, and `configValid: true`; expected warning remains that App Check enforcement is disabled.
+
+App/auth QA:
+
+- `src/services/api.ts` now waits for Firebase auth readiness and signs in anonymously before building protected API headers.
+- Public browser QA verified a fresh visitor can submit Gemini triage without the previous `401` race.
+- Public browser QA verified a synthetic waffle/non-civic image receives a low-confidence clarification prompt before saving, with `/api/analyze-report` returning HTTP 200 and zero browser console errors.
+- Google sign-in remains intentionally unavailable in the public judge build until Firebase Authorized Domains can be verified. Anonymous reporting remains enabled.
+
+Evidence files:
+
+- `docs/evidence/final/JUDGE-QA-2026-06-27-MANIFEST.json`.
+- `docs/evidence/final/JUDGE-QA-2026-06-27-waffle-report-before-triage.png`.
+- `docs/evidence/final/JUDGE-QA-2026-06-27-waffle-negative-low-confidence.png`.
+- `docs/evidence/final/GCP-CONSOLE-2026-06-27-cloud-run-revisions.png`, with the deployer email redacted.
+- The earlier full lifecycle screenshot package remains `docs/evidence/final/FINAL-QA-2026-06-27-MANIFEST.json`.
+
+Maps/App Check:
+
+- Maps browser key restriction remains confirmed: allowed referrers are the two Cloud Run origins plus `http://localhost:*`, with API target `maps-backend.googleapis.com`.
+- App Check integration exists, but enforcement is disabled for this hackathon deployment to avoid blocking judge access.
+
+Validation:
+
+- `npm run lint`: passed.
+- `npm test`: passed (18 files passed, 2 skipped; 79 tests passed, 7 skipped).
+- `npm run build`: passed with known Firebase chunk-size and mixed static/dynamic import warnings.
+- `npm audit --omit=dev`: passed with 0 vulnerabilities.
+
+Google Doc status:
+
+- `docs/GOOGLE_DOC_DRAFT.md` is updated for `civiclens-00044-d5l`, commit `bdfa464`, and `JUDGE-QA-2026-06-27-MANIFEST.json`.
+- The public Google Doc export returned HTTP 200, but it did not yet contain `civiclens-00044-d5l`, `bdfa464`, or `JUDGE-QA-2026-06-27-MANIFEST.json`. It still needs a signed-in body refresh from `docs/GOOGLE_DOC_DRAFT.md` before BlockseBlock submission if the submitted Doc must show the final `00044` evidence.
 
 ## Latest Completed Validation
 

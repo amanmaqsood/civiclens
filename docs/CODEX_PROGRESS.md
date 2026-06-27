@@ -7,7 +7,7 @@ Current branch/commit:
 - Branch: `master`
 - Original prototype baseline commit: `ffd4ebc chore: capture original prototype baseline`
 - Original prototype rollback tag: `baseline/original-prototype`
-- Current rebuild state: milestones 0-9 have been completed locally, the approved Cloud Run deployment/public smoke checkpoint is complete, and the final QA build is deployed as revision `civiclens-00041-m2n` from source commit `1121376`. The Maps browser key has been restricted for the public Cloud Run origins and localhost. The public Google Doc has been published and verified with anyone-with-link viewer access, and `docs/GOOGLE_DOC_DRAFT.md` is refreshed for final copy-ready submission text. Demo video publication, authenticated console screenshot packaging, App Check enforcement, and final BlockseBlock submission remain external approval-gated.
+- Current rebuild state: milestones 0-9 have been completed locally, the approved Cloud Run deployment/public smoke checkpoint is complete, and the final judge QA build is deployed as revision `civiclens-00044-d5l` from source commit `bdfa464`. The Maps browser key has been restricted for the public Cloud Run origins and localhost. The public Google Doc has been published and verified with anyone-with-link viewer access, and `docs/GOOGLE_DOC_DRAFT.md` is refreshed for final copy-ready submission text. Demo video publication, remaining authenticated console screenshot packaging, App Check enforcement, public Google Doc body refresh, and final BlockseBlock submission remain external approval-gated.
 
 Validation commands:
 - `npm install --package-lock-only`: passed; generated a real lockfile from the previously empty `package-lock.json`; initial audit reported 8 moderate vulnerabilities.
@@ -777,9 +777,44 @@ Remaining risks:
 - The public Google Doc URL exists and remains publicly viewable, but the live Google Doc text export is stale relative to `docs/GOOGLE_DOC_DRAFT.md`; it still needs a signed-in manual refresh before BlockseBlock submission.
 - Current verified rubric score from app/repo evidence is 97/100, but submission readiness remains blocked until the public Google Doc is refreshed from the repo draft.
 
+## Final Judge QA Auth and Non-Civic Checkpoint
+Status: deployed to Cloud Run as `civiclens-00044-d5l` and public auth/non-civic smoke verified on 2026-06-27; no submission performed
+
+Files changed:
+- `src/services/api.ts`: waits for Firebase auth readiness and signs in anonymously before protected API calls.
+- `src/ux-redesign.test.ts`: added a regression guard for the anonymous-auth wait.
+- `docs/evidence/final/`: added `JUDGE-QA-2026-06-27-MANIFEST.json`, waffle negative-test screenshots, and a redacted Cloud Run console screenshot for `civiclens-00044-d5l`.
+- `README.md`, `docs/GOOGLE_DOC_DRAFT.md`, `docs/FINAL_EVIDENCE_REPORT.md`, and this progress log: refreshed deployment revision, source commit, Google Doc draft status, App Check wording, and final judge QA evidence.
+
+Production actions:
+- Built source commit `bdfa464` once as image tag `bdfa464` with Cloud Build `4f209cc9-0ac3-401b-9593-f5c9fe948768`; that revision (`civiclens-00043-dt5`) was immediately superseded because it omitted the production Vite Firebase/Maps build args.
+- Rebuilt with `cloudbuild.yaml` and the ignored production public build config as image tag `bdfa464-configured`; Cloud Build `9d9aa66b-1955-4401-b59d-ca83ed8c22c2` succeeded.
+- Deployed `civiclens-00044-d5l`, serving 100 percent traffic.
+- Confirmed canonical `/health` returned HTTP 200 and canonical `/readyz` returned HTTP 200 with the expected App Check enforcement-disabled warning.
+
+Validation commands:
+- `npm run lint`: passed.
+- `npm test`: passed (18 files passed, 2 skipped; 79 tests passed, 7 skipped).
+- `npm run build`: passed with known Firebase chunk-size and mixed static/dynamic import warnings.
+- `npm audit --omit=dev`: passed with 0 vulnerabilities.
+
+Public smoke:
+- Fresh browser report flow no longer hits a protected `/api/analyze-report` 401 race before anonymous auth settles.
+- Synthetic waffle/non-civic image produced a low-confidence clarification prompt before saving; `/api/analyze-report` returned HTTP 200 and the browser console error count was 0.
+- Redacted authenticated Cloud Run console screenshot confirms revision `civiclens-00044-d5l` at 100 percent traffic.
+
+Decisions:
+- Kept `CIVICLENS_REQUIRE_APP_CHECK=false` and retained the exact wording: App Check integration exists, but enforcement is disabled for this hackathon deployment to avoid blocking judge access.
+- Did not submit to BlockseBlock, change billing, delete resources, rotate keys, print secret values, or enable App Check enforcement.
+- Did not commit any screenshot containing an exposed email or secret value; the Cloud Run console screenshot was redacted before packaging.
+
+Remaining risks:
+- The public Google Doc URL exists and exported with HTTP 200, but the live Doc body still needs a signed-in refresh from `docs/GOOGLE_DOC_DRAFT.md`; the export did not yet contain `civiclens-00044-d5l`, `bdfa464`, or `JUDGE-QA-2026-06-27-MANIFEST.json`.
+- Optional demo video and additional Firebase/AI Studio authenticated console screenshots remain external/user-approval steps.
+
 ## External blockers
 - Demo video publication, authenticated console screenshot capture, live Google Doc refresh if desired, and BlockseBlock submission require user/account approval before final submission actions.
 - Production App Check enforcement requires a Firebase App Check site key and verified public browser tokens before enabling `CIVICLENS_REQUIRE_APP_CHECK=true`.
 
 ## Next milestone
-External approval/credential step: sign in to the Google account that can edit the public Google Doc, replace the body with `docs/GOOGLE_DOC_DRAFT.md`, verify the public text export contains `civiclens-00041-m2n`, `1121376`, and `FINAL-QA-2026-06-27-MANIFEST.json`, optionally capture authenticated console screenshots or publish a demo video, and submit only after explicit user approval.
+External approval/credential step: sign in to the Google account that can edit the public Google Doc, replace the body with `docs/GOOGLE_DOC_DRAFT.md`, verify the public text export contains `civiclens-00044-d5l`, `bdfa464`, and `JUDGE-QA-2026-06-27-MANIFEST.json`, optionally capture additional authenticated console screenshots or publish a demo video, and submit only after explicit user approval.

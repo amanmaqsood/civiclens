@@ -39,11 +39,14 @@ Captured public targets:
 
 Known limitation: headless page-content screenshots do not show the browser address bar. Exact URLs are recorded in the manifest and evidence docs.
 
-Authenticated console targets still remaining:
+Additional authenticated console targets still remaining after the redacted Cloud Run revision screenshot:
 
-- Cloud Run service page with service URL and active revision.
 - Firestore Rules deployed.
 - Storage Rules deployed.
 - Secret Manager page showing `GEMINI_API_KEY` secret name only, not value.
 - Firebase Auth enabled providers.
 - AI Studio project/history/export/import/development evidence if available.
+
+Latest supplemental authenticated console capture:
+
+- `GCP-CONSOLE-2026-06-27-cloud-run-revisions.png`: Cloud Run service page for active revision `civiclens-00044-d5l`; deployer email was redacted before packaging.

@@ -89,10 +89,10 @@ The latest local validation results are recorded in `docs/FINAL_EVIDENCE_REPORT.
 Cloud Run deployment is documented in `docs/DEPLOYMENT_CLOUD_RUN.md` and was performed after explicit approval on 2026-06-27.
 
 - Public app URL: `https://civiclens-py7ixxgroq-as.a.run.app`
-- Current deployed revision: `civiclens-00041-m2n`
-- Latest deployed source commit: `1121376`
+- Current deployed revision: `civiclens-00044-d5l`
+- Latest deployed source commit: `bdfa464`
 - Earlier production base commit before the UX refresh: `fcf8946`
 
 Maps browser-key restrictions were applied for the public Cloud Run origins and localhost during the final evidence checkpoint. App Check integration exists, but enforcement is disabled for this hackathon deployment to avoid blocking judge access.
 
-The public Google Doc is published with anyone-with-link viewer access, but the live Google Doc still needs a signed-in refresh from `docs/GOOGLE_DOC_DRAFT.md` before final BlockseBlock submission. Demo video publication, authenticated console screenshot packaging, App Check enforcement, and final hackathon submission still require explicit approval.
+The public deployment includes the final anonymous-auth readiness fix and non-civic image clarification guardrail. The public Google Doc is published with anyone-with-link viewer access, but the live Google Doc still needs a signed-in refresh from `docs/GOOGLE_DOC_DRAFT.md` before final BlockseBlock submission. Demo video publication, App Check enforcement, and final hackathon submission still require explicit approval.

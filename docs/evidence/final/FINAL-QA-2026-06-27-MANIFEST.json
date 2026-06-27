@@ -1,0 +1,83 @@
+{
+  "generatedAt": "2026-06-27T15:36:43.017Z",
+  "baseUrl": "https://civiclens-py7ixxgroq-as.a.run.app",
+  "revision": "civiclens-00041-m2n",
+  "commit": "1121376",
+  "freshIssue": {
+    "issueId": "IFhCR7stILGkaILJjXax",
+    "ticketId": "CL-260627-MY7LE",
+    "expectedPersistedStepCount": 8
+  },
+  "screenshots": [
+    {
+      "file": "docs/evidence/final/FINAL-QA-2026-06-27-desktop-sticky-header-after-scroll.png",
+      "description": "Final revision desktop layout with sticky top header after scroll."
+    },
+    {
+      "file": "docs/evidence/final/FINAL-QA-2026-06-27-profile-menu-visible-error.png",
+      "description": "Final revision profile menu with status rows and visible Google sign-in fallback error."
+    },
+    {
+      "file": "docs/evidence/final/FINAL-QA-2026-06-27-mobile-sticky-header-bottom-nav.png",
+      "description": "Final revision mobile sticky top header and fixed bottom nav after scroll."
+    },
+    {
+      "file": "docs/evidence/final/FINAL-QA-2026-06-27-report-upload-choices.png",
+      "description": "Final revision report flow with explicit live photo and gallery upload choices."
+    },
+    {
+      "file": "docs/evidence/final/FINAL-QA-2026-06-27-location-denied-manual-fallback.png",
+      "description": "Final revision denied geolocation with manual fallback."
+    },
+    {
+      "file": "docs/evidence/final/FINAL-QA-2026-06-27-saved-issue-detail.png",
+      "description": "Final revision saved issue detail page for fresh QA report."
+    },
+    {
+      "file": "docs/evidence/final/FINAL-QA-2026-06-27-persisted-agent-run-tool-steps.png",
+      "description": "Final revision persisted server-generated agent run with 8/8 lifecycle steps, including truthful skipped steps when applicable."
+    },
+    {
+      "file": "docs/evidence/final/FINAL-QA-2026-06-27-refreshed-agent-trace-still-present.png",
+      "description": "Final revision refreshed issue detail page with persisted 8/8 agent trace still present."
+    },
+    {
+      "file": "docs/evidence/final/FINAL-QA-2026-06-27-demo-operator-synthetic-queue.png",
+      "description": "Final revision demo operator workspace showing synthetic-only case queue."
+    },
+    {
+      "file": "docs/evidence/final/FINAL-QA-2026-06-27-closure-recommendation-not-auto-resolved.png",
+      "description": "Final revision demo in-progress closure panel; final resolution remains a human status action."
+    },
+    {
+      "file": "docs/evidence/final/FINAL-QA-2026-06-27-gemini-triage-result.png",
+      "description": "Gemini triage result captured during final QA report flow; endpoint behavior unchanged in final revision."
+    }
+  ],
+  "checks": {
+    "health200": true,
+    "readyz200": true,
+    "appCheckWarningExpected": true,
+    "homepageLoaded": true,
+    "mapVisible": true,
+    "mapSetupCardAbsent": true,
+    "stickyDesktopVerified": true,
+    "stickyMobileVerified": true,
+    "mobileBottomNavFixed": true,
+    "reportLivePhotoControl": true,
+    "reportGalleryControl": true,
+    "locationDeniedFallbackVisible": true,
+    "geminiTriageWorked": true,
+    "savedIssueDetailWorked": true,
+    "realCaseDemoMutationDenied": true,
+    "realCaseDemoMutationDeniedStatus": 403,
+    "persistedAgentRunVisible": true,
+    "persistedAgentRunStepCount": 8,
+    "persistedAgentRunRefreshVisible": true,
+    "demoOperatorSyntheticQueue": true,
+    "closurePanelVisible": true,
+    "closureNotAutoResolved": true,
+    "consoleErrorCount": 0,
+    "pageErrorCount": 0
+  }
+}

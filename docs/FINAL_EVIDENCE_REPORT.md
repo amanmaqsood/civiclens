@@ -300,7 +300,70 @@ Public smoke on `civiclens-00038-9w7`:
 
 Known residual polish:
 
-- One success-page label still says `Ticket Registration Number`; adjacent success copy explicitly states the report is saved to CivicLens and is not filed with any government system. Rename this to `CivicLens Ticket ID` in a future approved revision.
+- Resolved in the later final QA checkpoint: the success-page label `Ticket Registration Number` was renamed to `CivicLens Ticket ID`.
+
+## Final QA Evidence Refresh Checkpoint
+
+This checkpoint was performed on 2026-06-27 to finish the final evidence, public key, and Google Doc preparation work. It did not submit to BlockseBlock, change billing, delete resources, rotate keys, print secret values, or enable App Check enforcement.
+
+Runtime and deployment:
+
+- Baseline tag before final QA fixes: `pre-final-qa-fix`.
+- Final QA source commits:
+  - `66159f7 fix: polish final QA blockers`
+  - `5f98c21 fix: persist skipped agent lifecycle steps`
+  - `1121376 fix: keep handled auth popup failures out of console errors`
+- Final active Cloud Run revision: `civiclens-00041-m2n`, serving 100 percent traffic.
+- Final deployed source commit: `1121376`.
+- Canonical public URL: `https://civiclens-py7ixxgroq-as.a.run.app`.
+- Alternate public URL: `https://civiclens-802067002365.asia-southeast1.run.app`.
+- `GET /health`: HTTP 200 with `status: ok`, `service: civiclens`, `mode: production`, timestamp `2026-06-27T15:37:54.637Z`.
+- `GET /readyz`: HTTP 200 with `ready: true`, `adminDb: true`, `geminiConfigured: true`, `configValid: true`, no missing values, and the expected App Check warning.
+
+Final QA changes:
+
+- The top header remains sticky on desktop and mobile document scroll.
+- The account/profile menu now exposes citizen session status, Google sign-in status, and operator access status, and handled popup failures surface as visible UI messages without console errors.
+- Report and closure evidence controls provide separate live-photo and gallery-upload choices.
+- Location-denied report flow keeps a clear manual fallback.
+- The saved report success page now uses `CivicLens Ticket ID` instead of `Ticket Registration Number`.
+- The default public feed foregrounds curated synthetic demo stories instead of internal smoke traces.
+- `/api/agent/run` now persists the required 8-step lifecycle timeline even when Gemini skips an optional tool call; skipped steps are labelled truthfully rather than fabricated as model output.
+
+Public evidence captured:
+
+- Final app evidence manifest: `docs/evidence/final/FINAL-QA-2026-06-27-MANIFEST.json`.
+- Captured final QA screenshots include sticky desktop layout, profile menu visible error state, mobile sticky header and bottom nav, report upload choices, location manual fallback, Gemini triage result, saved issue detail, persisted 8/8 agent tool steps, refreshed persisted agent trace, synthetic-only demo operator queue, and closure recommendation without auto-resolve.
+- The final QA manifest records `consoleErrorCount: 0`, `pageErrorCount: 0`, `persistedAgentRunStepCount: 8`, and real-case demo mutation denial with HTTP 403.
+
+Maps browser key:
+
+- Read-only API key metadata confirmed that the deployed Maps browser key is restricted to HTTP referrers:
+  - `https://civiclens-py7ixxgroq-as.a.run.app/*`
+  - `https://civiclens-802067002365.asia-southeast1.run.app/*`
+  - `http://localhost:*`
+- API target remains `maps-backend.googleapis.com`.
+- No server-side Maps key use was identified in the current code path, and no key was rotated.
+
+App Check status:
+
+- App Check integration exists, but enforcement is disabled for this hackathon deployment to avoid blocking judge access.
+
+Validation before this documentation-only update:
+
+- `npm ci`: passed; install audit still reports 3 moderate dev-dependency vulnerabilities, while production audit is clean.
+- `npm run lint`: passed after the final auth logging patch.
+- `npm test`: passed after the final auth logging patch (17 files passed, 2 skipped; 77 tests passed, 7 skipped).
+- `npm run build`: passed after the final auth logging patch with known Firebase chunk-size and mixed static/dynamic import warnings.
+- `npm audit --omit=dev`: passed after the final agent skipped-step patch; 0 vulnerabilities.
+- `npm run test:e2e`: passed after the final auth logging patch (7 Playwright tests).
+
+Validation after this documentation and evidence update:
+
+- `npm run lint`: passed (`tsc --noEmit`).
+- `npm test`: passed (17 files passed, 2 skipped; 77 tests passed, 7 skipped).
+- `npm run build`: passed with the known Firebase chunk-size and `src/services/issues.ts` mixed static/dynamic import warnings.
+- `npm audit --omit=dev`: passed; 0 vulnerabilities.
 
 ## Latest Completed Validation
 
@@ -383,7 +446,7 @@ Previously completed deployment validation also included:
 - Production App Check enforcement has not been deployed or smoke-tested. Keep `CIVICLENS_REQUIRE_APP_CHECK=false` until a Firebase App Check site key is configured and browser requests are verified to send `X-Firebase-AppCheck`.
 - Maps browser-key referrer and API restrictions were applied during the final evidence checkpoint.
 - Cloud Build install stage still reports 3 moderate dev-dependency vulnerabilities. Runtime install and `npm audit --omit=dev` report 0 production vulnerabilities.
-- Chrome UI file upload automation was blocked by the Codex extension file URL setting; API-backed smoke covered report save/Gemini/agent/closure with synthetic inline image payloads, and manual photo upload should still be checked in Chrome.
+- Final QA browser evidence covers the separated live-photo and gallery-upload controls. API-backed smoke still covers report save, Gemini, agent, and closure paths with synthetic inline image payloads.
 
 ## Historical Milestone 9 Validation
 

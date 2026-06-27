@@ -7,7 +7,7 @@ Current branch/commit:
 - Branch: `master`
 - Original prototype baseline commit: `ffd4ebc chore: capture original prototype baseline`
 - Original prototype rollback tag: `baseline/original-prototype`
-- Current rebuild state: milestones 0-9 have been completed locally and the approved Cloud Run deployment/public smoke checkpoint is complete. The Maps browser key has been restricted for the public Cloud Run origins and localhost. The public Google Doc has been published and verified with anyone-with-link viewer access. Demo video publication, authenticated console screenshot packaging, App Check enforcement, and final submission remain external approval-gated.
+- Current rebuild state: milestones 0-9 have been completed locally, the approved Cloud Run deployment/public smoke checkpoint is complete, and the UX refresh is deployed as revision `civiclens-00036-dcb`. The Maps browser key has been restricted for the public Cloud Run origins and localhost. The public Google Doc has been published and verified with anyone-with-link viewer access. Demo video publication, authenticated console screenshot packaging, App Check enforcement, and final submission remain external approval-gated.
 
 Validation commands:
 - `npm install --package-lock-only`: passed; generated a real lockfile from the previously empty `package-lock.json`; initial audit reported 8 moderate vulnerabilities.
@@ -601,6 +601,50 @@ Validation commands:
 
 Next step:
 - If approved, begin the UX sprint from `docs/UX_REDESIGN_CONTRACT.md` by tagging `pre-ux-redesign`, then implement and validate task-by-task before any deployment.
+
+## UX Redesign Deployment and Evidence Refresh Checkpoint
+Status: deployed to Cloud Run and public evidence refreshed on 2026-06-27; no submission performed
+
+Files changed:
+- `src/App.tsx`, `src/components/Header.tsx`, `LandingPage.tsx`, `HomeMap.tsx`, `ReportPage.tsx`, `IssueDetailPage.tsx`, `AgentTraceTimeline.tsx`, operator/detail/dashboard panels, and supporting report components: implemented the Field Command Center UX refresh, real responsive shell, mobile bottom nav, floating report action, report stepper/manual pin fallback, stronger persisted-agent timeline, and cleaner operator workspace.
+- `src/components/AppBottomNav.tsx` and `src/components/FloatingReportAction.tsx`: added mobile navigation and report CTA components.
+- `src/ux-redesign.test.ts` and `e2e/release-gates.pw.ts`: added UX/source and browser release-gate coverage for responsive shell, report fallback, persisted trace refresh, and synthetic demo boundaries.
+- `.gcloudignore`: added deploy hygiene to exclude local env files, dependencies, build output, coverage, Playwright artifacts, and Git metadata.
+- `docs/evidence/final/`: added the UX refresh manifest and clean public app screenshots for homepage, map, report flow, manual pin fallback, Gemini triage, saved issue detail, persisted agent steps, after-refresh trace, demo operator desk, and mobile layouts.
+- `docs/FINAL_EVIDENCE_REPORT.md`, `docs/GOOGLE_DOC_DRAFT.md`, `docs/evidence/final/SCREENSHOT_STATUS.md`, `docs/evidence/final/SANITIZED_GCP_FIREBASE_EVIDENCE-2026-06-27.json`, and `README.md`: recorded the current `civiclens-00036-dcb` revision, fresh health/readiness checks, Maps key confirmation, UX evidence, and App Check wording.
+
+Production actions:
+- Tagged the pre-sprint source as `pre-ux-redesign`.
+- Confirmed the pre-UX Cloud Run revision was `civiclens-00034-82x`.
+- Deployed an intermediate revision, `civiclens-00035-5bx`, then superseded it after detecting a stale browser Firebase config.
+- Deployed the corrected UX build as `civiclens-00036-dcb`, serving 100 percent traffic.
+- Final Cloud Build ID: `0d56856e-938a-4d0f-a16f-5d12d89b03dd`.
+- Final image tag: `ux-redesign-firebase-20260627152313`.
+- Public `/health` and `/readyz` passed on the canonical and alternate Cloud Run URLs. `/readyz` still truthfully warns that App Check enforcement is disabled.
+- Read-only Google Cloud API key metadata confirmed the Maps browser key remains restricted to the two Cloud Run origins plus `http://localhost:*`, with API target `maps-backend.googleapis.com`.
+
+Validation commands:
+- `npm ci`: passed; install audit still reports 3 moderate dev-dependency vulnerabilities, while production audit is clean.
+- `npm run lint`: passed.
+- `npm test`: passed (16 files passed, 2 skipped; 75 tests passed, 7 skipped).
+- `npm run build`: passed with known Firebase chunk-size and mixed static/dynamic import warnings.
+- `npm audit --omit=dev`: passed; 0 vulnerabilities.
+- `npm run test:rules`: passed (3 tests).
+- `npm run test:concurrency`: passed (4 tests).
+- `npm run test:e2e`: passed (6 Playwright tests).
+
+Screenshot status:
+- Clean UX refresh app screenshots are recorded in `docs/evidence/final/PUBLIC_SCREENSHOT_MANIFEST-UX-REFRESH-2026-06-27.json`.
+- Existing prior evidence still covers real-case mutation denial for demo/anonymous operators and closure recommendation persistence without auto-resolution.
+- Authenticated GCP/Firebase/AI Studio console screenshots remain unclaimed; sanitized CLI/API-backed evidence and public app screenshots are the current packaged evidence.
+
+Decisions:
+- Kept `CIVICLENS_REQUIRE_APP_CHECK=false` and retained the exact wording: App Check integration exists, but enforcement is disabled for this hackathon deployment to avoid blocking judge access.
+- Did not submit to BlockseBlock, change billing, delete resources, rotate keys, print secret values, or enable App Check enforcement.
+
+Remaining risks:
+- The public screenshot captures do not include the browser address bar; exact URLs are recorded in manifests and evidence docs.
+- Authenticated console screenshots, optional demo video, and BlockseBlock submission remain external/user-approval steps.
 
 ## Decision log
 - 2026-06-26: Initialized a valid project-local Git repository because the existing `.git` directory was empty/invalid and Git was resolving to `C:/Users/apexm`.

@@ -1,0 +1,79 @@
+{
+  "capturedAt": "2026-06-27T10:24:00Z",
+  "browser": "Chrome via Playwright page-content capture",
+  "baseUrl": "https://civiclens-py7ixxgroq-as.a.run.app",
+  "cloudRunRevision": "civiclens-00036-dcb",
+  "notes": [
+    "Screenshots are public app page-content captures and do not include browser address bars.",
+    "Exact URLs and revision metadata are recorded in docs/FINAL_EVIDENCE_REPORT.md.",
+    "No secret values, private tokens, billing pages, private emails, or service-account material are included."
+  ],
+  "screenshots": [
+    {
+      "file": "ux-redesign-2026-06-27T10-11-09-homepage-desktop-field-command-center-clean.png",
+      "description": "Desktop Field Command Center homepage with prototype and synthetic-demo labels, map, metrics, and case feed."
+    },
+    {
+      "file": "ux-redesign-2026-06-27T10-11-09-map-visible-clean.png",
+      "description": "Desktop map and case-feed viewport on the deployed Cloud Run app."
+    },
+    {
+      "file": "ux-redesign-2026-06-27T10-24-00-report-flow-start-final.png",
+      "description": "Report flow start with stepper, proof-photo upload, location, manual fallback, voice, and description fields."
+    },
+    {
+      "file": "ux-redesign-2026-06-27T10-24-00-manual-pin-fallback-final.png",
+      "description": "Manual map-pin fallback visible after geolocation denial/unavailability."
+    },
+    {
+      "file": "ux-redesign-2026-06-27T10-24-00-gemini-triage-result-final.png",
+      "description": "Gemini triage draft generated from explicitly synthetic prototype evidence."
+    },
+    {
+      "file": "ux-redesign-2026-06-27T10-11-09-saved-demo-issue-detail-clean.png",
+      "description": "Saved synthetic demo issue detail with evidence, lifecycle fields, draft plan, and no external filing claim."
+    },
+    {
+      "file": "ux-redesign-2026-06-27T10-21-00-persisted-agent-run-tool-steps-final.png",
+      "description": "Persisted server agent run showing all 8 tool steps and human approval gate."
+    },
+    {
+      "file": "ux-redesign-2026-06-27T10-18-00-agent-trace-after-refresh-explicit-ui.png",
+      "description": "Same issue reopened after refresh with the persisted agent trace still present."
+    },
+    {
+      "file": "ux-redesign-2026-06-27T10-19-30-demo-operator-synthetic-only-clean.png",
+      "description": "Demo operator workspace showing synthetic-only boundary and demo-labelled cases."
+    },
+    {
+      "file": "ux-redesign-2026-06-27T10-11-09-mobile-layout-clean.png",
+      "description": "Mobile homepage layout with bottom navigation and floating report action."
+    },
+    {
+      "file": "ux-redesign-2026-06-27T10-24-00-mobile-report-manual-fallback-final.png",
+      "description": "Mobile report flow with manual map-pin fallback and 44px-class controls."
+    }
+  ],
+  "reusedPriorEvidence": [
+    {
+      "file": "real-case-mutation-denied-live-api-summary-public-chrome-content-2026-06-27.png",
+      "description": "Live API evidence that demo/anonymous operator mutation is denied for a non-demo case."
+    },
+    {
+      "file": "closure-recommendation-not-auto-resolved-public-chrome-content-2026-06-27.png",
+      "description": "Closure recommendation persists without automatically resolving the case."
+    },
+    {
+      "file": "health-200-public-chrome-content-2026-06-27.png",
+      "description": "Public /health 200 page-content evidence from the final evidence package."
+    },
+    {
+      "file": "readyz-200-public-chrome-content-2026-06-27.png",
+      "description": "Public /readyz 200 page-content evidence from the final evidence package."
+    },
+    {
+      "file": "github-public-repository-public-chrome-content-2026-06-27.png",
+      "description": "Public GitHub repository evidence from the final evidence package."
+    }
+  ]
+}

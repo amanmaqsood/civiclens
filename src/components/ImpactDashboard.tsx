@@ -98,7 +98,7 @@ export default function ImpactDashboard({
   ];
 
   return (
-    <div id="impact-dashboard" className="flex flex-col gap-4 p-4 bg-paper min-h-screen font-sans pb-16 text-ink">
+    <div id="impact-dashboard" className="mx-auto flex w-full max-w-6xl flex-col gap-6 p-4 bg-paper min-h-screen font-sans pb-28 text-ink sm:p-6 lg:p-8">
       <div className="flex items-center gap-3">
         <button
           type="button"
@@ -110,8 +110,8 @@ export default function ImpactDashboard({
           <ArrowLeft className="w-4 h-4 text-ink" />
         </button>
         <div>
-          <span className="text-[9px] font-mono uppercase text-slate tracking-wider block">Prototype impact dashboard</span>
-          <h2 className="text-xs font-display font-bold uppercase tracking-wider text-ink">Loaded Incident Ledger</h2>
+          <span className="text-sm font-mono text-slate block">Prototype impact dashboard</span>
+          <h2 className="text-3xl font-display font-black text-ink">Loaded incident ledger</h2>
         </div>
       </div>
 
@@ -123,7 +123,7 @@ export default function ImpactDashboard({
               type="button"
               onClick={() => setScope(option.id)}
               aria-pressed={scope === option.id}
-              className={`min-h-[44px] rounded-xl border px-3 text-xs font-bold ${
+              className={`min-h-[44px] rounded-xl border px-4 text-base font-bold ${
                 scope === option.id
                   ? "bg-ink text-paper border-ink"
                   : "bg-paper text-slate border-hairline hover:text-ink"
@@ -133,7 +133,7 @@ export default function ImpactDashboard({
             </button>
           ))}
         </div>
-        <p className="text-[11px] text-slate leading-relaxed">
+        <p className="text-base text-slate leading-relaxed">
           Metrics are computed only from the {scopedIssues.length} {scope === "real" ? "real" : "synthetic demo"} records currently loaded.
           {hasMoreIssues ? ` More records may exist beyond the loaded page of ${loadedPageSize}.` : " The current query reports no additional page."}
         </p>
@@ -143,51 +143,51 @@ export default function ImpactDashboard({
         <div className="bg-white p-3.5 rounded-2xl border border-hairline flex flex-col gap-1 shadow-[0_2px_8px_-2px_rgba(14,26,43,0.04)]">
           <div className="flex items-center gap-1 text-slate">
             <Layers className="w-3.5 h-3.5 text-slate shrink-0" />
-            <span className="text-[9px] font-mono uppercase tracking-tight">Loaded records</span>
+            <span className="text-sm font-mono">Loaded records</span>
           </div>
-          <span className="text-xl font-mono font-bold text-ink leading-tight mt-0.5">{metrics.totalReported}</span>
-          <span className="text-[9.5px] text-slate font-medium leading-none">{scope === "demo" ? "Synthetic demo records" : "Non-demo records"}</span>
+          <span className="text-4xl font-mono font-bold text-ink leading-tight mt-0.5">{metrics.totalReported}</span>
+          <span className="text-sm text-slate font-medium leading-tight">{scope === "demo" ? "Synthetic demo records" : "Non-demo records"}</span>
         </div>
 
         <div className="bg-white p-3.5 rounded-2xl border border-hairline flex flex-col gap-1 shadow-[0_2px_8px_-2px_rgba(14,26,43,0.04)]">
           <div className="flex items-center gap-1 text-verify">
             <CheckCircle className="w-3.5 h-3.5 text-verify shrink-0" />
-            <span className="text-[9px] font-mono uppercase tracking-tight">Resolved rate</span>
+            <span className="text-sm font-mono">Resolved rate</span>
           </div>
-          <span className="text-lg font-mono font-bold text-verify leading-tight mt-0.5">{metrics.resolutionRate.value}</span>
-          <span className="text-[9.5px] text-slate font-medium leading-tight">{metrics.resolutionRate.detail}</span>
+          <span className="text-3xl font-mono font-bold text-verify leading-tight mt-0.5">{metrics.resolutionRate.value}</span>
+          <span className="text-sm text-slate font-medium leading-tight">{metrics.resolutionRate.detail}</span>
         </div>
 
         <div className="bg-white p-3.5 rounded-2xl border border-hairline flex flex-col gap-1 shadow-[0_2px_8px_-2px_rgba(14,26,43,0.04)]">
           <div className="flex items-center gap-1 text-slate">
             <Clock className="w-3.5 h-3.5 text-slate shrink-0" />
-            <span className="text-[9px] font-mono uppercase tracking-tight">Resolution time</span>
+            <span className="text-sm font-mono">Resolution time</span>
           </div>
-          <span className="text-lg font-mono font-bold text-ink leading-tight mt-0.5">{metrics.avgResolutionTime.value}</span>
-          <span className="text-[9.5px] text-slate font-medium leading-tight">{metrics.avgResolutionTime.detail}</span>
+          <span className="text-3xl font-mono font-bold text-ink leading-tight mt-0.5">{metrics.avgResolutionTime.value}</span>
+          <span className="text-sm text-slate font-medium leading-tight">{metrics.avgResolutionTime.detail}</span>
         </div>
 
         <div className="bg-white p-3.5 rounded-2xl border border-hairline flex flex-col gap-1 shadow-[0_2px_8px_-2px_rgba(14,26,43,0.04)]">
           <div className="flex items-center gap-1 text-marigold">
             <Copy className="w-3.5 h-3.5 text-marigold shrink-0" />
-            <span className="text-[9px] font-mono uppercase tracking-tight">Consolidated</span>
+            <span className="text-sm font-mono">Consolidated</span>
           </div>
-          <span className="text-xl font-mono font-bold text-ink leading-tight mt-0.5">{metrics.totalDuplicates}</span>
-          <span className="text-[9.5px] text-slate font-medium leading-none">Stored duplicate count signals</span>
+          <span className="text-4xl font-mono font-bold text-ink leading-tight mt-0.5">{metrics.totalDuplicates}</span>
+          <span className="text-sm text-slate font-medium leading-tight">Stored duplicate count signals</span>
         </div>
       </div>
 
       <div className="bg-white border border-hairline rounded-2xl p-4 shadow-[0_4px_16px_-4px_rgba(14,26,43,0.05)] flex flex-col gap-3">
-        <h3 className="text-[10px] font-mono font-bold uppercase tracking-wider text-slate border-b border-hairline pb-2">Category Distribution</h3>
+        <h3 className="text-lg font-bold text-ink border-b border-hairline pb-2">Category distribution</h3>
         <div className="flex flex-col gap-3">
           {categories.map((cat) => {
             const count = metrics.categoryCounts[cat] || 0;
             const pct = count === 0 ? 0 : Math.max(6, Math.round((count / maxCategoryCount) * 100));
             return (
-              <div key={cat} className="flex flex-col gap-1 text-[10px]">
-                <div className="flex items-center justify-between text-slate font-semibold uppercase tracking-tight">
-                  <span className="text-[9.5px] font-medium text-ink">{cat.replace("_", " ")}</span>
-                  <span className="font-mono text-ink text-[10px]">{count}</span>
+              <div key={cat} className="flex flex-col gap-1 text-sm">
+                <div className="flex items-center justify-between text-slate font-semibold">
+                  <span className="text-sm font-medium text-ink">{cat.replace("_", " ")}</span>
+                  <span className="font-mono text-ink text-sm">{count}</span>
                 </div>
                 <div className="w-full bg-paper h-1.5 rounded-full overflow-hidden border border-hairline">
                   <div className="bg-marigold h-full rounded-full transition-all duration-300" style={{ width: `${pct}%` }} />
@@ -199,7 +199,7 @@ export default function ImpactDashboard({
       </div>
 
       <div className="bg-white border border-hairline rounded-2xl p-4 shadow-[0_4px_16px_-4px_rgba(14,26,43,0.05)] flex flex-col gap-3">
-        <h3 className="text-[10px] font-mono font-bold uppercase tracking-wider text-slate border-b border-hairline pb-2">Status Lifecycles</h3>
+        <h3 className="text-lg font-bold text-ink border-b border-hairline pb-2">Status lifecycles</h3>
         <div className="flex flex-col gap-3">
           {statuses.map((stat) => {
             const count = metrics.statusCounts[stat] || 0;
@@ -212,10 +212,10 @@ export default function ImpactDashboard({
             };
 
             return (
-              <div key={stat} className="flex flex-col gap-1 text-[10px]">
-                <div className="flex items-center justify-between text-slate font-semibold uppercase tracking-tight">
-                  <span className="text-[9.5px] font-medium text-ink">{issueStatusLabel(stat)}</span>
-                  <span className="font-mono text-ink text-[10px]">{count}</span>
+              <div key={stat} className="flex flex-col gap-1 text-sm">
+                <div className="flex items-center justify-between text-slate font-semibold">
+                  <span className="text-sm font-medium text-ink">{issueStatusLabel(stat)}</span>
+                  <span className="font-mono text-ink text-sm">{count}</span>
                 </div>
                 <div className="w-full bg-paper h-1.5 rounded-full overflow-hidden border border-hairline">
                   <div className={`${statusBarColors[stat] || "bg-slate"} h-full rounded-full transition-all duration-300`} style={{ width: `${pct}%` }} />

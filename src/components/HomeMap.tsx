@@ -1,8 +1,8 @@
-import React, { useMemo, useState, useEffect } from "react";
+import React, { useEffect, useMemo, useState } from "react";
 import { APIProvider, Map, Marker } from "@vis.gl/react-google-maps";
+import { Navigation } from "lucide-react";
 import { IssueReport } from "../types";
 import { humanizeCategory } from "../utils/humanize";
-import { Navigation } from "lucide-react"; // Nice looking icon for location action
 
 interface HomeMapProps {
   issues: IssueReport[];
@@ -19,52 +19,52 @@ const API_KEY =
 
 const hasValidKey = Boolean(API_KEY) && API_KEY !== "YOUR_API_KEY";
 
-// Custom low-saturation minimalist map styles
 const mapStyles = [
   {
     featureType: "all",
     elementType: "geometry",
-    stylers: [{ saturation: -85 }]
+    stylers: [{ saturation: -85 }],
   },
   {
     featureType: "water",
     elementType: "geometry",
-    stylers: [{ color: "#D9E2E8" }]
+    stylers: [{ color: "#D9E2E8" }],
   },
   {
     featureType: "road",
     elementType: "geometry",
-    stylers: [{ color: "#ffffff" }]
+    stylers: [{ color: "#ffffff" }],
   },
   {
     featureType: "road",
     elementType: "labels.text.fill",
-    stylers: [{ color: "#7c8c9c" }]
+    stylers: [{ color: "#7c8c9c" }],
   },
   {
     featureType: "poi",
     elementType: "labels",
-    stylers: [{ visibility: "off" }]
+    stylers: [{ visibility: "off" }],
   },
   {
     featureType: "transit",
     elementType: "labels",
-    stylers: [{ visibility: "off" }]
+    stylers: [{ visibility: "off" }],
   },
   {
     featureType: "all",
     elementType: "labels.text.stroke",
-    stylers: [{ visibility: "off" }]
-  }
+    stylers: [{ visibility: "off" }],
+  },
 ];
 
-export default function HomeMap({ 
-  issues, 
+export default function HomeMap({
+  issues,
   onSelectIssue,
   userLocation: propUserLocation,
-  onUserLocationChange
+  onUserLocationChange,
 }: HomeMapProps) {
   const [localUserLocation, setLocalUserLocation] = useState<{ lat: number; lng: number } | null>(null);
+  const [geoStatus, setGeoStatus] = useState<"granted" | "denied" | "unavailable" | "loading" | null>(null);
   const userLocation = propUserLocation !== undefined ? propUserLocation : localUserLocation;
   const setUserLocation = (loc: { lat: number; lng: number } | null) => {
     if (onUserLocationChange) {
@@ -73,8 +73,6 @@ export default function HomeMap({
       setLocalUserLocation(loc);
     }
   };
-
-  const [geoStatus, setGeoStatus] = useState<"granted" | "denied" | "unavailable" | "loading" | null>(null);
 
   const validIssues = useMemo(() => {
     return issues.filter(
@@ -99,7 +97,7 @@ export default function HomeMap({
         lng: totalLng / validIssues.length,
       };
     }
-    return { lat: 12.9716, lng: 77.5946 }; // Default center (Bengaluru)
+    return { lat: 12.9716, lng: 77.5946 };
   }, [validIssues]);
 
   const defaultMapCenter = useMemo(() => {
@@ -115,7 +113,6 @@ export default function HomeMap({
   const [activeCenter, setActiveCenter] = useState<{ lat: number; lng: number }>(defaultMapCenter);
   const [activeZoom, setActiveZoom] = useState<number>(defaultMapZoom);
 
-  // Sync state initially when computed defaults change
   useEffect(() => {
     setActiveCenter(defaultMapCenter);
     setActiveZoom(defaultMapZoom);
@@ -156,13 +153,12 @@ export default function HomeMap({
     requestLocation(false);
   }, []);
 
-  // Exact severity color map matching Civic Dossier tokens
   const getSeverityColor = (severity?: number) => {
     const sev = severity || 3;
-    if (sev <= 2) return "#0FB5A6"; // verify (#0FB5A6)
-    if (sev === 3) return "#EE9B2D"; // marigold (#EE9B2D)
-    if (sev === 4) return "#F2683B"; // orange (#F2683B)
-    return "#E5484D"; // alert (#E5484D)
+    if (sev <= 2) return "#0FB5A6";
+    if (sev === 3) return "#EE9B2D";
+    if (sev === 4) return "#F2683B";
+    return "#E5484D";
   };
 
   const getSvgPinUrl = (color: string) => {
@@ -177,29 +173,31 @@ export default function HomeMap({
 
   if (!hasValidKey) {
     return (
-      <div id="google-maps-setup-card" className="bg-white border border-hairline rounded-2xl p-5 flex flex-col gap-4 font-sans shadow-xs">
+      <div id="google-maps-setup-card" className="flex flex-col gap-4 rounded-2xl border border-hairline bg-white p-5 font-sans shadow-xs">
         <div className="flex flex-col gap-1.5">
-          <h4 className="text-xs font-bold text-ink font-display uppercase tracking-wider">🌐 Interactive Map Inactive</h4>
-          <p className="text-[11px] text-[#334155] leading-relaxed">
+          <h4 className="text-lg font-bold text-ink">Interactive map inactive</h4>
+          <p className="text-base leading-relaxed text-[#334155]">
             Google Maps JavaScript API key is required to render active hazard locations.
           </p>
         </div>
-        <div className="bg-paper border border-hairline p-3 rounded-xl text-[10px] text-[#334155] flex flex-col gap-2 font-mono">
+        <div className="flex flex-col gap-2 rounded-xl border border-hairline bg-paper p-3 font-mono text-sm text-[#334155]">
           <p className="font-bold text-ink">To enable Google Maps integration:</p>
-          <ol className="list-decimal pl-4 flex flex-col gap-1 leading-normal">
+          <ol className="flex list-decimal flex-col gap-1 pl-4 leading-normal">
             <li>
-              Generate an API Key on{" "}
+              Generate an API key in{" "}
               <a
                 href="https://console.cloud.google.com/google/maps-apis/start?utm_campaign=gmp-code-assist-ais"
                 target="_blank"
                 rel="noopener noreferrer"
-                className="text-[#7A4300] underline font-bold"
+                className="font-bold text-[#7A4300] underline"
               >
                 Google Cloud Console
               </a>
             </li>
-            <li>Press the Settings (⚙️) icon in top-right corner.</li>
-            <li>Go to <strong>Secrets</strong>, add <code>GOOGLE_MAPS_PLATFORM_KEY</code>, and paste your API key.</li>
+            <li>Open the deployment configuration or secret settings.</li>
+            <li>
+              Add <code>GOOGLE_MAPS_PLATFORM_KEY</code> with a browser-restricted Maps key.
+            </li>
           </ol>
         </div>
       </div>
@@ -207,23 +205,24 @@ export default function HomeMap({
   }
 
   return (
-    <div id="home-google-map-container" className="w-full h-[250px] rounded-2xl overflow-hidden border border-hairline shadow-sm relative">
-      {/* Non-blocking Geolocation Status Hint Overlay */}
+    <div
+      id="home-google-map-container"
+      className="relative h-[300px] w-full overflow-hidden rounded-2xl border border-hairline shadow-sm sm:h-[360px] lg:h-[430px]"
+    >
       {(geoStatus === "denied" || geoStatus === "unavailable" || !userLocation) && (
-        <div className="absolute top-2 left-2 right-12 z-10 bg-ink/90 text-white text-[10px] px-2.5 py-1.5 rounded-lg border border-white/10 font-sans shadow-md backdrop-blur-xs leading-normal pointer-events-none max-w-[260px]">
-          Showing Bengaluru — tap the target button to center on your current position.
+        <div className="pointer-events-none absolute left-3 right-16 top-3 z-10 max-w-sm rounded-xl border border-white/10 bg-ink/90 px-3 py-2 text-sm leading-relaxed text-white shadow-md backdrop-blur-xs">
+          Showing Bengaluru. Use the target button to center on your current position.
         </div>
       )}
 
-      {/* Dynamic Location Request Button Overlay */}
       <button
         id="use-my-location-btn"
         onClick={() => requestLocation(true)}
-        className="absolute bottom-2 right-2 z-10 bg-white/95 hover:bg-white text-ink border border-hairline rounded-lg p-2 shadow-md transition-all flex items-center justify-center cursor-pointer"
-        style={{ minWidth: "34px", minHeight: "34px" }}
+        className="absolute bottom-3 right-3 z-10 flex min-h-[44px] min-w-[44px] items-center justify-center rounded-xl border border-hairline bg-white/95 p-2 text-ink shadow-md transition-all hover:bg-white"
         title="Use my location"
+        aria-label="Use my location on map"
       >
-        <Navigation className={`w-3.5 h-3.5 ${geoStatus === "loading" ? "animate-pulse text-marigold" : "text-ink"}`} />
+        <Navigation className={`h-5 w-5 ${geoStatus === "loading" ? "animate-pulse text-marigold" : "text-ink"}`} />
       </button>
 
       <APIProvider apiKey={API_KEY} version="weekly">
@@ -246,7 +245,7 @@ export default function HomeMap({
               gestureHandling: "cooperative",
               disableDefaultUI: true,
               zoomControl: true,
-            }
+            },
           } as any}
         >
           {validIssues.map((issue) => {

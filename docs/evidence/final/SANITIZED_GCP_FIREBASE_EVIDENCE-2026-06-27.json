@@ -1,16 +1,16 @@
 {
-  "capturedAt": "2026-06-27T06:48:44.010Z",
+  "capturedAt": "2026-06-27T10:22:33.239Z",
   "projectId": "gen-lang-client-0871796745",
   "projectNumber": "802067002365",
   "cloudRun": {
     "service": "civiclens",
     "region": "asia-southeast1",
     "url": "https://civiclens-py7ixxgroq-as.a.run.app",
-    "latestReadyRevisionName": "civiclens-00034-82x",
-    "latestCreatedRevisionName": "civiclens-00034-82x",
+    "latestReadyRevisionName": "civiclens-00036-dcb",
+    "latestCreatedRevisionName": "civiclens-00036-dcb",
     "traffic": [
       {
-        "revisionName": "civiclens-00034-82x",
+        "revisionName": "civiclens-00036-dcb",
         "percent": 100,
         "latestRevision": true
       }
@@ -21,7 +21,7 @@
       "status": "ok",
       "service": "civiclens",
       "mode": "production",
-      "timestamp": "2026-06-27T06:48:43.613Z"
+      "timestamp": "2026-06-27T10:22:33.100Z"
     },
     "readyz": {
       "status": "ready",
@@ -35,7 +35,7 @@
       "warnings": [
         "CIVICLENS_REQUIRE_APP_CHECK is not true; backend App Check enforcement is disabled."
       ],
-      "timestamp": "2026-06-27T06:48:43.899Z"
+      "timestamp": "2026-06-27T10:22:33.239Z"
     }
   },
   "firebaseRules": [

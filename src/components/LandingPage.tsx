@@ -1,5 +1,5 @@
-import React, { Suspense, lazy, useState } from "react";
-import { Camera, TrendingUp, CheckCircle2, Users } from "lucide-react";
+import React, { Suspense, lazy, useMemo, useState } from "react";
+import { Camera, CheckCircle2, GitMerge, MapPinned, ShieldCheck, Sparkles, Users } from "lucide-react";
 import { ActiveView, IssueReport } from "../types";
 import IssueListWithFilter from "./IssueListWithFilter";
 import Onboarding from "./Onboarding";
@@ -39,137 +39,214 @@ export default function LandingPage({
   const [showOnboarding, setShowOnboarding] = useState(() => {
     return !localStorage.getItem("has_seen_onboarding");
   });
-  const hasDemoData = issues.some(i => i.isDemoData);
+  const [showAllDemoData, setShowAllDemoData] = useState(false);
+
+  const { visibleIssues, demoIssues, hiddenDemoCount } = useMemo(() => {
+    const real = issues.filter((issue) => !issue.isDemoData);
+    const demo = issues.filter((issue) => issue.isDemoData);
+    const curatedDemo = [...demo]
+      .sort((a, b) => (b.priorityScore || 0) - (a.priorityScore || 0))
+      .slice(0, 3);
+    return {
+      visibleIssues: showAllDemoData ? issues : [...real, ...curatedDemo],
+      demoIssues: demo,
+      hiddenDemoCount: Math.max(0, demo.length - curatedDemo.length),
+    };
+  }, [issues, showAllDemoData]);
+
+  const activeCount = issues.filter((issue) => issue.status === "submitted" || issue.status === "verified" || issue.status === "in_progress").length;
+  const resolvedCount = issues.filter((issue) => issue.status === "resolved").length;
+
+  const proofCards = [
+    {
+      icon: Camera,
+      title: "Field report",
+      body: "Photo, description, and location are captured as a draft prototype case.",
+    },
+    {
+      icon: Sparkles,
+      title: "Server agent",
+      body: "Gemini runs bounded tools and persists every real tool step for review.",
+    },
+    {
+      icon: ShieldCheck,
+      title: "Human approval",
+      body: "Routing drafts, closure, and reopen decisions remain human-controlled.",
+    },
+  ];
 
   return (
-    <div id="landing-page-root" className="flex flex-col gap-4 px-4 py-4 font-sans pb-16">
+    <div id="landing-page-root" className="mx-auto flex w-full max-w-[1440px] flex-col gap-6 px-4 py-5 pb-24 font-sans text-ink sm:px-6 lg:px-8 lg:py-8">
       {showOnboarding && <Onboarding onDismiss={() => setShowOnboarding(false)} />}
-      
-      {/* Noticeable but dismissible alert banner */}
-      {showDemoBanner && hasDemoData && (
-        <div className="bg-marigold/10 border border-marigold/35 text-ink text-xs p-3 rounded-2xl flex items-start gap-2.5 relative shadow-3xs">
-          <div className="flex-1">
-            <p className="font-bold text-xs text-ink">Sample data</p>
-            <p className="text-[#475569] text-[11px] mt-0.5 leading-relaxed">
-              These Bengaluru reports are pre-seeded samples to demonstrate the workflow. File your own report anytime, or clear samples from the Operator panel.
-            </p>
+
+      {showDemoBanner && demoIssues.length > 0 && (
+        <div className="rounded-2xl border border-marigold/35 bg-marigold/10 p-4 text-ink shadow-3xs">
+          <div className="flex items-start gap-3">
+            <div className="flex h-11 w-11 shrink-0 items-center justify-center rounded-xl bg-white text-marigold shadow-3xs">
+              <Users className="h-5 w-5" />
+            </div>
+            <div className="min-w-0 flex-1">
+              <p className="text-base font-bold">Sample data</p>
+              <p className="mt-1 max-w-3xl text-base leading-relaxed text-[#334155]">
+                These Bengaluru cases are synthetic demo stories for judging the workflow. They are not live civic complaints.
+              </p>
+            </div>
+            <button
+              type="button"
+              onClick={() => setShowDemoBanner(false)}
+              className="flex min-h-[44px] min-w-[44px] items-center justify-center rounded-xl text-xl font-bold text-slate hover:bg-white/70 hover:text-ink"
+              aria-label="Dismiss sample data notice"
+            >
+              &times;
+            </button>
           </div>
-          <button 
-            type="button"
-            onClick={() => setShowDemoBanner(false)}
-            className="text-slate hover:text-ink font-bold text-lg leading-none p-0.5 -mt-0.5 shrink-0 select-none cursor-pointer"
-            aria-label="Dismiss demo banner"
-          >
-            &times;
-          </button>
         </div>
       )}
 
-      {/* Banner Card / Hero */}
-      <div className="bg-ink text-white p-5 rounded-2xl relative overflow-hidden shadow-[0_6px_24px_-8px_rgba(14,26,43,0.3)] border border-white/5">
-        <div className="absolute -right-12 -bottom-12 w-40 h-40 rounded-full bg-marigold/10 blur-2xl" />
-        
-        <div className="relative z-10 flex flex-col gap-3">
-          <span className="self-start text-[10px] font-mono lg:text-xs font-bold uppercase tracking-widest bg-marigold text-ink px-2.5 py-0.5 rounded-full select-none">
-            {t("hero.title")}
-          </span>
-          <h2 className="text-sm font-sans text-white/90 animate-fade-in leading-relaxed">
-            {t("hero.subtitle")}
-          </h2>
-          <button
-            id="report-issue-btn"
-            onClick={() => onNavigate("report")}
-            className="mt-1 w-full flex items-center justify-center gap-2 bg-marigold hover:bg-marigold/95 font-bold text-ink text-sm py-3 px-5 rounded-xl transition duration-150 active:scale-[0.98] cursor-pointer font-sans"
-            style={{ minHeight: "44px" }}
-            aria-label={t("hero.reportButton")}
-          >
-            <Camera className="w-4 h-4 flex-shrink-0" />
-            {t("hero.reportButton")}
-          </button>
-        </div>
-      </div>
+      <section className="grid gap-5 lg:grid-cols-[minmax(0,0.9fr)_minmax(440px,1.1fr)] lg:items-stretch">
+        <div className="relative overflow-hidden rounded-3xl border border-white/10 bg-ink p-6 text-white shadow-[0_18px_60px_-40px_rgba(14,26,43,0.9)] sm:p-8">
+          <div className="relative z-10 flex h-full min-h-[360px] flex-col justify-between gap-8">
+            <div className="flex flex-col gap-5">
+              <span className="w-fit rounded-lg bg-marigold px-3 py-1 text-sm font-bold text-ink">
+                CivicLens prototype
+              </span>
+              <div className="max-w-2xl">
+                <h2 className="text-4xl font-black leading-[1.02] tracking-normal text-white sm:text-5xl lg:text-6xl">
+                  CivicLens Field Command Center
+                </h2>
+                <p className="mt-5 max-w-[62ch] text-lg leading-relaxed text-white/78">
+                  Report a local issue, let Gemini draft and compare evidence, then follow the human-reviewed civic lifecycle without implying outside submission.
+                </p>
+              </div>
+              <div className="flex flex-col gap-3 sm:flex-row">
+                <button
+                  id="report-issue-btn"
+                  onClick={() => onNavigate("report")}
+                  className="inline-flex min-h-[52px] items-center justify-center gap-2 rounded-2xl bg-marigold px-5 text-base font-bold text-ink shadow-sm transition active:scale-[0.98]"
+                  aria-label={t("hero.reportButton")}
+                >
+                  <Camera className="h-5 w-5" />
+                  {t("hero.reportButton")}
+                </button>
+                <button
+                  type="button"
+                  onClick={() => document.getElementById("issue-list-with-filter")?.scrollIntoView({ behavior: "smooth", block: "start" })}
+                  className="inline-flex min-h-[52px] items-center justify-center gap-2 rounded-2xl border border-white/20 bg-white/8 px-5 text-base font-bold text-white transition hover:bg-white/12 active:scale-[0.98]"
+                >
+                  <MapPinned className="h-5 w-5 text-marigold" />
+                  Review map cases
+                </button>
+              </div>
+            </div>
 
-      {/* Google Interactive Map Section */}
-      <div className="flex flex-col gap-2">
-        <h3 className="text-xs font-display font-bold text-ink uppercase tracking-wider px-1">
-          Live map
-        </h3>
-        <Suspense fallback={<div className="h-[280px] rounded-2xl border border-hairline bg-white p-4 text-xs font-bold text-slate">Loading map...</div>}>
-          <HomeMap 
-            issues={issues} 
-            onSelectIssue={onSelectIssue} 
-            userLocation={userLocation}
-            onUserLocationChange={onUserLocationChange}
-          />
-        </Suspense>
-      </div>
-
-      {/* Searchable, Filterable list section */}
-      <IssueListWithFilter
-        issues={issues}
-        onSelectIssue={onSelectIssue}
-        onUpvote={onUpvote}
-        upvoteLoadingId={upvoteLoadingId}
-        loading={loading}
-        onNavigateToReport={() => onNavigate("report")}
-      />
-
-      <div className="flex flex-col items-center gap-2 text-center">
-        {hasMoreIssues ? (
-          <button
-            type="button"
-            onClick={onLoadMoreIssues}
-            disabled={loadingMoreIssues}
-            className="min-h-[44px] rounded-xl border border-hairline bg-white px-4 text-xs font-bold text-ink shadow-2xs hover:bg-paper disabled:opacity-60"
-          >
-            {loadingMoreIssues ? "Loading more records..." : "Load more saved records"}
-          </button>
-        ) : (
-          <p className="text-[10.5px] font-medium text-[#334155]">
-            Showing all records loaded by the current query page.
-          </p>
-        )}
-      </div>
-
-      {/* Progress & Live Network Stats */}
-      <div className="bg-white border border-hairline p-4 rounded-2xl flex flex-col gap-3 shadow-xs">
-        <h3 className="text-xs font-display font-bold text-ink uppercase tracking-wider flex items-center gap-1.5">
-          <TrendingUp className="w-3.5 h-3.5 text-marigold" />
-          Loaded Report Stats
-        </h3>
-
-        <div className="grid grid-cols-3 gap-1.5 text-center">
-          <div className="p-2.5 bg-paper rounded-xl border border-hairline">
-            <p className="text-[10px] font-mono uppercase tracking-wider text-[#334155]">Reported</p>
-            <p id="stats-total-reported" className="text-sm font-display font-black text-marigold">{issues.length}</p>
+            <div className="grid gap-3 sm:grid-cols-3">
+              {proofCards.map((card) => {
+                const Icon = card.icon;
+                return (
+                  <div key={card.title} className="rounded-2xl border border-white/10 bg-white/8 p-4">
+                    <Icon className="h-5 w-5 text-marigold" />
+                    <p className="mt-3 text-base font-bold text-white">{card.title}</p>
+                    <p className="mt-1 text-sm leading-relaxed text-white/70">{card.body}</p>
+                  </div>
+                );
+              })}
+            </div>
           </div>
-          <div className="p-2.5 bg-paper rounded-xl border border-hairline">
-            <p className="text-[10px] font-mono uppercase tracking-wider text-[#334155]">Executing</p>
-            <p id="stats-in-progress" className="text-sm font-display font-black text-[#3B82F6]">
-              {issues.filter(i => i.status === "in_progress" || i.status === "verified").length}
+        </div>
+
+        <div className="rounded-3xl border border-hairline bg-white p-4 shadow-[0_12px_42px_-34px_rgba(14,26,43,0.7)] sm:p-5">
+          <div className="mb-3 flex items-center justify-between gap-3">
+            <div>
+              <h3 className="text-xl font-bold text-ink">Live map</h3>
+              <p className="mt-1 text-base text-[#334155]">Map-first preview of saved prototype cases.</p>
+            </div>
+            {demoIssues.length > 0 && (
+              <span className="rounded-lg border border-marigold/30 bg-marigold/10 px-3 py-1 text-sm font-bold text-[#7A4300]">
+                Synthetic demo visible
+              </span>
+            )}
+          </div>
+          <Suspense fallback={<div className="h-[320px] rounded-2xl border border-hairline bg-paper p-4 text-base font-bold text-slate">Loading map...</div>}>
+            <HomeMap
+              issues={visibleIssues}
+              onSelectIssue={onSelectIssue}
+              userLocation={userLocation}
+              onUserLocationChange={onUserLocationChange}
+            />
+          </Suspense>
+        </div>
+      </section>
+
+      <section className="grid gap-4 md:grid-cols-3">
+        <div className="rounded-2xl border border-hairline bg-white p-5 shadow-xs">
+          <p className="text-sm font-bold text-[#334155]">Loaded records</p>
+          <p id="stats-total-reported" className="mt-2 text-4xl font-black text-marigold">{issues.length}</p>
+          <p className="mt-1 text-base text-[#334155]">Current query page only</p>
+        </div>
+        <div className="rounded-2xl border border-hairline bg-white p-5 shadow-xs">
+          <p className="text-sm font-bold text-[#334155]">Active cases</p>
+          <p id="stats-in-progress" className="mt-2 text-4xl font-black text-[#2563EB]">{activeCount}</p>
+          <p className="mt-1 text-base text-[#334155]">Submitted, verified, or in progress</p>
+        </div>
+        <div className="rounded-2xl border border-hairline bg-white p-5 shadow-xs">
+          <p className="text-sm font-bold text-[#334155]">Resolved records</p>
+          <p id="stats-resolved" className="mt-2 text-4xl font-black text-verify">{resolvedCount}</p>
+          <p className="mt-1 text-base text-[#334155]">Derived from persisted status</p>
+        </div>
+      </section>
+
+      <section className="flex flex-col gap-4">
+        <div className="flex flex-col justify-between gap-3 sm:flex-row sm:items-end">
+          <div>
+            <h3 className="text-2xl font-black text-ink">Case stories</h3>
+            <p className="mt-1 max-w-3xl text-base leading-relaxed text-[#334155]">
+              Metrics are calculated from the records currently loaded in this prototype, with synthetic demo records labelled separately.
             </p>
           </div>
-          <div className="p-2.5 bg-paper rounded-xl border border-hairline">
-            <p className="text-[10px] font-mono uppercase tracking-wider text-[#334155]">Resolved</p>
-            <p id="stats-resolved" className="text-sm font-display font-black text-verify">
-              {issues.filter(i => i.status === "resolved").length}
+          {!showAllDemoData && hiddenDemoCount > 0 && (
+            <button
+              type="button"
+              id="show-all-demo-data"
+              onClick={() => setShowAllDemoData(true)}
+              className="inline-flex min-h-[44px] items-center justify-center gap-2 rounded-xl border border-hairline bg-white px-4 text-base font-bold text-ink shadow-2xs hover:bg-paper"
+            >
+              <GitMerge className="h-4 w-4 text-marigold" />
+              Show all demo data ({hiddenDemoCount} hidden)
+            </button>
+          )}
+        </div>
+
+        <IssueListWithFilter
+          issues={visibleIssues}
+          onSelectIssue={onSelectIssue}
+          onUpvote={onUpvote}
+          upvoteLoadingId={upvoteLoadingId}
+          loading={loading}
+          onNavigateToReport={() => onNavigate("report")}
+        />
+
+        <div className="flex flex-col items-center gap-2 text-center">
+          {hasMoreIssues ? (
+            <button
+              type="button"
+              onClick={onLoadMoreIssues}
+              disabled={loadingMoreIssues}
+              className="min-h-[44px] rounded-xl border border-hairline bg-white px-4 text-base font-bold text-ink shadow-2xs hover:bg-paper disabled:opacity-60"
+            >
+              {loadingMoreIssues ? "Loading more records..." : "Load more saved records"}
+            </button>
+          ) : (
+            <p className="text-sm font-medium text-[#334155]">
+              Showing all records loaded by the current query page.
             </p>
-          </div>
+          )}
         </div>
+      </section>
 
-        <div className="flex items-center gap-2 bg-[#E9F7F5] border border-verify/10 p-2.5 rounded-xl">
-          <CheckCircle2 className="w-3.5 h-3.5 text-verify flex-shrink-0" />
-          <p className="text-xs text-[#334155] leading-snug font-medium">
-            Metrics are calculated from the records currently loaded in this prototype, with synthetic demo records labelled separately.
-          </p>
-        </div>
-      </div>
-
-      {/* Footer Decoration */}
-      <div className="flex items-center justify-center gap-1.5 py-1 text-center">
-        <Users className="w-3.5 h-3.5 text-[#334155]" />
-        <span className="text-[10px] text-[#334155] font-mono tracking-widest uppercase">
-          Independent Civic Prototype
+      <div className="flex items-center justify-center gap-2 py-2 text-center">
+        <CheckCircle2 className="h-4 w-4 text-verify" />
+        <span className="text-sm font-semibold text-[#334155]">
+          Independent civic prototype. Drafts stay inside CivicLens until a human acts outside the app.
         </span>
       </div>
     </div>

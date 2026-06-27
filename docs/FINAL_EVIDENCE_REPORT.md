@@ -191,9 +191,81 @@ Final known limitations before submission:
 - Optional demo video is not included.
 - Next step: submit the live app, public GitHub repository, and public Google Doc through BlockseBlock only after explicit user approval.
 
+## UX Redesign Deployment and Evidence Refresh Checkpoint
+
+This checkpoint was performed on 2026-06-27 after the CivicLens Field Command Center UX refresh. It deployed the current app source to Cloud Run, refreshed public app evidence, and confirmed the Maps browser-key restriction. It did not submit to BlockseBlock, change billing, delete resources, rotate keys, print secret values, or enable App Check enforcement.
+
+Repository baseline and deployment:
+
+- Baseline tag before the UX sprint: `pre-ux-redesign` at `5764961 docs: add ux redesign contract`.
+- Pre-UX deployed revision observed before the sprint: `civiclens-00034-82x`.
+- One intermediate deployment, `civiclens-00035-5bx`, exposed a stale browser Firebase config and was superseded.
+- Final UX deployment revision: `civiclens-00036-dcb`, serving 100 percent traffic.
+- Final Cloud Build ID: `0d56856e-938a-4d0f-a16f-5d12d89b03dd`.
+- Final image tag: `ux-redesign-firebase-20260627152313`.
+- Final image digest: `sha256:9c89a3c02446930695ed4bff66673860f4a88b669caa66d5c5b5c2c5f6394b21`.
+- Canonical public URL: `https://civiclens-py7ixxgroq-as.a.run.app`.
+- Alternate public URL: `https://civiclens-802067002365.asia-southeast1.run.app`.
+- Deployment used an empty Firebase measurement ID, matching the approved deployment condition and current Firebase web config.
+
+Public health checks after the UX deployment:
+
+- Canonical `/health`: HTTP 200 with `status: ok`, `service: civiclens`, `mode: production`, timestamp `2026-06-27T10:22:33.100Z`.
+- Canonical `/readyz`: HTTP 200 with `ready: true`, `adminDb: true`, `geminiConfigured: true`, `configValid: true`, no missing values, and the expected warning `CIVICLENS_REQUIRE_APP_CHECK is not true; backend App Check enforcement is disabled.`
+- Alternate `/health`: HTTP 200 with `status: ok`, timestamp `2026-06-27T10:20:59.856Z`.
+- Alternate `/readyz`: HTTP 200 with `ready: true`, timestamp `2026-06-27T10:20:59.835Z`, and the same App Check warning.
+
+Maps browser key:
+
+- Read-only Google Cloud API key metadata confirmed the Maps browser key remains restricted to HTTP referrers:
+  - `https://civiclens-py7ixxgroq-as.a.run.app/*`
+  - `https://civiclens-802067002365.asia-southeast1.run.app/*`
+  - `http://localhost:*`
+- API target remains `maps-backend.googleapis.com`.
+- Current code uses the Maps key only in the browser map surface; server-side code only checks whether Maps config is present for readiness and does not call Maps APIs with that key.
+
+UX refresh evidence captured under `docs/evidence/final/`:
+
+- `PUBLIC_SCREENSHOT_MANIFEST-UX-REFRESH-2026-06-27.json`
+- `ux-redesign-2026-06-27T10-11-09-homepage-desktop-field-command-center-clean.png`
+- `ux-redesign-2026-06-27T10-11-09-map-visible-clean.png`
+- `ux-redesign-2026-06-27T10-24-00-report-flow-start-final.png`
+- `ux-redesign-2026-06-27T10-24-00-manual-pin-fallback-final.png`
+- `ux-redesign-2026-06-27T10-24-00-gemini-triage-result-final.png`
+- `ux-redesign-2026-06-27T10-11-09-saved-demo-issue-detail-clean.png`
+- `ux-redesign-2026-06-27T10-21-00-persisted-agent-run-tool-steps-final.png`
+- `ux-redesign-2026-06-27T10-18-00-agent-trace-after-refresh-explicit-ui.png`
+- `ux-redesign-2026-06-27T10-19-30-demo-operator-synthetic-only-clean.png`
+- `ux-redesign-2026-06-27T10-11-09-mobile-layout-clean.png`
+- `ux-redesign-2026-06-27T10-24-00-mobile-report-manual-fallback-final.png`
+
+The Gemini triage screenshot uses explicitly synthetic prototype evidence and does not save a real civic complaint. The persisted-agent screenshots use a synthetic demo case and show the server-authored 8-step tool timeline with the human approval gate still present after refresh. Existing prior evidence files still cover real-case mutation denial for demo/anonymous operators and closure recommendation persistence without auto-resolution.
+
+Validation after the UX refresh:
+
+- `npm ci`: passed. Install audit still reports 3 moderate dev-dependency vulnerabilities; production audit is clean.
+- `npm run lint`: passed (`tsc --noEmit`).
+- `npm test`: passed (16 files passed, 2 skipped; 75 tests passed, 7 skipped).
+- `npm run build`: passed with known warnings for Firebase chunk size and the mixed static/dynamic import of `src/services/issues.ts`.
+- `npm audit --omit=dev`: passed with 0 vulnerabilities.
+- `npm run test:rules`: passed (3 emulator rules tests).
+- `npm run test:concurrency`: passed (4 emulator concurrency tests).
+- `npm run test:e2e`: passed (6 Playwright tests) against local Firebase emulators.
+
 ## Latest Completed Validation
 
-Final evidence checkpoint validation results:
+Latest UX refresh validation results:
+
+- `npm ci`: passed. Install audit still reports 3 moderate dev-dependency vulnerabilities; production dependency audit below is clean.
+- `npm run lint`: passed (`tsc --noEmit`).
+- `npm test`: passed (16 test files passed, 2 emulator-only files skipped by default; 75 tests passed, 7 skipped).
+- `npm run build`: passed with known warnings for the Firebase chunk over 500 kB and `src/services/issues.ts` mixed static/dynamic import chunking.
+- `npm audit --omit=dev`: passed; 0 vulnerabilities.
+- `npm run test:rules`: passed (1 Firestore/Storage emulator test file, 3 tests).
+- `npm run test:concurrency`: passed (1 Firestore emulator test file, 4 tests).
+- `npm run test:e2e`: passed (6 Playwright tests against local Auth/Firestore/Storage emulators).
+
+Earlier final evidence checkpoint validation results:
 
 - `npm run lint`: passed (`tsc --noEmit`).
 - `npm test`: passed (15 test files passed, 2 emulator-only files skipped by default; 71 tests passed, 7 skipped).

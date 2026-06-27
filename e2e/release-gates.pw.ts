@@ -7,12 +7,14 @@ import { expect, test, type Page } from "@playwright/test";
 const require = createRequire(import.meta.url);
 const axeSource = readFileSync(require.resolve("axe-core/axe.min.js"), "utf8");
 const issueId = "e2e-demo-pothole";
+const extraDemoIssueIds = ["e2e-demo-water", "e2e-demo-light", "e2e-demo-hidden"];
 const projectId = process.env.FIREBASE_PROJECT_ID || process.env.GOOGLE_CLOUD_PROJECT || process.env.GCLOUD_PROJECT || "demo-civiclens";
 const databaseId = process.env.FIRESTORE_DATABASE_ID || "(default)";
 
 async function seedDemoIssue() {
   const app = getApps()[0] || initializeApp({ projectId });
   const db = databaseId === "(default)" ? getFirestore(app) : getFirestore(app, databaseId);
+  const createdAt = new Date("2026-06-26T00:00:00.000Z").toISOString();
   await db.collection("issues").doc(issueId).set({
     id: issueId,
     ticketId: "CVL-E2E-001",
@@ -37,6 +39,110 @@ async function seedDemoIssue() {
     priorityScore: 58,
     isDemoData: true,
   });
+
+  const extraDemoCases = [
+    {
+      id: extraDemoIssueIds[0],
+      ticketId: "CVL-E2E-002",
+      title: "E2E demo water leak",
+      category: "water_leak",
+      priorityScore: 52,
+      lat: 12.9816,
+      lng: 77.6046,
+    },
+    {
+      id: extraDemoIssueIds[1],
+      ticketId: "CVL-E2E-003",
+      title: "E2E demo streetlight",
+      category: "streetlight",
+      priorityScore: 44,
+      lat: 12.9616,
+      lng: 77.5846,
+    },
+    {
+      id: extraDemoIssueIds[2],
+      ticketId: "CVL-E2E-004",
+      title: "E2E hidden demo overflow",
+      category: "waste",
+      priorityScore: 10,
+      lat: 12.9516,
+      lng: 77.5746,
+    },
+  ];
+
+  await Promise.all(extraDemoCases.map((demoCase) => db.collection("issues").doc(demoCase.id).set({
+    id: demoCase.id,
+    ticketId: demoCase.ticketId,
+    title: demoCase.title,
+    summary: "Synthetic overflow case for default demo curation checks.",
+    description: "Synthetic overflow case for default demo curation checks.",
+    image: "",
+    lat: demoCase.lat,
+    lng: demoCase.lng,
+    locationName: "Bengaluru synthetic demo area",
+    category: demoCase.category,
+    status: "submitted",
+    timestamp: createdAt,
+    createdAt,
+    userId: "seeded-e2e",
+    citizenUpvotes: 0,
+    reportCount: 1,
+    confirmCount: 0,
+    disputeCount: 0,
+    severity: 3,
+    urgency: "routine",
+    priorityScore: demoCase.priorityScore,
+    isDemoData: true,
+  })));
+
+  const runId = `${issueId}_persisted-e2e`;
+  const startedAt = new Date("2026-06-26T00:05:00.000Z").toISOString();
+  const completedAt = new Date("2026-06-26T00:05:08.000Z").toISOString();
+  const stepNames = [
+    "search_nearby_cases",
+    "compare_candidate_evidence",
+    "calculate_priority",
+    "find_responsible_authority",
+    "draft_action_packet",
+    "request_human_approval",
+    "verify_closure",
+    "record_event",
+  ];
+  const runRef = db.collection("agentRuns").doc(runId);
+  await runRef.set({
+    id: runId,
+    issueId,
+    status: "completed",
+    model: "gemini-2.5-flash",
+    startedAt,
+    completedAt,
+    stepCount: stepNames.length,
+  });
+
+  const batch = db.batch();
+  stepNames.forEach((step, index) => {
+    const stepDoc = {
+      id: `${runId}_${String(index + 1).padStart(2, "0")}`,
+      runId,
+      issueId,
+      order: index,
+      model: "gemini-2.5-flash",
+      step,
+      tool: `agent.${step}`,
+      status: "done",
+      rationale: index === 5
+        ? "Consequential routing remains gated for a human operator decision."
+        : `Synthetic persisted ${step.replace(/_/g, " ")} result for the browser release gate.`,
+      ts: new Date(Date.parse(startedAt) + index * 1000).toISOString(),
+      inputDigest: `Case ${issueId} with safe summarized inputs.`,
+      outputSummary: index === 5 ? "Human approval required before external action." : "Tool completed with safe summary output.",
+      confidence: 0.82,
+      durationMs: 700 + index * 50,
+    };
+    batch.set(runRef.collection("steps").doc(stepDoc.id), stepDoc);
+    batch.set(db.collection("issues").doc(issueId).collection("agentSteps").doc(stepDoc.id), stepDoc);
+  });
+  await batch.commit();
 }
 
 async function preparePage(page: Page, viewport: { width: number; height: number }) {
@@ -82,16 +188,68 @@ for (const viewport of [
   test(`landing page is usable and accessible at ${viewport.name}`, async ({ page }) => {
     await preparePage(page, viewport);
 
-    await expect(page.getByRole("heading", { name: /Civic\s*Lens/i })).toBeVisible();
+    await expect(page.getByRole("heading", { name: "CivicLens Field Command Center" })).toBeVisible();
     await expect(page.locator("#report-issue-btn")).toBeVisible();
     await expect(page.getByText("Sample data")).toBeVisible();
     await expect(page.getByText("E2E demo pothole")).toBeVisible();
+    await expect(page.getByText("E2E hidden demo overflow")).toHaveCount(0);
     await expect(page.getByText("Metrics are calculated from the records currently loaded")).toBeVisible();
+    await expect(page.locator("header")).toHaveCSS("position", "sticky");
+
+    if (viewport.name === "mobile") {
+      await expect(page.locator("#mobile-bottom-nav")).toBeVisible();
+      await expect(page.locator("#floating-report-cta")).toBeVisible();
+    }
 
     await expectNoHorizontalOverflow(page);
     await expectNoHighImpactAxeViolations(page);
   });
 }
+
+test("mobile report flow exposes stepper, location denial, and manual pin fallback", async ({ page }) => {
+  await page.addInitScript(() => {
+    Object.defineProperty(navigator, "geolocation", {
+      configurable: true,
+      value: {
+        getCurrentPosition: (_success: PositionCallback, error: PositionErrorCallback) => {
+          error({
+            code: 1,
+            message: "denied",
+            PERMISSION_DENIED: 1,
+            POSITION_UNAVAILABLE: 2,
+            TIMEOUT: 3,
+          } as GeolocationPositionError);
+        },
+      },
+    });
+  });
+  await preparePage(page, { width: 390, height: 844 });
+
+  await page.locator("#floating-report-cta").click();
+  await expect(page.locator("#report-stepper")).toBeVisible();
+  await expect(page.getByRole("button", { name: /Use my location/i })).toBeVisible();
+  await expect(page.locator("#manual-pin-fallback")).toBeVisible();
+  await page.getByRole("button", { name: /Use manual map pin/i }).click();
+  await expect(page.getByText("Coordinates locked.")).toBeVisible();
+  await expectNoHorizontalOverflow(page);
+  await expectNoHighImpactAxeViolations(page);
+});
+
+test("persisted agent run remains visible after refresh", async ({ page }) => {
+  await preparePage(page, { width: 1280, height: 900 });
+
+  await page.getByLabel("View details of ticket CVL-E2E-001").click();
+  await expect(page.locator("#issue-detail-page")).toBeVisible();
+  await expect(page.locator("#agent-trace-section")).toBeVisible();
+  await expect(page.getByRole("heading", { name: /Agent tool timeline/i })).toBeVisible();
+  await expect(page.getByText("8/8")).toBeVisible();
+  await expect(page.getByText("Human approval gate")).toBeVisible();
+
+  await page.reload();
+  await expect(page.locator("#agent-trace-section")).toBeVisible();
+  await expect(page.getByRole("heading", { name: /Agent tool timeline/i })).toBeVisible();
+  await expect(page.getByText("8/8")).toBeVisible();
+});
 
 test("demo operator queue uses emulator data and labels synthetic cases", async ({ page }) => {
   await preparePage(page, { width: 1280, height: 900 });

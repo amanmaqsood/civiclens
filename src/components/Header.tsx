@@ -1,5 +1,5 @@
 import React from "react";
-import { ArrowLeft, UserCircle, BarChart3, LogIn, LogOut } from "lucide-react";
+import { ArrowLeft, BarChart3, LogIn, LogOut, UserCircle } from "lucide-react";
 import { ActiveView } from "../types";
 import { useFirebase } from "../context/FirebaseContext";
 import { useLanguage } from "../context/LanguageContext";
@@ -19,57 +19,53 @@ export default function Header({ currentView, onNavigate, persona, onTogglePerso
   const canShowOperatorDesk = operatorAccess !== "none";
 
   return (
-    <header 
-      className="sticky top-0 z-40 bg-ink border-b border-white/10 px-3 sm:px-4 pb-3 flex items-center justify-between gap-3 flex-wrap shadow-[0_2px_15px_-3px_rgba(0,0,0,0.5)] font-sans"
+    <header
+      className="sticky top-0 z-40 flex flex-wrap items-center justify-between gap-3 border-b border-white/10 bg-ink px-3 pb-3 font-sans shadow-[0_2px_15px_-3px_rgba(0,0,0,0.5)] sm:px-5"
       style={{ paddingTop: "max(env(safe-area-inset-top), 12px)" }}
     >
-      <div className="flex items-center gap-2 min-w-0">
+      <div className="flex min-w-0 items-center gap-2">
         {currentView !== "landing" && persona === "citizen" && (
           <button
             id="back-button"
             onClick={() => onNavigate("landing")}
-            className="flex items-center justify-center p-2 rounded-full hover:bg-white/10 transition-colors cursor-pointer mr-0.5"
+            className="mr-0.5 flex items-center justify-center rounded-full p-2 transition-colors hover:bg-white/10"
             style={{ minWidth: "44px", minHeight: "44px" }}
             aria-label="Go back to landing page"
           >
-            <ArrowLeft className="w-4 h-4 text-paper" />
+            <ArrowLeft className="h-4 w-4 text-paper" />
             <span className="sr-only">Back</span>
           </button>
         )}
-        
+
         <div className="flex items-center gap-2">
-          {/* Subtle elegant civic indicator */}
-          <div className="flex flex-col w-1 h-6 rounded-full overflow-hidden" aria-hidden="true">
-            <div className="bg-[#EE9B2D] flex-1" />
-            <div className="bg-white flex-1" />
-            <div className="bg-[#0FB5A6] flex-1" />
+          <div className="flex h-6 w-1 flex-col overflow-hidden rounded-full" aria-hidden="true">
+            <div className="flex-1 bg-[#EE9B2D]" />
+            <div className="flex-1 bg-white" />
+            <div className="flex-1 bg-[#0FB5A6]" />
           </div>
-          
+
           <div>
-            <h1 className="text-base font-display font-black tracking-tight text-white flex items-center gap-0.5">
+            <h1 className="flex items-center gap-0.5 text-xl font-black tracking-normal text-white">
               Civic<span className="text-marigold">Lens</span>
             </h1>
-            <p className="text-[10px] font-mono font-medium text-[#94a3b8] uppercase tracking-widest leading-none">
+            <p className="text-sm font-medium leading-tight text-[#94a3b8]">
               {persona === "citizen"
-                ? "India · Prototype Reports"
+                ? "India prototype reports"
                 : operatorAccess === "real"
-                  ? "Server-Authorized Operator"
-                  : "Synthetic Demo Desk"}
+                  ? "Server-authorized operator"
+                  : "Synthetic demo desk"}
             </p>
           </div>
         </div>
       </div>
 
-      <div className="flex items-center justify-end gap-2 flex-wrap">
-        {/* Language selector segmented pill */}
-        <div className="flex bg-white/5 p-0.5 rounded-lg border border-white/10 text-[9.5px] font-sans font-bold select-none">
+      <div className="flex flex-wrap items-center justify-end gap-2">
+        <div className="flex select-none rounded-lg border border-white/10 bg-white/5 p-0.5 text-sm font-bold">
           <button
             id="lang-en-btn"
             onClick={() => setLanguage("en")}
-            className={`min-h-[44px] min-w-[44px] px-2 py-1 rounded-md cursor-pointer transition-all ${
-              language === "en" 
-                ? "bg-marigold text-ink shadow-sm" 
-                : "text-[#94a3b8] hover:text-white"
+            className={`min-h-[44px] min-w-[44px] rounded-md px-2 py-1 transition-all ${
+              language === "en" ? "bg-marigold text-ink shadow-sm" : "text-[#94a3b8] hover:text-white"
             }`}
             aria-label="Switch language to English"
             aria-pressed={language === "en"}
@@ -79,27 +75,22 @@ export default function Header({ currentView, onNavigate, persona, onTogglePerso
           <button
             id="lang-hi-btn"
             onClick={() => setLanguage("hi")}
-            className={`min-h-[44px] min-w-[44px] px-2 py-1 rounded-md cursor-pointer transition-all ${
-              language === "hi" 
-                ? "bg-marigold text-ink shadow-sm" 
-                : "text-[#94a3b8] hover:text-white"
+            className={`min-h-[44px] min-w-[44px] rounded-md px-2 py-1 transition-all ${
+              language === "hi" ? "bg-marigold text-ink shadow-sm" : "text-[#94a3b8] hover:text-white"
             }`}
             aria-label="Switch language to Hindi"
             aria-pressed={language === "hi"}
           >
-            हिं
+            HI
           </button>
         </div>
 
-        {/* View segmented pill. Operator access is server-reported, not a public privilege toggle. */}
-        <div className="flex bg-white/5 p-0.5 rounded-lg border border-white/10 text-[9.5px] font-sans font-bold select-none">
+        <div className="hidden select-none rounded-lg border border-white/10 bg-white/5 p-0.5 text-sm font-bold sm:flex">
           <button
             id="persona-citizen-pill"
             onClick={() => onTogglePersona("citizen")}
-            className={`min-h-[44px] px-3 py-1 rounded-md cursor-pointer transition-all ${
-              persona === "citizen" 
-                ? "bg-marigold text-ink shadow-sm" 
-                : "text-[#94a3b8] hover:text-white"
+            className={`min-h-[44px] rounded-md px-3 py-1 transition-all ${
+              persona === "citizen" ? "bg-marigold text-ink shadow-sm" : "text-[#94a3b8] hover:text-white"
             }`}
             aria-label="Switch to citizen report view"
             aria-pressed={persona === "citizen"}
@@ -110,10 +101,8 @@ export default function Header({ currentView, onNavigate, persona, onTogglePerso
             <button
               id="persona-operator-pill"
               onClick={() => onTogglePersona("operator")}
-              className={`min-h-[44px] px-3 py-1 rounded-md cursor-pointer transition-all ${
-                persona === "operator"
-                  ? "bg-marigold text-ink shadow-sm"
-                  : "text-[#94a3b8] hover:text-white"
+              className={`min-h-[44px] rounded-md px-3 py-1 transition-all ${
+                persona === "operator" ? "bg-marigold text-ink shadow-sm" : "text-[#94a3b8] hover:text-white"
               }`}
               aria-label={operatorAccess === "real" ? "Switch to server-authorized operator desk" : "Switch to synthetic demo desk"}
               aria-pressed={persona === "operator"}
@@ -127,31 +116,31 @@ export default function Header({ currentView, onNavigate, persona, onTogglePerso
           <button
             id="header-dashboard-button"
             onClick={() => onNavigate("dashboard")}
-            className={`min-h-[44px] px-3 py-1 rounded-lg border flex items-center gap-1 transition-all cursor-pointer ${
+            className={`flex min-h-[44px] items-center gap-1 rounded-lg border px-3 py-1 transition-all ${
               currentView === "dashboard"
-                ? "bg-marigold/10 text-marigold border-marigold/40"
-                : "text-paper border-transparent hover:bg-white/10"
+                ? "border-marigold/40 bg-marigold/10 text-marigold"
+                : "border-transparent text-paper hover:bg-white/10"
             }`}
             title="City Impact Dashboard"
             aria-label="Open impact dashboard"
           >
-            <BarChart3 className="w-3.5 h-3.5" />
-            <span className="text-[10px] font-sans font-bold">Stats</span>
+            <BarChart3 className="h-3.5 w-3.5" />
+            <span className="text-sm font-bold">Stats</span>
           </button>
         )}
 
         {loading ? (
-          <div className="w-6 h-6 rounded-full bg-white/10 animate-pulse" />
+          <div className="h-6 w-6 rounded-full bg-white/10 animate-pulse" />
         ) : (
           <button
             type="button"
             onClick={() => signedInWithGoogle ? signOutUser() : signInWithGoogle()}
-            className="min-h-[44px] flex items-center gap-1 text-paper hover:text-white bg-white/5 hover:bg-white/10 border border-white/10 rounded-lg px-2 py-1 transition-colors"
+            className="flex min-h-[44px] items-center gap-1 rounded-lg border border-white/10 bg-white/5 px-2 py-1 text-paper transition-colors hover:bg-white/10 hover:text-white"
             title={signedInWithGoogle ? "Sign out" : "Sign in with Google"}
             aria-label={signedInWithGoogle ? "Sign out" : "Sign in with Google"}
           >
-            {signedInWithGoogle ? <LogOut className="w-3.5 h-3.5 text-marigold" /> : <LogIn className="w-3.5 h-3.5 text-marigold" />}
-            <UserCircle className="w-5 h-5 text-marigold" />
+            {signedInWithGoogle ? <LogOut className="h-3.5 w-3.5 text-marigold" /> : <LogIn className="h-3.5 w-3.5 text-marigold" />}
+            <UserCircle className="h-5 w-5 text-marigold" />
           </button>
         )}
       </div>

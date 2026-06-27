@@ -89,8 +89,8 @@ The latest local validation results are recorded in `docs/FINAL_EVIDENCE_REPORT.
 Cloud Run deployment is documented in `docs/DEPLOYMENT_CLOUD_RUN.md` and was performed after explicit approval on 2026-06-27.
 
 - Public app URL: `https://civiclens-py7ixxgroq-as.a.run.app`
-- Final deployed revision: `civiclens-00034-82x`
-- Final deployed commit: `fcf8946`
+- Current deployed revision: `civiclens-00036-dcb`
+- Earlier production base commit before the UX refresh: `fcf8946`
 
 Maps browser-key restrictions were applied for the public Cloud Run origins and localhost during the final evidence checkpoint. App Check integration exists, but enforcement is disabled for this hackathon deployment to avoid blocking judge access.
 

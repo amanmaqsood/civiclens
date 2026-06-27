@@ -80,6 +80,7 @@ export default function IssueDetailPage({
   const [triageError, setTriageError] = useState<string | null>(null);
   const [liveTraceSteps, setLiveTraceSteps] = useState<any[]>([]);
   const [persistedAgentSteps, setPersistedAgentSteps] = useState<any[]>([]);
+  const [activeAgentRun, setActiveAgentRun] = useState<any | null>(null);
 
   const handleRunTriage = async () => {
     setTriageRunning(true);
@@ -95,6 +96,7 @@ export default function IssueDetailPage({
         await new Promise(resolve => setTimeout(resolve, 800));
       }
 
+      setActiveAgentRun(agentResult.run || null);
       setPersistedAgentSteps(agentResult.steps || []);
       onRefresh();
 
@@ -140,9 +142,15 @@ export default function IssueDetailPage({
     async function loadLatestRun() {
       try {
         const result = await fetchLatestAgentRun(issue.id);
-        if (active) setPersistedAgentSteps(result.steps || []);
+        if (active) {
+          setPersistedAgentSteps(result.steps || []);
+          setActiveAgentRun(result.run || null);
+        }
       } catch {
-        if (active) setPersistedAgentSteps([]);
+        if (active) {
+          setPersistedAgentSteps([]);
+          setActiveAgentRun(null);
+        }
       }
     }
     loadLatestRun();
@@ -173,7 +181,7 @@ export default function IssueDetailPage({
   return (
     <div 
       id="issue-detail-page" 
-      className="flex flex-col gap-4 px-4 py-4 font-sans animate-fade-in pb-16 bg-paper min-h-screen text-ink"
+      className="mx-auto flex w-full max-w-6xl flex-col gap-5 px-4 py-5 font-sans animate-fade-in pb-28 bg-paper min-h-screen text-ink sm:px-6 lg:px-8"
     >
       {/* Back Button and Case Header */}
       <div className="flex items-center justify-between gap-3">
@@ -181,28 +189,27 @@ export default function IssueDetailPage({
           <button
             id="detail-back-btn"
             onClick={onBack}
-            className="flex items-center justify-center w-9 h-9 rounded-full bg-white border border-hairline shadow-2xs cursor-pointer hover:bg-paper transition-colors"
-            style={{ minWidth: "36px", minHeight: "36px" }}
+            className="flex min-h-[44px] min-w-[44px] items-center justify-center rounded-full bg-white border border-hairline shadow-2xs cursor-pointer hover:bg-paper transition-colors"
             aria-label="Back to landing"
           >
             <ArrowLeft className="w-4 h-4 text-ink" />
           </button>
           <div>
-            <span className="text-xs font-mono uppercase text-slate tracking-wider block">
+            <span className="text-sm font-mono text-slate block">
               REPORT
             </span>
-            <h2 className="text-xs font-mono font-semibold text-ink uppercase tracking-tight">
+            <h2 className="text-sm font-mono font-semibold text-ink">
               ID: {issue.ticketId}
             </h2>
           </div>
         </div>
 
         {/* Translation Switch segment */}
-        <div className="flex bg-white border border-hairline p-0.5 rounded-lg text-[9px] font-mono font-bold select-none">
+        <div className="flex bg-white border border-hairline p-0.5 rounded-lg text-sm font-mono font-bold select-none">
           <button
             type="button"
             onClick={() => setLang("en")}
-            className={`px-2 py-0.5 rounded-md transition-all cursor-pointer ${
+            className={`min-h-[44px] min-w-[44px] px-2 py-1 rounded-md transition-all cursor-pointer ${
               lang === "en" ? "bg-ink text-paper shadow-2xs" : "text-slate hover:text-ink"
             }`}
           >
@@ -211,11 +218,11 @@ export default function IssueDetailPage({
           <button
             type="button"
             onClick={() => setLang("hi")}
-            className={`px-2 py-0.5 rounded-md transition-all cursor-pointer ${
+            className={`min-h-[44px] min-w-[52px] px-2 py-1 rounded-md transition-all cursor-pointer ${
               lang === "hi" ? "bg-ink text-paper shadow-2xs" : "text-slate hover:text-ink"
             }`}
           >
-            हिन्दी
+            HI
           </button>
         </div>
       </div>
@@ -231,37 +238,37 @@ export default function IssueDetailPage({
               referrerPolicy="no-referrer"
             />
             {/* Category overlays */}
-            <span className="absolute left-3 top-3 bg-ink/75 backdrop-blur-xs text-white text-xs font-sans uppercase tracking-wider px-2.5 py-0.5 rounded-full border border-white/10">
+            <span className="absolute left-3 top-3 bg-ink/75 backdrop-blur-xs text-white text-sm font-sans px-2.5 py-1 rounded-lg border border-white/10">
               {humanizeCategory(issue.category)}
             </span>
             {issue.isDemoData && (
-              <span className="absolute right-3 top-3 bg-marigold text-ink text-xs uppercase tracking-wider font-semibold px-2 py-0.5 rounded-full border border-white/10 select-none">
+              <span className="absolute right-3 top-3 bg-marigold text-ink text-sm font-semibold px-2 py-1 rounded-lg border border-white/10 select-none">
                 Demo
               </span>
             )}
           </div>
         ) : (
           <div className="aspect-video w-full bg-paper flex items-center justify-center text-slate border-b border-hairline">
-            <p className="text-xs font-medium">No incident photograph uploaded</p>
+            <p className="text-base font-medium">No incident photograph uploaded</p>
           </div>
         )}
 
         <div className="p-4 flex flex-col gap-2.5">
           {/* Headline analysis state */}
           <div className="flex items-start justify-between gap-3">
-            <h1 className="text-sm font-semibold text-ink leading-snug animate-fade-in">
+            <h1 className="text-2xl font-black text-ink leading-tight animate-fade-in">
               {lang === "hi"
                 ? (issue.titleHi || issue.title || "Geotagged Civic Incident")
                 : (issue.title || "Geotagged Civic Incident")}
             </h1>
             {issue.confidence !== undefined && (
-              <span className="text-[9px] font-mono bg-paper text-ink font-semibold px-2 py-0.5 rounded border border-hairline flex-shrink-0">
+              <span className="text-sm font-mono bg-paper text-ink font-semibold px-2 py-1 rounded-lg border border-hairline flex-shrink-0">
                 AI Confidence {(issue.confidence * 100).toFixed(0)}%
               </span>
             )}
           </div>
 
-          <p className="text-[11px] text-slate leading-relaxed bg-paper/50 p-3 rounded-xl border border-hairline/80 whitespace-pre-wrap animate-fade-in">
+          <p className="text-base text-slate leading-relaxed bg-paper/50 p-3 rounded-xl border border-hairline/80 whitespace-pre-wrap animate-fade-in">
             {lang === "hi"
               ? (issue.summaryHi || issue.summary || issue.description)
               : (issue.summary || issue.description)}
@@ -270,11 +277,11 @@ export default function IssueDetailPage({
           {/* Severity and follow-up widgets */}
           <div className="grid grid-cols-2 gap-2 mt-0.5">
             <div className={`border p-2.5 rounded-xl flex flex-col gap-0.5 ${severityInfo.classes}`}>
-              <span className="text-xs font-mono uppercase tracking-wider opacity-75">AI Severity</span>
+              <span className="text-sm font-mono opacity-75">AI severity</span>
               <span className="text-[13px] font-bold">{severityInfo.text}</span>
             </div>
             <div className={`border p-2.5 rounded-xl flex flex-col gap-0.5 ${getUrgencyClasses(issue.urgency)}`}>
-              <span className="text-xs font-mono uppercase tracking-wider opacity-75">Urgency</span>
+              <span className="text-sm font-mono opacity-75">Urgency</span>
               <span className="text-[13px] font-bold capitalize">{humanizeUrgency(issue.urgency)}</span>
             </div>
           </div>
@@ -284,24 +291,24 @@ export default function IssueDetailPage({
       {/* AI Triage Agent Control Panel */}
       <div className="bg-white border border-hairline rounded-2xl p-4 flex flex-col gap-3 shadow-[0_4px_16px_-4px_rgba(14,26,43,0.05)]">
         <div className="flex items-center justify-between border-b border-hairline pb-2.5">
-          <h3 className="text-xs font-display font-bold text-ink uppercase tracking-wider flex items-center gap-1.5">
+          <h3 className="text-xl font-display font-black text-ink flex items-center gap-2">
             <Sparkles className="w-4 h-4 text-marigold" />
             AI Triage Agent
           </h3>
-          {issue.agentTrace && issue.agentTrace.length > 0 && (
-            <span className="text-[9px] font-mono bg-verify/10 text-verify px-2 py-0.5 rounded border border-verify/20">
-              Triaged
+          {persistedAgentSteps.length > 0 && (
+            <span className="text-sm font-mono bg-verify/10 text-verify px-2 py-1 rounded-lg border border-verify/20">
+              Persisted run
             </span>
           )}
         </div>
 
-        <p className="text-xs text-slate leading-relaxed">
+        <p className="text-base text-slate leading-relaxed">
           Run the current server-side Gemini tool loop. It can calculate priority, compare nearby prototype cases, suggest a possible authority, and draft complaint text for human review. It does not file or route anything outside CivicLens.
         </p>
 
         {/* Error message */}
         {triageError && (
-          <div className="bg-alert/5 border border-alert/20 rounded-xl p-3 text-xs text-alert flex flex-col gap-2">
+          <div className="bg-alert/5 border border-alert/20 rounded-xl p-3 text-sm text-alert flex flex-col gap-2">
             <span className="font-semibold">Triage Execution Failed:</span>
             <span>{triageError}</span>
             <button
@@ -317,11 +324,11 @@ export default function IssueDetailPage({
         {!triageRunning && (
           <button
             onClick={handleRunTriage}
-            className="flex items-center justify-center gap-2 bg-ink text-paper hover:bg-ink/90 px-4 py-2.5 rounded-xl text-xs font-bold transition-all cursor-pointer shadow-xs"
+            className="flex min-h-[52px] items-center justify-center gap-2 bg-ink text-paper hover:bg-ink/90 px-4 py-2.5 rounded-xl text-base font-bold transition-all cursor-pointer shadow-xs"
           >
             <Sparkles className="w-3.5 h-3.5 text-marigold animate-pulse" />
             <span>
-              {issue.agentTrace && issue.agentTrace.length > 0 ? "Re-run AI Triage Agent" : "Run AI Triage Agent"}
+              {persistedAgentSteps.length > 0 ? "Re-run server agent" : "Run server agent"}
             </span>
           </button>
         )}
@@ -329,59 +336,59 @@ export default function IssueDetailPage({
         {triageRunning && (
           <div className="flex items-center justify-center gap-2 py-2 bg-paper rounded-xl border border-hairline">
             <RefreshCw className="w-4 h-4 animate-spin text-marigold" />
-            <span className="text-xs font-mono text-slate uppercase tracking-wider">Executing AI Agent...</span>
+            <span className="text-sm font-mono text-slate">Executing server agent...</span>
           </div>
         )}
       </div>
 
       {/* vertical timeline audit trace */}
-      <AgentTraceTimeline trace={triageRunning ? liveTraceSteps : persistedAgentSteps} />
+      <AgentTraceTimeline trace={triageRunning ? liveTraceSteps : persistedAgentSteps} run={activeAgentRun} />
 
       {/* Visual risk diagnosis */}
       <div className="bg-white border border-hairline rounded-2xl p-4 flex flex-col gap-3 shadow-[0_4px_16px_-4px_rgba(14,26,43,0.05)]">
-        <h3 className="text-xs font-display font-bold text-ink uppercase tracking-wider flex items-center gap-1.5 border-b border-hairline pb-2.5">
+        <h3 className="text-xl font-display font-black text-ink flex items-center gap-2 border-b border-hairline pb-2.5">
           <ShieldAlert className="w-4 h-4 text-alert" />
           {t("detail.hazard")}
         </h3>
 
-        <div className="flex flex-col gap-3 text-xs text-ink/80">
+        <div className="flex flex-col gap-3 text-base text-ink/80">
           {/* Hazards */}
           <div className="flex flex-col gap-1">
-            <span className="text-[9pt] font-mono uppercase text-slate">Identified Hazards</span>
+            <span className="text-sm font-mono text-slate">Identified hazards</span>
             {issue.visibleHazards && issue.visibleHazards.length > 0 ? (
               <div className="flex flex-wrap gap-1 mt-0.5">
                 {issue.visibleHazards.map((tag) => (
-                  <span key={tag} className="bg-alert/5 border border-alert/20 text-alert text-[10px] py-0.5 px-2 rounded font-medium">
-                    ⚠️ {tag}
+                  <span key={tag} className="bg-alert/5 border border-alert/20 text-alert text-sm py-1 px-2 rounded-lg font-medium">
+                    Warning: {tag}
                   </span>
                 ))}
               </div>
             ) : (
-              <span className="text-slate italic text-[10.5px]">No public hazards detected.</span>
+              <span className="text-slate italic text-sm">No public hazards detected.</span>
             )}
           </div>
 
           {/* Privacy Redactions */}
           <div className="flex flex-col gap-1 mt-1">
-            <span className="text-[9pt] font-mono uppercase text-slate">Redaction & De-identifier Markers</span>
+            <span className="text-sm font-mono text-slate">Redaction and de-identifier markers</span>
             {issue.privacyFlags && issue.privacyFlags.length > 0 ? (
               <div className="flex flex-wrap gap-1 mt-0.5">
                 {issue.privacyFlags.map((flag) => (
-                  <span key={flag} className="bg-slate/5 border border-slate/20 text-slate text-[10px] py-0.5 px-2 rounded font-medium">
-                    🚫 {flag}
+                  <span key={flag} className="bg-slate/5 border border-slate/20 text-slate text-sm py-1 px-2 rounded-lg font-medium">
+                    Privacy: {flag}
                   </span>
                 ))}
               </div>
             ) : (
-              <span className="text-slate italic text-[10.5px]">No sensitive data tags flagged.</span>
+              <span className="text-slate italic text-sm">No sensitive data tags flagged.</span>
             )}
           </div>
 
           {/* Footprints */}
           {issue.affectedArea && (
-            <div className="flex items-center justify-between border-t border-hairline pt-2.5 mt-1 text-[11px]">
-              <span className="font-mono text-slate uppercase text-[9pt]">Calculated Impact Boundaryed</span>
-              <span className="bg-paper text-ink border border-hairline font-bold px-2 py-0.5 rounded capitalize font-sans text-[10.5px]">
+            <div className="flex items-center justify-between border-t border-hairline pt-2.5 mt-1 text-sm">
+              <span className="font-mono text-slate">Calculated impact boundary</span>
+              <span className="bg-paper text-ink border border-hairline font-bold px-2 py-1 rounded-lg capitalize font-sans text-sm">
                 {issue.affectedArea.replace("_", " ")}
               </span>
             </div>
@@ -393,11 +400,11 @@ export default function IssueDetailPage({
       {issue.closureAssessment && (
         <div id="closure-verdict-box" className="p-4 bg-white border border-hairline rounded-2xl shadow-[0_4px_16px_-4px_rgba(14,26,43,0.05)] flex flex-col gap-3">
           <div className="flex items-center justify-between border-b border-hairline pb-2.5">
-            <h3 className="text-xs font-display font-bold uppercase tracking-wider text-ink flex items-center gap-1.5">
+            <h3 className="text-xl font-display font-black text-ink flex items-center gap-2">
               <Sparkles className="w-3.5 h-3.5 text-marigold" />
               Comparative Evidence Verdict
             </h3>
-            <span className={`text-[9px] font-mono font-semibold uppercase px-2 py-0.5 rounded-full border ${
+            <span className={`text-sm font-mono font-semibold px-2 py-1 rounded-lg border ${
               issue.closureAssessment.resolved
                 ? "bg-verify/10 text-verify border-verify/20"
                 : "bg-alert/10 text-alert border-alert/20"
@@ -423,8 +430,8 @@ export default function IssueDetailPage({
             )}
           </div>
 
-          <div className="flex flex-col gap-1.5 text-xs bg-paper p-2.5 rounded-xl border border-hairline mt-1">
-            <div className="flex items-center justify-between text-[9px] font-mono">
+          <div className="flex flex-col gap-1.5 text-sm bg-paper p-2.5 rounded-xl border border-hairline mt-1">
+            <div className="flex items-center justify-between text-sm font-mono">
               <div className="flex items-center gap-1.5">
                 <span className="text-slate uppercase">Visual Match Metrics</span>
                 <span className="font-semibold text-verify">{(issue.closureAssessment.confidence * 100).toFixed(0)}% matched</span>
@@ -434,7 +441,7 @@ export default function IssueDetailPage({
                 <span className="font-bold text-ink uppercase">{issue.closureAssessment.recommendation.replace("_", " ")}</span>
               </div>
             </div>
-            <div className="text-slate leading-relaxed font-semibold text-[10px] p-2 bg-white rounded-lg border border-hairline/80 mt-1 italic">
+            <div className="text-slate leading-relaxed font-semibold text-sm p-2 bg-white rounded-lg border border-hairline/80 mt-1 italic">
               "{issue.closureAssessment.explanation}"
             </div>
           </div>
@@ -443,15 +450,15 @@ export default function IssueDetailPage({
 
       {/* Captured Location coordinate card */}
       <div className="bg-white border border-hairline rounded-2xl p-4 flex flex-col gap-2 shadow-[0_4px_16px_-4px_rgba(14,26,43,0.05)]">
-        <span className="text-[9pt] font-mono uppercase text-slate">Spatial Reference Point</span>
+        <span className="text-sm font-mono text-slate">Spatial reference point</span>
         <div className="flex items-start gap-2.5">
           <MapPin className="w-4 h-4 text-marigold flex-shrink-0 mt-0.5" />
           <div className="flex-1 min-w-0">
-            <p className="text-[11px] font-semibold text-ink leading-tight">
+            <p className="text-base font-semibold text-ink leading-tight">
               {issue.locationName || "Reported Location"}
             </p>
             {issue.lat !== undefined && issue.lng !== undefined && (
-              <span className="text-[9px] font-mono text-slate block mt-0.5 select-all">
+              <span className="text-sm font-mono text-slate block mt-0.5 select-all">
                 COORD: {issue.lat.toFixed(6)} N, {issue.lng.toFixed(6)} E
               </span>
             )}
@@ -462,15 +469,14 @@ export default function IssueDetailPage({
       {/* Community voice backer details */}
       <div className="bg-white border border-hairline rounded-2xl p-4 flex items-center justify-between shadow-[0_4px_16px_-4px_rgba(14,26,43,0.05)]">
         <div className="flex flex-col">
-          <span className="text-[9pt] font-mono uppercase text-slate">COMMUNITY SUPPORT</span>
-          <span className="text-[11.5px] font-semibold text-ink mt-0.5">{issue.citizenUpvotes} {issue.citizenUpvotes === 1 ? "citizen" : "citizens"} backed this case</span>
+          <span className="text-sm font-mono text-slate">Community support</span>
+          <span className="text-base font-semibold text-ink mt-0.5">{issue.citizenUpvotes} {issue.citizenUpvotes === 1 ? "citizen" : "citizens"} backed this case</span>
         </div>
         <button
           type="button"
           disabled={upvoteLoadingId === issue.id}
           onClick={() => onUpvote(issue.id)}
-          className="flex items-center gap-1.5 bg-marigold text-ink hover:bg-marigold/95 px-4.5 py-2 rounded-xl text-[11px] font-bold transition-all cursor-pointer shadow-xs disabled:opacity-50"
-          style={{ minHeight: "36px" }}
+          className="flex min-h-[44px] items-center gap-1.5 bg-marigold text-ink hover:bg-marigold/95 px-4 py-2 rounded-xl text-sm font-bold transition-all cursor-pointer shadow-xs disabled:opacity-50"
         >
           <ArrowUp className="w-3.5 h-3.5" />
           <span>{upvoteLoadingId === issue.id ? "..." : "Support this report"}</span>
@@ -493,7 +499,7 @@ export default function IssueDetailPage({
 
       {/* Compact Interactive Status progress bar */}
       <div className="bg-white border border-hairline rounded-2xl p-4 flex flex-col gap-4 shadow-[0_4px_16px_-4px_rgba(14,26,43,0.05)]">
-        <h3 className="text-xs font-display font-bold text-ink uppercase tracking-wider border-b border-hairline pb-2.5">
+        <h3 className="text-lg font-display font-black text-ink border-b border-hairline pb-2.5">
           {t("detail.status")}
         </h3>
         <div className="relative flex justify-between items-center px-1">
@@ -514,7 +520,7 @@ export default function IssueDetailPage({
             return (
               <div key={step} className="flex flex-col items-center gap-1.5 z-10 relative">
                 <div
-                  className={`w-5 h-5 rounded-full flex items-center justify-center text-[9px] font-mono transition-all duration-[300ms] border ${
+                  className={`w-6 h-6 rounded-full flex items-center justify-center text-sm font-mono transition-all duration-[300ms] border ${
                     isCompleted
                       ? isCurrent
                         ? "bg-marigold text-ink border-marigold font-bold scale-105"
@@ -524,7 +530,7 @@ export default function IssueDetailPage({
                 >
                   {idx + 1}
                 </div>
-                <span className={`text-[9px] font-sans font-semibold tracking-tight uppercase ${isCurrent ? "text-ink font-bold" : isCompleted ? "text-verify" : "text-slate/60"}`}>
+                <span className={`text-sm font-sans font-semibold ${isCurrent ? "text-ink font-bold" : isCompleted ? "text-verify" : "text-slate/60"}`}>
                   {issueStatusLabel(step)}
                 </span>
               </div>
@@ -535,7 +541,7 @@ export default function IssueDetailPage({
 
       {/* Prototype activity trail list */}
       <div className="bg-white border border-hairline rounded-2xl p-4 flex flex-col gap-3.5 shadow-[0_4px_16px_-4px_rgba(14,26,43,0.05)]">
-        <h3 className="text-xs font-display font-bold text-ink uppercase tracking-tight flex items-center gap-1.5 border-b border-hairline pb-2.5">
+        <h3 className="text-lg font-display font-black text-ink flex items-center gap-2 border-b border-hairline pb-2.5">
           <Clock className="w-3.5 h-3.5 text-slate" />
           {t("detail.timeline")}
         </h3>
@@ -545,7 +551,7 @@ export default function IssueDetailPage({
             <RefreshCw className="w-3.5 h-3.5 animate-spin text-slate" />
           </div>
         ) : activities.length === 0 ? (
-          <p className="text-[10px] text-slate/60 text-center font-medium py-2">
+          <p className="text-sm text-slate/60 text-center font-medium py-2">
             No activity yet.
           </p>
         ) : (
@@ -553,17 +559,17 @@ export default function IssueDetailPage({
             {activities.map((act) => (
               <div key={act.id} className="relative flex flex-col gap-0.5">
                 <div className="absolute -left-[19px] top-1.5 w-1.5 h-1.5 rounded-full bg-slate border border-white" />
-                <span className="text-[10px] font-mono font-bold text-slate uppercase tracking-wider">
+                <span className="text-sm font-mono font-bold text-slate">
                   {{
                     operator: "Prototype Operator",
                     ai: "CivicLens Agent",
                     citizen: "Citizen",
                   }[act.actorType] || "Citizen"}
                 </span>
-                <p className="text-[11px] text-ink leading-relaxed font-sans font-medium">
+                <p className="text-sm text-ink leading-relaxed font-sans font-medium">
                   {act.message}
                 </p>
-                <span className="text-[8.5px] font-mono text-slate/60">
+                <span className="text-sm font-mono text-slate/60">
                   {new Date(act.timestamp).toLocaleString()}
                 </span>
               </div>

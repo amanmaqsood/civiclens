@@ -85,7 +85,7 @@ export default function OperatorQueue({
             {accessMode === "real" ? "Operator Desk" : "Synthetic Demo Desk"}
           </h2>
         </div>
-        <p className="text-[11px] text-paper/70 mt-1.5 leading-relaxed font-medium font-sans">
+        <p className="text-base text-paper/75 mt-2 leading-relaxed font-medium font-sans">
           {accessMode === "real"
             ? "Review server-authorized prototype cases. This desk is not connected to any government workflow."
             : "Preview only synthetic demo cases. Demo actions are server-limited to records marked as demo data."}
@@ -95,17 +95,17 @@ export default function OperatorQueue({
       {/* Grid of counters */}
       <div className="grid grid-cols-3 gap-2">
         <div className="bg-white p-2.5 rounded-xl border border-hairline flex flex-col shadow-2xs">
-          <span className="text-xs font-mono text-[#334155] uppercase">Total feed</span>
+          <span className="text-sm font-mono text-[#334155]">Total feed</span>
           <span className="text-sm font-mono font-bold text-ink mt-0.5">{issues.length}</span>
         </div>
         <div className="bg-white p-2.5 rounded-xl border border-hairline flex flex-col shadow-2xs">
-          <span className="text-xs font-mono text-[#334155] uppercase">Active Triages</span>
+          <span className="text-sm font-mono text-[#334155]">Active triages</span>
           <span className="text-sm font-mono font-bold text-marigold mt-0.5">
             {issues.filter(i => i.status === "submitted" || i.status === "verified").length}
           </span>
          </div>
         <div className="bg-white p-2.5 rounded-xl border border-hairline flex flex-col shadow-2xs">
-          <span className="text-xs font-mono text-[#334155] uppercase">Resolved</span>
+          <span className="text-sm font-mono text-[#334155]">Resolved</span>
           <span className="text-sm font-mono font-bold text-verify mt-0.5">
             {issues.filter(i => i.status === "resolved").length}
           </span>
@@ -117,7 +117,7 @@ export default function OperatorQueue({
         <div className="flex items-center justify-between border-b border-hairline pb-2.5">
           <div className="flex items-center gap-1.5">
             <Layers className="w-4 h-4 text-[#334155]" />
-            <h3 className="text-xs font-mono font-bold text-[#334155] uppercase tracking-wide">ACTIVE CASES</h3>
+            <h3 className="text-base font-mono font-bold text-[#334155]">Active cases</h3>
           </div>
           <button
             onClick={onRefresh}
@@ -141,7 +141,7 @@ export default function OperatorQueue({
                 Seed 7 synthetic Bengaluru reports to preview the workflow, or clear only demo records.
               </p>
             </div>
-            {seedError && <p className="text-xs text-alert font-mono">{seedError}</p>}
+            {seedError && <p className="text-sm text-alert font-mono">{seedError}</p>}
             
             <div className="flex gap-2 w-full mt-1">
               <button
@@ -201,12 +201,12 @@ export default function OperatorQueue({
               >
                 {/* Header info */}
                 <div className="flex items-center justify-between gap-2.5">
-                  <span className="text-xs font-mono uppercase tracking-wider text-[#334155] font-semibold">
+                  <span className="text-sm font-mono text-[#334155] font-semibold">
                     {humanizeCategory(issue.category)}
                   </span>
                   <div className="flex items-center gap-1">
-                    <span className="text-xs font-mono text-[#334155]">PRIORITY:</span>
-                    <span className="font-mono text-xs font-bold text-ink bg-white border border-hairline px-2 py-0.5 rounded">
+                    <span className="text-sm font-mono text-[#334155]">Priority</span>
+                    <span className="font-mono text-sm font-bold text-ink bg-white border border-hairline px-2 py-1 rounded-lg">
                       {Math.round(issue.priorityScore || 0)}
                     </span>
                   </div>
@@ -221,7 +221,7 @@ export default function OperatorQueue({
                 </div>
 
                 {/* Footer metrics info */}
-                <div className="flex items-center justify-between flex-wrap gap-2 pt-2 border-t border-hairline/60 text-xs font-mono">
+                <div className="flex items-center justify-between flex-wrap gap-2 pt-2 border-t border-hairline/60 text-sm font-mono">
                   <div className="flex gap-2 items-center text-[#334155] font-medium">
                     <span>SEVERITY: <span className="font-bold text-ink">{issue.severity || 1}/5</span></span>
                     <span className="w-0.5 h-0.5 rounded-full bg-slate" />
@@ -232,11 +232,11 @@ export default function OperatorQueue({
 
                   <div className="flex items-center gap-1.5 ml-auto">
                     {issue.isDemoData && (
-                      <span className="text-[10px] font-mono font-bold bg-marigold/10 border border-marigold/20 text-[#7A4300] px-1.5 py-0.5 rounded uppercase">
+                      <span className="text-sm font-mono font-bold bg-marigold/10 border border-marigold/20 text-[#7A4300] px-2 py-1 rounded-lg">
                         Demo
                       </span>
                     )}
-                    <span className={`text-[11px] font-mono font-bold uppercase tracking-wider px-2 py-0.5 rounded-full border ${getStatusStyle(issue.status)}`}>
+                    <span className={`text-sm font-mono font-bold px-2 py-1 rounded-lg border ${getStatusStyle(issue.status)}`}>
                       {issueStatusLabel(issue.status)}
                     </span>
                     <div className="w-5 h-5 rounded border border-hairline bg-white flex items-center justify-center text-slate">
@@ -251,7 +251,7 @@ export default function OperatorQueue({
                 type="button"
                 onClick={onLoadMore}
                 disabled={loadingMore}
-                className="min-h-[44px] rounded-xl border border-hairline bg-white px-3 text-xs font-bold text-ink hover:bg-paper disabled:opacity-60"
+                className="min-h-[44px] rounded-xl border border-hairline bg-white px-3 text-base font-bold text-ink hover:bg-paper disabled:opacity-60"
               >
                 {loadingMore ? "Loading more cases..." : "Load more cases"}
               </button>

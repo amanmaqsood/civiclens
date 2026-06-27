@@ -1,229 +1,221 @@
 import React from "react";
-import { Sparkles } from "lucide-react";
+import { CheckCircle2, Clock3, Database, ShieldCheck, Sparkles, XCircle } from "lucide-react";
 import { AgentTraceEntry } from "../types";
-import { motion } from "motion/react";
 
 interface AgentTraceTimelineProps {
   trace?: AgentTraceEntry[];
+  run?: {
+    id?: string;
+    status?: string;
+    model?: string;
+    startedAt?: string;
+    completedAt?: string;
+    stepCount?: number;
+  } | null;
 }
 
-export default function AgentTraceTimeline({ trace = [] }: AgentTraceTimelineProps) {
-  const labelMap: Record<string, string> = {
-    Perceive: "Perceive & Triage",
-    Locate: "Geolocational Check",
-    Deduplicate: "Deduplication Graph Search",
-    Prioritize: "Priority & Severity Scoring",
-    Decide: "Review Gate Recommendation",
-    "Find Authority": "Suggested Authority Lookup",
-    "Draft Action Packet": "Draft Resolution Case Packet",
-    search_nearby_cases: "Nearby Search",
-    compare_candidate_evidence: "Duplicate Assessment",
-    calculate_priority: "Priority Calculation",
-    find_responsible_authority: "Suggested Authority Lookup",
-    draft_action_packet: "Draft Resolution Case Packet",
-    request_human_approval: "Human Approval Gate",
-    verify_closure: "Closure Evidence Check",
-    record_event: "Audit Event Record",
-  };
+const expectedOrder = [
+  "search_nearby_cases",
+  "compare_candidate_evidence",
+  "calculate_priority",
+  "find_responsible_authority",
+  "draft_action_packet",
+  "request_human_approval",
+  "verify_closure",
+  "record_event",
+];
 
-  const stepsList = trace.map((entry) => ({
-    step: entry.step,
-    label: labelMap[entry.step] || entry.step.replace(/_/g, " "),
-  }));
+const labelMap: Record<string, string> = {
+  Perceive: "Perceive and triage",
+  Locate: "Location check",
+  Deduplicate: "Duplicate search",
+  Prioritize: "Priority scoring",
+  Decide: "Review gate",
+  "Find Authority": "Suggested authority lookup",
+  "Draft Action Packet": "Draft action packet",
+  search_nearby_cases: "Nearby case search",
+  compare_candidate_evidence: "Duplicate evidence comparison",
+  calculate_priority: "Priority calculation",
+  find_responsible_authority: "Suggested authority lookup",
+  draft_action_packet: "Draft action packet",
+  request_human_approval: "Human approval gate",
+  verify_closure: "Closure evidence check",
+  record_event: "Event record",
+};
 
-  // For issues genuinely missing a trace, show a clean single-line empty state
-  if (!trace || trace.length === 0) {
+function formatStepName(step: string) {
+  return labelMap[step] || step.replace(/_/g, " ");
+}
+
+function formatTime(value?: string) {
+  if (!value) return "Not recorded";
+  const parsed = new Date(value);
+  if (Number.isNaN(parsed.getTime())) return "Not recorded";
+  return parsed.toLocaleTimeString([], { hour: "2-digit", minute: "2-digit", second: "2-digit", hour12: false });
+}
+
+function StatusIcon({ status }: { status?: string }) {
+  if (status === "failed") return <XCircle className="h-5 w-5 text-alert" />;
+  if (status === "skipped") return <Clock3 className="h-5 w-5 text-slate" />;
+  return <CheckCircle2 className="h-5 w-5 text-verify" />;
+}
+
+export default function AgentTraceTimeline({ trace = [], run = null }: AgentTraceTimelineProps) {
+  const hasTrace = trace.length > 0;
+  const completedSteps = trace.length;
+  const expectedStepCount = Math.max(8, run?.stepCount || expectedOrder.length);
+  const startedAt = run?.startedAt || trace[0]?.ts;
+  const completedAt = run?.completedAt || trace[trace.length - 1]?.ts;
+
+  if (!hasTrace) {
     return (
-      <div 
-        id="agent-trace-section" 
-        className="bg-white border border-hairline rounded-2xl p-5 flex flex-col gap-3.5 shadow-sm font-sans"
+      <section
+        id="agent-trace-section"
+        className="rounded-3xl border border-hairline bg-white p-5 shadow-sm"
+        aria-label="Server agent trace"
       >
-        <div className="flex items-center gap-2 border-b border-hairline pb-3">
-          <div className="w-5 h-5 rounded-full bg-ink/5 border border-hairline flex items-center justify-center">
-            <Sparkles className="w-3 h-3 text-marigold" />
+        <div className="flex items-start gap-3">
+          <div className="flex h-11 w-11 shrink-0 items-center justify-center rounded-2xl bg-ink text-marigold">
+            <Sparkles className="h-5 w-5" />
           </div>
-          <span className="font-display text-sm font-bold tracking-tight text-ink uppercase">
-            Agent Trace
-          </span>
+          <div>
+            <p className="text-sm font-mono text-[#334155]">Server-generated agent trace</p>
+            <h3 className="mt-1 text-2xl font-black text-ink">No persisted run yet</h3>
+            <p className="mt-2 max-w-2xl text-base leading-relaxed text-[#334155]">
+              Run the server-side Gemini agent to create a persisted tool timeline. Empty state means no run has been loaded for this case.
+            </p>
+          </div>
         </div>
-        <p className="text-[13px] text-slate leading-relaxed">
-          Agent trace will appear after the server agent run.
-        </p>
-      </div>
+      </section>
     );
   }
 
   return (
-    <div 
-      id="agent-trace-section" 
-      className="bg-white border border-hairline rounded-2xl p-5 flex flex-col gap-4 shadow-sm font-sans"
+    <section
+      id="agent-trace-section"
+      className="rounded-3xl border border-hairline bg-white p-5 shadow-sm"
+      aria-label="Server agent trace"
     >
-      {/* Dossier Header */}
-      <div className="flex items-center justify-between border-b border-hairline pb-3">
-        <div className="flex items-center gap-2">
-          <div className="w-5 h-5 rounded-full bg-ink/5 border border-hairline flex items-center justify-center">
-            <Sparkles className="w-3 h-3 text-marigold" />
+      <div className="flex flex-col gap-5">
+        <div className="flex flex-col justify-between gap-4 border-b border-hairline pb-4 lg:flex-row lg:items-start">
+          <div className="flex items-start gap-3">
+            <div className="flex h-11 w-11 shrink-0 items-center justify-center rounded-2xl bg-ink text-marigold">
+              <Sparkles className="h-5 w-5" />
+            </div>
+            <div>
+              <p className="text-sm font-mono text-[#334155]">Persisted server run</p>
+              <h3 className="mt-1 text-2xl font-black text-ink">Agent tool timeline</h3>
+              <p className="mt-2 max-w-2xl text-base leading-relaxed text-[#334155]">
+                Gemini selected tools, CivicLens executed them on the server, and these steps were loaded from persisted run data.
+              </p>
+            </div>
           </div>
-          <span className="font-display text-sm font-bold tracking-tight text-ink uppercase">
-            Agent Trace
-          </span>
+          <div className="grid grid-cols-2 gap-2 sm:grid-cols-4 lg:min-w-[420px]">
+            <div className="rounded-2xl border border-hairline bg-paper p-3">
+              <p className="text-sm font-bold text-[#334155]">Status</p>
+              <p className="mt-1 text-base font-black text-ink capitalize">{run?.status || "completed"}</p>
+            </div>
+            <div className="rounded-2xl border border-hairline bg-paper p-3">
+              <p className="text-sm font-bold text-[#334155]">Model</p>
+              <p className="mt-1 text-base font-black text-ink">{run?.model || "Gemini"}</p>
+            </div>
+            <div className="rounded-2xl border border-hairline bg-paper p-3">
+              <p className="text-sm font-bold text-[#334155]">Steps</p>
+              <p className="mt-1 text-base font-black text-ink">{completedSteps}/{expectedStepCount}</p>
+            </div>
+            <div className="rounded-2xl border border-hairline bg-paper p-3">
+              <p className="text-sm font-bold text-[#334155]">Loaded</p>
+              <p className="mt-1 text-base font-black text-ink">{formatTime(completedAt || startedAt)}</p>
+            </div>
+          </div>
+        </div>
+
+        <div className="grid gap-3">
+          {trace.map((entry, index) => (
+            <article
+              id={`trace-step-${entry.step.toLowerCase().replace(/\s+/g, "-")}`}
+              key={`${entry.step}-${entry.ts}-${index}`}
+              className="grid gap-3 rounded-2xl border border-hairline bg-paper p-4 lg:grid-cols-[56px_minmax(0,1fr)_minmax(220px,0.36fr)] lg:items-start"
+            >
+              <div className="flex h-12 w-12 items-center justify-center rounded-2xl bg-white shadow-3xs">
+                <span className="text-base font-black text-ink">{index + 1}</span>
+              </div>
+
+              <div className="min-w-0">
+                <div className="flex flex-wrap items-center gap-2">
+                  <StatusIcon status={entry.status} />
+                  <h4 className="text-lg font-black text-ink">{formatStepName(entry.step)}</h4>
+                  <span className="rounded-lg border border-hairline bg-white px-2 py-1 text-sm font-mono text-[#334155]">
+                    {entry.tool?.replace("agent.", "") || "server tool"}
+                  </span>
+                </div>
+
+                <p className="mt-2 text-base leading-relaxed text-[#334155]">{entry.rationale || "Tool completed without a model rationale."}</p>
+
+                {(entry.inputDigest || entry.outputSummary) && (
+                  <div className="mt-3 grid gap-2 md:grid-cols-2">
+                    {entry.inputDigest && (
+                      <div className="rounded-xl border border-hairline bg-white p-3">
+                        <p className="flex items-center gap-2 text-sm font-bold text-[#334155]">
+                          <Database className="h-4 w-4 text-marigold" />
+                          Safe input summary
+                        </p>
+                        <p className="mt-1 break-words text-sm leading-relaxed text-ink">{entry.inputDigest}</p>
+                      </div>
+                    )}
+                    {entry.outputSummary && (
+                      <div className="rounded-xl border border-hairline bg-white p-3">
+                        <p className="flex items-center gap-2 text-sm font-bold text-[#334155]">
+                          <CheckCircle2 className="h-4 w-4 text-verify" />
+                          Output summary
+                        </p>
+                        <p className="mt-1 break-words text-sm leading-relaxed text-ink">{entry.outputSummary}</p>
+                      </div>
+                    )}
+                  </div>
+                )}
+              </div>
+
+              <aside className="rounded-2xl border border-hairline bg-white p-3">
+                <div className="grid grid-cols-2 gap-3 text-sm">
+                  <div>
+                    <p className="font-bold text-[#334155]">Time</p>
+                    <p className="mt-1 font-mono text-ink">{formatTime(entry.ts)}</p>
+                  </div>
+                  <div>
+                    <p className="font-bold text-[#334155]">Latency</p>
+                    <p className="mt-1 font-mono text-ink">{entry.durationMs ? `${(entry.durationMs / 1000).toFixed(1)}s` : "n/a"}</p>
+                  </div>
+                  <div>
+                    <p className="font-bold text-[#334155]">Confidence</p>
+                    <p className="mt-1 font-mono text-ink">{entry.confidence !== undefined ? `${Math.round(entry.confidence * 100)}%` : "n/a"}</p>
+                  </div>
+                  <div>
+                    <p className="font-bold text-[#334155]">Status</p>
+                    <p className="mt-1 font-mono text-ink capitalize">{entry.status}</p>
+                  </div>
+                </div>
+                {(entry.retried || entry.fallbackUsed) && (
+                  <p className="mt-3 rounded-lg border border-marigold/25 bg-marigold/10 px-3 py-2 text-sm font-bold text-[#7A4300]">
+                    Recovered through retry or fallback.
+                  </p>
+                )}
+                {entry.step === "request_human_approval" && (
+                  <p className="mt-3 flex items-start gap-2 rounded-lg border border-verify/25 bg-verify/10 px-3 py-2 text-sm font-bold text-verify">
+                    <ShieldCheck className="mt-0.5 h-4 w-4 shrink-0" />
+                    Consequential action waits for a human decision.
+                  </p>
+                )}
+                {entry.status === "failed" && entry.errorMsg && (
+                  <p className="mt-3 rounded-lg border border-alert/20 bg-alert/5 px-3 py-2 text-sm font-bold text-alert">
+                    {entry.errorMsg}
+                  </p>
+                )}
+              </aside>
+            </article>
+          ))}
         </div>
       </div>
-
-      {/* Case Dossier Timeline */}
-      <div className="relative pl-6 flex flex-col gap-5">
-        {/* Thin connecting vertical rule */}
-        <div 
-          className="absolute left-[9.5px] top-2 bottom-2 w-[1px] bg-hairline" 
-          aria-hidden="true" 
-        />
-
-        {stepsList.map((st, idx) => {
-          const entry = trace.find((t) => t.step === st.step);
-          const isDone = !!entry && entry.status === "done";
-          const isSkipped = !!entry && entry.status === "skipped";
-          const isFailed = !!entry && entry.status === "failed";
-          const isPending = !entry;
-
-          const displayTimestamp = entry?.ts
-            ? new Date(entry.ts).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit', second: '2-digit', hour12: false })
-            : null;
-
-          return (
-            <div 
-              id={`trace-step-${st.step.toLowerCase().replace(/\s+/g, '-')}`} 
-              key={idx} 
-              className="relative flex flex-col gap-1"
-            >
-              {/* Concentric focus-ring icon that scales-in when complete */}
-              <div className="absolute -left-[24.5px] top-0.5 z-10 flex items-center justify-center">
-                {isDone ? (
-                  <motion.div 
-                    initial={{ scale: 0.6, opacity: 0 }}
-                    animate={{ scale: 1, opacity: 1 }}
-                    transition={{ type: "spring", stiffness: 200, damping: 15 }}
-                    className="w-[19px] h-[19px] rounded-full bg-white border border-marigold flex items-center justify-center shadow-xs"
-                  >
-                    <div className="w-2.5 h-2.5 rounded-full bg-marigold" />
-                  </motion.div>
-                ) : isSkipped ? (
-                  <div className="w-[19px] h-[19px] rounded-full bg-paper border border-slate flex items-center justify-center">
-                    <div className="w-1.5 h-1.5 rounded-full bg-slate" />
-                  </div>
-                ) : isFailed ? (
-                  <div className="w-[19px] h-[19px] rounded-full bg-red-50 border border-red-500 flex items-center justify-center">
-                    <div className="w-1.5 h-1.5 rounded-full bg-red-500" />
-                  </div>
-                ) : (
-                  <div className="w-[19px] h-[19px] rounded-full bg-paper border border-hairline flex items-center justify-center">
-                    <div className="w-1 h-1 rounded-full bg-slate/20" />
-                  </div>
-                )}
-              </div>
-
-              {/* Timestamp + Status Row */}
-              <div className="flex items-center justify-between text-xs font-mono text-slate flex-wrap gap-1">
-                <div className="flex items-center gap-1.5 flex-wrap">
-                  {displayTimestamp ? (
-                    <span className="bg-paper border border-hairline px-1 rounded text-xs">
-                      {displayTimestamp}
-                    </span>
-                  ) : (
-                    <span className="text-xs text-slate/40">— : — : —</span>
-                  )}
-
-                  {!isPending && entry?.tool && (
-                    <span className="text-xs uppercase tracking-tight bg-ink/5 text-ink/70 px-1 rounded border border-hairline font-mono truncate max-w-[150px]">
-                      {entry.tool.split("(")[0].trim().replace("/api/", "")}
-                    </span>
-                  )}
-
-                  {!isPending && entry?.durationMs !== undefined && (
-                    <span className="text-[10px] text-slate/60 font-mono">
-                      {`${(entry.durationMs / 1000).toFixed(1)}s`}
-                    </span>
-                  )}
-
-                  {!isPending && entry?.confidence !== undefined && (
-                    <span className="bg-verify/10 text-verify border border-verify/30 px-1 rounded text-[10px] font-sans font-medium">
-                      {`conf ${(entry.confidence * 100).toFixed(0)}%`}
-                    </span>
-                  )}
-
-                  {!isPending && (entry?.retried || entry?.fallbackUsed) && (
-                    <span 
-                      className="bg-amber-100 text-amber-800 border border-amber-300 px-1 rounded text-[10px] font-sans font-medium cursor-help"
-                      title="Succeeded after a model retry or JSON self-repair"
-                    >
-                      recovered
-                    </span>
-                  )}
-                </div>
-
-                {isDone && (
-                  <span className="inline-flex items-center gap-1.5 font-sans font-medium text-xs text-slate">
-                    <span className="w-1.5 h-1.5 rounded-full bg-verify font-bold" />
-                    Done
-                  </span>
-                )}
-                {isSkipped && (
-                  <span className="inline-flex items-center gap-1.5 font-sans font-medium text-xs text-slate">
-                    <span className="w-1.5 h-1.5 rounded-full bg-slate font-bold" />
-                    Skipped
-                  </span>
-                )}
-                {isFailed && (
-                  <span className="inline-flex items-center gap-1.5 font-sans font-medium text-xs text-red-600">
-                    <span className="w-1.5 h-1.5 rounded-full bg-red-500 font-bold" />
-                    Failed
-                  </span>
-                )}
-                {isPending && (
-                  <span className="inline-flex items-center gap-1.5 font-sans font-medium text-xs text-slate">
-                    <span className="w-1.5 h-1.5 rounded-full bg-slate/30 animate-pulse font-bold" />
-                    Pending
-                  </span>
-                )}
-              </div>
-
-              {/* Step Title inside dossier context */}
-              <div className="font-sans font-semibold text-ink text-sm mt-0.5">
-                {st.label}
-              </div>
-
-              {/* Compact input -> output line using inputDigest / outputSummary */}
-              {!isPending && entry && (entry.inputDigest || entry.outputSummary) && (
-                <div className="text-[11px] font-mono bg-paper/60 border border-hairline/50 p-1.5 rounded-lg mt-1 text-slate/80 leading-relaxed">
-                  {entry.inputDigest && (
-                    <div>
-                      <span className="text-slate/40">in:</span> {entry.inputDigest}
-                    </div>
-                  )}
-                  {entry.outputSummary && (
-                    <div className="mt-0.5">
-                      <span className="text-slate/40">out:</span> {entry.outputSummary}
-                    </div>
-                  )}
-                </div>
-              )}
-
-              {/* Failed error message banner */}
-              {!isPending && entry && entry.status === "failed" && entry.errorMsg && (
-                <div className="text-[11px] text-red-600 bg-red-50 border border-red-200 p-2 rounded-lg mt-1 font-sans leading-relaxed">
-                  <strong>Error details:</strong> {entry.errorMsg}
-                </div>
-              )}
-
-              {/* Highlighted one-line rationale note */}
-              {!isPending && entry && entry.rationale && (
-                <div className="text-[13px] text-slate leading-relaxed border-l border-hairline pl-2 mt-1 italic font-normal">
-                  {entry.rationale}
-                </div>
-              )}
-            </div>
-          );
-        })}
-      </div>
-    </div>
+    </section>
   );
 }

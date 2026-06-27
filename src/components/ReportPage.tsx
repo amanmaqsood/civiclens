@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useRef } from "react";
-import { Camera, MapPin, Trash2, CheckCircle2, ChevronRight, Loader2, Mic, MicOff, Sparkles, ArrowLeft } from "lucide-react";
+import { Camera, MapPin, MapPinned, Trash2, CheckCircle2, ChevronRight, Loader2, Mic, MicOff, Sparkles, ArrowLeft } from "lucide-react";
 import { IssueReport } from "../types";
 import { getCurrentLocation, LocationData } from "../utils/location";
 import { useLanguage } from "../context/LanguageContext";
@@ -119,6 +119,17 @@ export default function ReportPage({ onBack, onSubmit, prefilledLocation, prefil
         setLocLoading(false);
       }
     );
+  };
+
+  const handleUseManualPin = () => {
+    const pin = prefilledLocation || { lat: 12.9716, lng: 77.5946 };
+    setLocation({
+      lat: pin.lat,
+      lng: pin.lng,
+      addressPlaceholder: "Approximate manual map pin near Bengaluru center",
+    });
+    setManualAddress((current) => current || "Approximate manual map pin near Bengaluru center");
+    setLocError(null);
   };
 
   const handleImageChange = async (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -293,32 +304,56 @@ export default function ReportPage({ onBack, onSubmit, prefilledLocation, prefil
     );
   }
 
+  const stepperItems = [
+    { label: "Photo", done: !!image },
+    { label: "Location", done: !!location || !!manualAddress },
+    { label: "Description", done: description.trim().length > 0 },
+    { label: "Gemini triage", done: !!aiResult },
+    { label: "Confirm", done: false },
+  ];
+
   return (
-    <form onSubmit={handleStartAnalysis} className="flex flex-col gap-4 px-4 py-4 font-sans pb-12 text-ink">
+    <form onSubmit={handleStartAnalysis} className="mx-auto flex w-full max-w-3xl flex-col gap-5 px-4 py-5 font-sans pb-28 text-ink sm:px-6 lg:py-8">
       {/* Back button header */}
-      <div className="flex items-center justify-between border-b border-hairline pb-2.5">
+      <div className="flex items-center justify-between border-b border-hairline pb-3">
         <button
           type="button"
           onClick={onBack}
-          className="flex items-center gap-1.5 text-xs font-semibold text-slate hover:text-ink cursor-pointer"
+            className="flex min-h-[44px] items-center gap-2 rounded-xl px-2 text-base font-semibold text-ink hover:bg-white cursor-pointer"
         >
           <ArrowLeft className="w-3.5 h-3.5" />
           <span>Exit</span>
         </button>
-        <span className="text-[9px] font-mono bg-marigold text-ink font-semibold px-2 py-0.5 rounded-full uppercase tracking-wider">
-          New Incident
+        <span className="rounded-lg bg-marigold px-3 py-1 text-sm font-bold text-ink">
+          New field report
         </span>
       </div>
 
+      <div id="report-stepper" className="grid grid-cols-5 gap-2 rounded-2xl border border-hairline bg-white p-2 shadow-3xs" aria-label="Report flow steps">
+        {stepperItems.map((step, index) => (
+          <div
+            key={step.label}
+            className={`flex min-h-[58px] flex-col items-center justify-center gap-1 rounded-xl px-2 text-center ${
+              step.done ? "bg-verify/10 text-ink" : index === 0 || stepperItems[index - 1]?.done ? "bg-marigold/10 text-ink" : "bg-paper text-[#334155]"
+            }`}
+          >
+            <span className="flex h-6 w-6 items-center justify-center rounded-full bg-white text-sm font-black shadow-3xs">
+              {step.done ? <CheckCircle2 className="h-4 w-4" /> : index + 1}
+            </span>
+            <span className="text-sm font-bold leading-tight">{step.label}</span>
+          </div>
+        ))}
+      </div>
+
       {apiError && (
-        <div className="text-[10px] font-mono text-alert bg-alert/5 p-2 rounded-lg border border-alert/20">
+        <div className="text-sm font-mono text-alert bg-alert/5 p-3 rounded-lg border border-alert/20">
           {apiError}
         </div>
       )}
 
       {/* Upload proof */}
       <div className="flex flex-col gap-1.5">
-        <label className="text-[9pt] font-mono uppercase text-slate tracking-wider block">Proof photograph</label>
+        <label className="text-sm font-mono text-[#334155] block">Proof photograph</label>
         {!image ? (
           <div
             onClick={() => fileInputRef.current?.click()}
@@ -335,8 +370,8 @@ export default function ReportPage({ onBack, onSubmit, prefilledLocation, prefil
               <Camera className="w-5 h-5 text-slate group-hover:text-marigold" />
             </div>
             <div className="text-center">
-              <p className="text-xs font-semibold text-ink">Attach photo proof</p>
-              <p className="text-[10px] text-slate mt-0.5">JPEG, PNG up to 5MB, geo reference automatic</p>
+              <p className="text-base font-semibold text-ink">Attach photo proof</p>
+              <p className="text-sm text-[#334155] mt-0.5">JPEG, PNG, or WebP. The browser compresses it before upload.</p>
             </div>
           </div>
         ) : (
@@ -346,15 +381,14 @@ export default function ReportPage({ onBack, onSubmit, prefilledLocation, prefil
               <button
                 type="button"
                 onClick={() => fileInputRef.current?.click()}
-                className="flex-1 text-[10px] bg-ink/90 hover:bg-marigold text-white hover:text-ink border border-white/15 px-3 py-1.5 rounded-lg font-bold transition-all cursor-pointer shadow-xs text-center"
+                className="min-h-[44px] flex-1 bg-ink/90 hover:bg-marigold text-white hover:text-ink border border-white/15 px-3 py-2 rounded-lg text-sm font-bold transition-all cursor-pointer shadow-xs text-center"
               >
                 Change
               </button>
               <button
                 type="button"
                 onClick={() => { setImage(null); if (fileInputRef.current) fileInputRef.current.value = ""; }}
-                className="p-1.5 bg-alert/90 hover:bg-alert text-white rounded-lg transition-colors cursor-pointer"
-                style={{ width: "30px", height: "30px" }}
+                className="flex min-h-[44px] min-w-[44px] items-center justify-center bg-alert/90 hover:bg-alert text-white rounded-lg transition-colors cursor-pointer"
               >
                 <Trash2 className="w-4 h-4 mx-auto" />
               </button>
@@ -366,45 +400,44 @@ export default function ReportPage({ onBack, onSubmit, prefilledLocation, prefil
 
       {/* Geolocation Live Capture Component */}
       <div className="bg-paper border border-hairline p-4 rounded-xl flex flex-col gap-2.5">
-        <label className="text-[9pt] font-mono uppercase text-slate tracking-wider block">Location</label>
+        <label className="text-sm font-mono text-[#334155] block">Location</label>
         
-        {/* Non-blocking Permission / Geolocation Status Indicator */}
-        <div className="text-[10px] font-semibold leading-normal py-0.5">
+        <div className="text-sm font-semibold leading-normal py-0.5">
           {locLoading && (
             <span className="text-marigold flex items-center gap-1 animate-pulse">
-              <Loader2 className="w-3.5 h-3.5 animate-spin" /> 📍 Acquiring coordinates...
+              <Loader2 className="w-3.5 h-3.5 animate-spin" /> Acquiring coordinates...
             </span>
           )}
           {!locLoading && location && (
-            <span className="text-verify flex items-center gap-1">
-              <CheckCircle2 className="w-3.5 h-3.5 text-verify" /> 📍 Coordinates locked!
+            <span className="text-ink flex items-center gap-1">
+              <CheckCircle2 className="w-3.5 h-3.5 text-verify" /> Coordinates locked.
             </span>
           )}
           {!locLoading && locError && (
             <span className="text-alert flex items-center gap-1">
-              ⚠️ Location access denied. Manual input required.
+              Location access denied or unavailable. Manual input required.
             </span>
           )}
           {!locLoading && !location && !locError && (
             <span className="text-slate flex items-center gap-1">
-              📍 Coordinates missing. Tap below to acquire.
+              Coordinates missing. Use location or manual pin.
             </span>
           )}
         </div>
 
         {location ? (
-          <div className="flex items-start gap-2 bg-verify/5 text-verify p-2 rounded-lg border border-verify/20 select-none">
+          <div className="flex items-start gap-2 bg-verify/5 text-ink p-2 rounded-lg border border-verify/20 select-none">
             <CheckCircle2 className="w-3.5 h-3.5 text-verify mt-0.5 flex-shrink-0" />
-            <div className="text-[10.5px] font-semibold">
+            <div className="text-sm font-semibold">
               <p>GPS Geo-reference locked</p>
-              <p className="font-mono text-[9px] text-slate mt-0.5">
+              <p className="font-mono text-sm text-[#334155] mt-0.5">
                 {location.lat.toFixed(5)}, {location.lng.toFixed(5)}
               </p>
             </div>
             <button
               type="button"
               onClick={handleFetchLocation}
-              className="ml-auto text-[9px] font-mono text-slate hover:text-ink tracking-tight uppercase"
+              className="ml-auto min-h-[44px] rounded-lg px-2 text-sm font-mono text-ink hover:bg-white"
             >
               Refresh
             </button>
@@ -413,20 +446,39 @@ export default function ReportPage({ onBack, onSubmit, prefilledLocation, prefil
           <button
             type="button"
             onClick={handleFetchLocation}
-            className="w-full flex items-center justify-center gap-1.5 border border-hairline bg-white hover:bg-paper text-slate hover:text-ink py-2 px-3 rounded-lg text-xs font-semibold cursor-pointer shadow-2xs"
-            style={{ minHeight: "36px" }}
+            className="w-full flex min-h-[44px] items-center justify-center gap-2 border border-hairline bg-white hover:bg-paper text-slate hover:text-ink py-2 px-3 rounded-lg text-base font-semibold cursor-pointer shadow-2xs"
           >
             {locLoading ? <Loader2 className="w-3.5 h-3.5 animate-spin text-marigold" /> : <MapPin className="w-3.5 h-3.5 text-marigold" />}
-            <span>Detect Coordinates</span>
+            <span>Use my location</span>
           </button>
+        )}
+        {(locError || !location) && (
+          <div id="manual-pin-fallback" className="rounded-xl border border-dashed border-marigold/45 bg-white p-3">
+            <div className="flex items-start gap-3">
+              <MapPinned className="mt-0.5 h-5 w-5 shrink-0 text-marigold" />
+              <div className="flex-1">
+                <p className="text-base font-bold text-ink">Manual map pin fallback</p>
+                <p className="mt-1 text-sm leading-relaxed text-[#334155]">
+                  If GPS is denied, use an approximate pin and add a landmark below.
+                </p>
+              </div>
+            </div>
+            <button
+              type="button"
+              onClick={handleUseManualPin}
+              className="mt-3 inline-flex min-h-[44px] w-full items-center justify-center gap-2 rounded-xl bg-ink px-4 text-base font-bold text-paper hover:bg-ink/90"
+            >
+              <MapPinned className="h-4 w-4 text-marigold" />
+              Use manual map pin
+            </button>
+          </div>
         )}
         <input
           type="text"
           value={manualAddress}
           onChange={(e) => setManualAddress(e.target.value)}
           placeholder="Or type descriptive location e.g. Indiranagar, Metro Station"
-          className="w-full text-xs border border-hairline bg-white p-2 rounded-xl focus:outline-none"
-          style={{ minHeight: "36px" }}
+          className="min-h-[44px] w-full text-base border border-hairline bg-white p-3 rounded-xl focus:outline-none focus:border-marigold focus:ring-1 focus:ring-marigold"
         />
       </div>
 
@@ -434,25 +486,25 @@ export default function ReportPage({ onBack, onSubmit, prefilledLocation, prefil
       {speechSupported && (
         <div className="bg-paper border border-hairline p-4 rounded-xl flex flex-col gap-2 shadow-3xs animate-fade-in select-none">
           <div className="flex items-center justify-between">
-            <span className="text-[9pt] font-mono uppercase text-slate tracking-wider block">
+          <span className="text-sm font-mono text-[#334155] block">
               {t("report.voiceInput")}
             </span>
             <div className="flex items-center gap-1.5">
               <span className="w-1.5 h-1.5 rounded-full bg-marigold animate-ping" />
-              <span className="text-[9px] font-mono text-slate uppercase font-bold">
-                {language === "hi" ? "हिन्दी एक्टिव" : "English Active"}
+              <span className="text-sm font-mono text-[#334155] font-bold">
+                {language === "hi" ? "Hindi active" : "English Active"}
               </span>
             </div>
           </div>
           
-          <p className="text-[10px] text-slate font-medium leading-normal">
+          <p className="text-sm text-[#334155] font-medium leading-normal">
             {t("report.voiceHint")}
           </p>
 
           <button
             type="button"
             onClick={toggleListening}
-            className={`w-full flex items-center justify-center gap-2 border py-2.5 px-4 rounded-xl text-xs font-semibold cursor-pointer transition-all ${
+            className={`w-full flex min-h-[44px] items-center justify-center gap-2 border py-2.5 px-4 rounded-xl text-base font-semibold cursor-pointer transition-all ${
               isListening
                 ? "bg-alert text-white border-alert/20 animate-pulse"
                 : "bg-white text-ink border-hairline hover:bg-slate-50 shadow-2xs"
@@ -462,12 +514,12 @@ export default function ReportPage({ onBack, onSubmit, prefilledLocation, prefil
             {isListening ? (
               <>
                 <MicOff className="w-4 h-4 text-white animate-spin" />
-                <span>{language === "hi" ? "रिकॉर्डिंग बंद करें..." : "Stop Recording..."}</span>
+                <span>{language === "hi" ? "Stop recording..." : "Stop Recording..."}</span>
               </>
             ) : (
               <>
                 <Mic className="w-4 h-4 text-marigold" />
-                <span>{language === "hi" ? "बोलकर दर्ज करें" : "Start Voice Dictation"}</span>
+                <span>{language === "hi" ? "Start voice dictation" : "Start Voice Dictation"}</span>
               </>
             )}
           </button>
@@ -476,14 +528,14 @@ export default function ReportPage({ onBack, onSubmit, prefilledLocation, prefil
 
       {/* Description / Dictation */}
       <div className="flex flex-col gap-1.5">
-        <label className="text-[9pt] font-mono uppercase text-slate block">
+        <label className="text-sm font-mono text-[#334155] block">
           {t("report.descLabel")}
         </label>
         <textarea
           value={description}
           onChange={(e) => setDescription(e.target.value)}
           placeholder={t("report.descPlaceholder")}
-          className="w-full text-xs border border-hairline bg-white p-2.5 rounded-xl min-h-[80px] leading-relaxed text-ink font-sans"
+          className="w-full text-base border border-hairline bg-white p-3 rounded-xl min-h-[110px] leading-relaxed text-ink font-sans focus:outline-none focus:border-marigold focus:ring-1 focus:ring-marigold"
         />
       </div>
 
@@ -491,7 +543,7 @@ export default function ReportPage({ onBack, onSubmit, prefilledLocation, prefil
       <button
         type="submit"
         disabled={!image}
-        className={`w-full flex items-center justify-center gap-1.5 font-bold text-xs py-3 px-5 rounded-xl shadow-xs transition ${
+        className={`w-full flex min-h-[52px] items-center justify-center gap-2 font-bold text-base py-3 px-5 rounded-xl shadow-xs transition ${
           image ? "bg-marigold text-ink hover:bg-marigold/90 cursor-pointer" : "bg-paper text-slate cursor-not-allowed border border-hairline"
         }`}
         style={{ minHeight: "44px" }}

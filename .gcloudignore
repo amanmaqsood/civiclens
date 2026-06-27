@@ -1,0 +1,13 @@
+.git
+.gitignore
+.env
+.env.*
+node_modules
+dist
+coverage
+playwright-report
+test-results
+firebase-debug.log
+firestore-debug.log
+storage-debug.log
+*.local

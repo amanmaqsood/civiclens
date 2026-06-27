@@ -2,6 +2,8 @@ import React, { useState, useEffect, lazy, Suspense } from "react";
 import { ActiveView, IssueReport, AgentTraceEntry } from "./types";
 import MobileFrame from "./components/MobileFrame";
 import Header from "./components/Header";
+import AppBottomNav from "./components/AppBottomNav";
+import FloatingReportAction from "./components/FloatingReportAction";
 import LandingPage from "./components/LandingPage";
 import ReportPage from "./components/ReportPage";
 import SuccessPage from "./components/SuccessPage";
@@ -47,9 +49,35 @@ function RouteLoading({ label }: { label: string }) {
   );
 }
 
+function getInitialRoute(): { view: ActiveView; issueId: string | null } {
+  if (typeof window === "undefined") return { view: "landing", issueId: null };
+  const hash = window.location.hash || "";
+  if (hash.startsWith("#issue/")) {
+    const issueId = decodeURIComponent(hash.replace("#issue/", "").trim());
+    if (issueId) return { view: "detail", issueId };
+  }
+  if (hash === "#report") return { view: "report", issueId: null };
+  if (hash === "#dashboard") return { view: "dashboard", issueId: null };
+  return { view: "landing", issueId: null };
+}
+
+function updateBrowserHash(view: ActiveView, issueId?: string | null) {
+  if (typeof window === "undefined") return;
+  const base = `${window.location.pathname}${window.location.search}`;
+  const hash = view === "detail" && issueId
+    ? `#issue/${encodeURIComponent(issueId)}`
+    : view === "report"
+      ? "#report"
+      : view === "dashboard"
+        ? "#dashboard"
+        : "";
+  window.history.replaceState(null, "", `${base}${hash}`);
+}
+
 export default function App() {
   const { user, loading: authLoading } = useFirebase();
-  const [currentView, setCurrentView] = useState<ActiveView>("landing");
+  const [initialRoute] = useState(() => getInitialRoute());
+  const [currentView, setCurrentView] = useState<ActiveView>(initialRoute.view);
   const [latestReport, setLatestReport] = useState<Partial<IssueReport> | null>(null);
   const [issues, setIssues] = useState<IssueReport[]>([]);
   const [issuesLoading, setIssuesLoading] = useState(true);
@@ -59,7 +87,7 @@ export default function App() {
   const [loadError, setLoadError] = useState(false);
   const [upvoteLoadingId, setUpvoteLoadingId] = useState<string | null>(null);
   const [errorNotice, setErrorNotice] = useState<string | null>(null);
-  const [selectedIssueId, setSelectedIssueId] = useState<string | null>(null);
+  const [selectedIssueId, setSelectedIssueId] = useState<string | null>(initialRoute.issueId);
 
   // User Geolocation Shared State
   const [userLocation, setUserLocation] = useState<{ lat: number; lng: number } | null>(null);
@@ -166,11 +194,14 @@ export default function App() {
 
   const handleNavigate = (view: ActiveView) => {
     setErrorNotice(null);
+    if (view !== "detail") setSelectedIssueId(null);
+    updateBrowserHash(view);
     setCurrentView(view);
   };
 
   const handleSelectIssue = (id: string) => {
     setSelectedIssueId(id);
+    updateBrowserHash("detail", id);
     setCurrentView("detail");
   };
 
@@ -448,7 +479,7 @@ export default function App() {
       )}
 
       {/* View Router */}
-      <main id="main-content" className="flex flex-col flex-1 overflow-y-auto">
+      <main id="main-content" className="flex flex-col flex-1 overflow-y-auto pb-28 md:pb-0">
         {loadError ? (
           <div className="flex-1 flex flex-col justify-center items-center p-6 text-center font-sans">
             <div className="bg-white border border-alert/20 p-6 rounded-2xl max-w-sm shadow-xs flex flex-col items-center gap-4">
@@ -472,7 +503,7 @@ export default function App() {
           </div>
         ) : persona === "operator" && operatorAccess !== "none" ? (
           <Suspense fallback={<RouteLoading label="Loading operator workspace..." />}>
-            <div className="min-h-full w-full bg-slate-50 lg:grid lg:grid-cols-[380px_minmax(0,1fr)] xl:grid-cols-[420px_minmax(0,1fr)]">
+            <div id="operator-command-center" className="min-h-full w-full bg-slate-50 lg:grid lg:grid-cols-[380px_minmax(0,1fr)] xl:grid-cols-[390px_minmax(0,1fr)]">
               <section
                 className={`${operatorSelectedIssueId ? "hidden lg:block" : "block"} min-w-0 lg:border-r lg:border-slate-200 lg:bg-paper`}
                 aria-label="Operator case queue"
@@ -545,11 +576,14 @@ export default function App() {
             {currentView === "detail" && selectedIssueId && (
               (() => {
                 const selectedIssue = issues.find((issue) => issue.id === selectedIssueId);
+                if (issuesLoading) {
+                  return <RouteLoading label="Loading saved issue..." />;
+                }
                 if (!selectedIssue) {
                   return (
                     <div className="p-4 text-center text-xs font-semibold text-slate-500">
                       Issue report not found. Please navigate back manually.
-                      <button onClick={() => setCurrentView("landing")} className="block mt-2 underline mx-auto text-[#4F46E5] font-sans">
+                      <button onClick={() => handleNavigate("landing")} className="block mt-2 underline mx-auto text-[#4F46E5] font-sans">
                         Back to Hub
                       </button>
                     </div>
@@ -558,7 +592,7 @@ export default function App() {
                 return (
                   <IssueDetailPage
                     issue={selectedIssue}
-                    onBack={() => setCurrentView("landing")}
+                    onBack={() => handleNavigate("landing")}
                     onUpvote={handleUpvote}
                     upvoteLoadingId={upvoteLoadingId}
                     onRefresh={loadIssues}
@@ -598,7 +632,7 @@ export default function App() {
                 onCreateNew={handleCreateStandaloneAnyway}
                 onCancel={() => {
                   setDuplicateCandidate(null);
-                  setCurrentView("report");
+                  handleNavigate("report");
                 }}
                 isProcessing={isDeduplicating}
               />
@@ -608,7 +642,7 @@ export default function App() {
               <Suspense fallback={<RouteLoading label="Loading impact dashboard..." />}>
                 <ImpactDashboard
                   issues={issues}
-                  onBack={() => setCurrentView("landing")}
+                  onBack={() => handleNavigate("landing")}
                   hasMoreIssues={hasMoreIssues}
                   loadedPageSize={ISSUE_PAGE_SIZE}
                 />
@@ -652,6 +686,19 @@ export default function App() {
           </div>
         </div>
       )}
+
+      <FloatingReportAction currentView={currentView} persona={persona} onNavigate={handleNavigate} />
+      <AppBottomNav
+        currentView={currentView}
+        persona={persona}
+        operatorAccess={operatorAccess}
+        onNavigate={handleNavigate}
+        onTogglePersona={(p) => {
+          if (p === "operator" && operatorAccess === "none") return;
+          setPersona(p);
+          if (p === "operator") setOperatorSelectedIssueId(null);
+        }}
+      />
     </MobileFrame>
   );
 }

@@ -29,6 +29,9 @@ describe("UX redesign contract", () => {
     expect(header).toContain("Citizen session");
     expect(header).toContain("Operator access status");
     expect(header).toContain("Sign in with Google");
+    expect(header).toContain("Google sign-in unavailable");
+    expect(header).toContain("Anonymous reporting still works");
+    expect(header).toContain("disabled={!signedInWithGoogle}");
   });
 
   it("keeps the landing page map-first and truthful about synthetic demo data", () => {

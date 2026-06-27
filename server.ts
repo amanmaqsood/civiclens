@@ -402,7 +402,44 @@ async function startServer() {
     if (!areasList.includes(data.affectedArea)) return false;
     if (!Array.isArray(data.privacyFlags)) return false;
     if (typeof data.confidence !== "number") return false;
+    if (typeof data.isCivicIssue !== "boolean") return false;
     return true;
+  }
+
+  function applyCivicImageGuardrail(data: any): any {
+    if (!data || typeof data !== "object") return data;
+    const normalized = { ...data };
+    normalized.confidence = cleanNumber(normalized.confidence, 0, 0, 1);
+    normalized.severity = Math.round(cleanNumber(normalized.severity, 1, 1, 5));
+
+    if (normalized.isCivicIssue === false) {
+      normalized.category = "other";
+      normalized.severity = Math.min(normalized.severity, 2);
+      normalized.urgency = "routine";
+      normalized.affectedArea = "unknown";
+      normalized.visibleHazards = [];
+      normalized.confidence = Math.min(normalized.confidence, 0.35);
+      normalized.title = cleanText(normalized.title, "Non-civic image needs confirmation", 120) || "Non-civic image needs confirmation";
+      normalized.summary = cleanText(
+        normalized.summary,
+        "The uploaded image does not clearly show a civic infrastructure issue. Please provide clearer civic evidence before saving.",
+        600
+      );
+      normalized.clarificationQuestion = cleanText(
+        normalized.clarificationQuestion,
+        "This image does not clearly show a civic issue. Please upload clearer pothole, drainage, waste, water, lighting, or road-damage evidence, or explain what civic hazard is visible.",
+        260
+      );
+      normalized.nonCivicReason = cleanText(
+        normalized.nonCivicReason,
+        "The image appears unrelated to civic infrastructure.",
+        220
+      );
+    } else if (normalized.confidence < 0.6 && !normalized.clarificationQuestion) {
+      normalized.clarificationQuestion = "Please confirm what civic hazard is visible and whether the photo clearly shows the issue to report.";
+    }
+
+    return normalized;
   }
 
   function isSafeDocumentId(id: unknown): id is string {
@@ -1352,7 +1389,9 @@ Output ONLY valid JSON and nothing else.`;
       };
 
       const promptText = `Analyze this civic issue photo. Additional citizen context: "${description || "None provided"}".
-Output a structured description including hazards, severity, scale, and urgency. 
+Output a structured description including hazards, severity, scale, and urgency.
+First decide whether the image itself clearly shows a civic infrastructure or public-space issue such as a pothole, road damage, drainage, waste, water leak, or streetlight problem.
+If the image appears to be food, a waffle, a household object, a selfie, a decorative image, or otherwise not civic evidence, set isCivicIssue=false, category="other", severity=1, urgency="routine", affectedArea="unknown", confidence <= 0.35, and ask a targeted clarificationQuestion before saving.
 If confidence is low (under 0.6) or ambiguity exists, ask a targeted clarificationQuestion to verify if this is the citizen's intended issue to report.`;
 
       const startTime = Date.now();
@@ -1406,6 +1445,14 @@ If confidence is low (under 0.6) or ambiguity exists, ask a targeted clarificati
                 type: Type.NUMBER,
                 description: "Confidence rating of detection between 0 and 1.",
               },
+              isCivicIssue: {
+                type: Type.BOOLEAN,
+                description: "True only when the image clearly shows civic infrastructure or public-space issue evidence. False for food, waffle, household, decorative, or unrelated images.",
+              },
+              nonCivicReason: {
+                type: Type.STRING,
+                description: "Short reason when isCivicIssue is false (optional).",
+              },
               clarificationQuestion: {
                 type: Type.STRING,
                 description: "A targeted question to clear up ambiguities if confidence is under 0.6 (optional).",
@@ -1421,6 +1468,7 @@ If confidence is low (under 0.6) or ambiguity exists, ask a targeted clarificati
               "affectedArea",
               "privacyFlags",
               "confidence",
+              "isCivicIssue",
             ],
           },
         },
@@ -1461,6 +1509,8 @@ The schema requires:
 - affectedArea: one of ${JSON.stringify(areasList)}
 - privacyFlags: string[]
 - confidence: number (0 to 1)
+- isCivicIssue: boolean (false for waffle, food, household, decorative, or unrelated images)
+- nonCivicReason?: optional short reason when isCivicIssue is false
 - clarificationQuestion?: optional string
 
 Malformed Response output:
@@ -1491,6 +1541,9 @@ Respond ONLY with the corrected, valid JSON object.`;
 
       const truncatedDesc = description ? (description.length > 30 ? description.slice(0, 30) + "..." : description) : "None";
       const inputDigest = `photo (${mimeType}) + description: "${truncatedDesc}"`;
+      if (parseSuccess) {
+        parsedData = applyCivicImageGuardrail(parsedData);
+      }
       const outputSummary = parseSuccess
         ? `${parsedData.category || "issue"} · severity ${parsedData.severity || 1}/5 · ${parsedData.visibleHazards?.length || 0} hazards · ${(parsedData.confidence || 0).toFixed(2)} conf`
         : "Fallback to manual form";

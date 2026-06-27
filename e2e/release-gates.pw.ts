@@ -313,6 +313,9 @@ test("header account menu explains citizen session and operator access", async (
   await expect(page.getByText("Sign in with Google").first()).toBeVisible();
   await expect(page.getByText(/Operator access status: (none|demo|real)/)).toBeVisible();
   await expect(page.locator("#account-menu button")).toHaveCount(1);
+  await expect(page.getByRole("button", { name: "Google sign-in unavailable" })).toBeDisabled();
+  await expect(page.locator("#account-auth-error")).toBeVisible();
+  await expect(page.locator("#account-auth-error")).toContainText("Anonymous reporting still works");
 
   await page.keyboard.press("Escape");
   await expect(page.locator("#account-menu")).toHaveCount(0);
@@ -322,7 +325,7 @@ test("header account menu explains citizen session and operator access", async (
   await expect(page.locator("#account-menu")).toHaveCount(0);
 
   await page.locator("#header-account-button").click();
-  await page.getByRole("button", { name: "Sign in with Google" }).click();
+  await expect(page.getByRole("button", { name: "Google sign-in unavailable" })).toBeDisabled();
   await expect(page.locator("#account-auth-error")).toBeVisible();
 });
 

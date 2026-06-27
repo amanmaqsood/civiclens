@@ -13,7 +13,7 @@ interface HeaderProps {
 }
 
 export default function Header({ currentView, onNavigate, persona, onTogglePersona, operatorAccess }: HeaderProps) {
-  const { user, signInWithGoogle, signOutUser, loading } = useFirebase();
+  const { user, signOutUser, loading } = useFirebase();
   const { language, setLanguage } = useLanguage();
   const [accountOpen, setAccountOpen] = useState(false);
   const [accountError, setAccountError] = useState<string | null>(null);
@@ -22,6 +22,8 @@ export default function Header({ currentView, onNavigate, persona, onTogglePerso
   const canShowOperatorDesk = operatorAccess !== "none";
   const citizenSessionLabel = signedInWithGoogle ? "Google signed in" : user ? "Anonymous active" : "Starting session";
   const operatorAccessLabel = operatorAccess === "real" ? "real" : operatorAccess === "demo" ? "demo" : "none";
+  const googleSignInUnavailable =
+    "Google sign-in is intentionally unavailable in this public judge build until Firebase Authorized Domains are verified. Anonymous reporting still works.";
 
   useEffect(() => {
     if (!accountOpen) return;
@@ -49,7 +51,8 @@ export default function Header({ currentView, onNavigate, persona, onTogglePerso
       if (signedInWithGoogle) {
         await signOutUser();
       } else {
-        await signInWithGoogle();
+        setAccountError(googleSignInUnavailable);
+        return;
       }
       setAccountOpen(false);
     } catch {
@@ -57,7 +60,7 @@ export default function Header({ currentView, onNavigate, persona, onTogglePerso
       setAccountError(
         signedInWithGoogle
           ? "Sign out could not complete. Please check your connection and try again."
-          : "Google sign-in could not start. Check popup permissions or the authorized domain; anonymous reporting still works."
+          : googleSignInUnavailable
       );
     }
   };
@@ -224,24 +227,32 @@ export default function Header({ currentView, onNavigate, persona, onTogglePerso
                 <div className="mt-2 rounded-xl border border-hairline p-3">
                   <p className="text-sm font-black text-ink">Sign in with Google</p>
                   <p className="mt-0.5 text-sm leading-relaxed text-[#334155]">
-                    Optional for citizen continuity. Anonymous reporting stays available.
+                    {signedInWithGoogle
+                      ? "You can sign out of the Google session. Anonymous reporting remains available after sign-out."
+                      : googleSignInUnavailable}
                   </p>
-                  {accountError && (
+                  {(accountError || !signedInWithGoogle) && (
                     <p
                       id="account-auth-error"
                       role="alert"
                       className="mt-2 rounded-lg border border-alert/20 bg-alert/10 p-2 text-sm font-semibold leading-relaxed text-alert"
                     >
-                      {accountError}
+                      {accountError || googleSignInUnavailable}
                     </p>
                   )}
                   <button
                     type="button"
+                    disabled={!signedInWithGoogle}
+                    aria-disabled={!signedInWithGoogle}
                     onClick={handleAuthAction}
-                    className="mt-3 inline-flex min-h-[44px] w-full items-center justify-center gap-2 rounded-xl bg-ink px-4 text-base font-bold text-white hover:bg-[#1f314d]"
+                    className={`mt-3 inline-flex min-h-[44px] w-full items-center justify-center gap-2 rounded-xl px-4 text-base font-bold ${
+                      signedInWithGoogle
+                        ? "bg-ink text-white hover:bg-[#1f314d]"
+                        : "cursor-not-allowed border border-hairline bg-paper text-slate"
+                    }`}
                   >
                     {signedInWithGoogle ? <LogOut className="h-4 w-4 text-marigold" /> : <LogIn className="h-4 w-4 text-marigold" />}
-                    {signedInWithGoogle ? "Sign out" : "Sign in with Google"}
+                    {signedInWithGoogle ? "Sign out" : "Google sign-in unavailable"}
                   </button>
                 </div>
               </div>

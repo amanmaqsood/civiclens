@@ -164,6 +164,7 @@ Fresh deployed smoke:
 - Demo-operator mutation of the same non-demo issue was denied with HTTP 403.
 - Persisted server agent run returned 8 tool steps: `agent.search_nearby_cases`, `agent.compare_candidate_evidence`, `agent.calculate_priority`, `agent.find_responsible_authority`, `agent.draft_action_packet`, `agent.request_human_approval`, `agent.verify_closure`, and `agent.record_event`.
 - Fetching the latest agent run twice returned the persisted 8-step trace, matching a refresh-survival check.
+- A fresh browser session opened the saved audit issue from the deployed feed and rendered the persisted 8-tool agent trace in the issue detail UI. Reopening it in a second fresh browser session also rendered the same persisted trace with zero page errors and zero console errors.
 - Synthetic demo issue `JOaqBXiJNnyWgWqfqpwI` was mutated by demo operator from `submitted` to `verified`.
 - Closure verification on that synthetic demo issue returned recommendation `request_more_evidence`; the closure assessment persisted and the issue status remained `verified`, proving no auto-resolve occurred.
 - The live app's own browser-origin Firebase Auth path succeeded. Direct Node-side anonymous sign-in using the local fallback browser config was blocked by referrer restrictions, which is consistent with restricted public browser keys; the smoke used the deployed app's in-browser auth token without printing it.

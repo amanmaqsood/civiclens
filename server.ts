@@ -1847,7 +1847,7 @@ Return a STRICT JSON response adhering precisely to this schema. Do not include 
       const parsedResult = JSON.parse(cleanResponseText);
 
       const inputDigest = `Compare original vs afterImage`;
-      const closureAssessment = {
+      const closureAssessment: any = {
         resolved: parsedResult.resolved === true,
         confidence: cleanNumber(parsedResult.confidence, 0, 0, 1),
         observedChanges: cleanStringArray(parsedResult.observedChanges, 12, 240),
@@ -1855,8 +1855,8 @@ Return a STRICT JSON response adhering precisely to this schema. Do not include 
           ? parsedResult.recommendation
           : "request_more_evidence",
         explanation: cleanText(parsedResult.explanation, "Gemini returned no explanation.", 1200),
-        afterImage: afterImageUrl || undefined,
       };
+      if (afterImageUrl) closureAssessment.afterImage = afterImageUrl;
       const outputSummary = `Resolved: ${closureAssessment.resolved} - Rec: ${closureAssessment.recommendation} - conf: ${closureAssessment.confidence.toFixed(2)}`;
 
       if (issueRef) {

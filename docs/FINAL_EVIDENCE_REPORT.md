@@ -252,6 +252,55 @@ Validation after the UX refresh:
 - `npm run test:concurrency`: passed (4 emulator concurrency tests).
 - `npm run test:e2e`: passed (6 Playwright tests) against local Firebase emulators.
 
+## Final Submission Polish Checkpoint
+
+This checkpoint was performed on 2026-06-27 to finish judge-facing polish without changing billing, deleting resources, rotating keys, enabling App Check enforcement, or submitting to BlockseBlock.
+
+Runtime and deployment:
+
+- Source polish commit: `7e9aa38 feat: polish final CivicLens UX gates`.
+- Corrective runtime commit: `94246fe fix: keep issue detail stable for nullable fields`.
+- Cloud Build for `7e9aa38`: `74d16958-e9b3-4d96-934b-aa4240b041a5`; deployed as `civiclens-00037-6x6`.
+- Public smoke on `00037` found a real saved-issue detail crash when a synthetic fallback issue had nullable numeric fields.
+- Cloud Build for `94246fe`: `cde70b30-77b6-4be6-8af3-c99f206093e2`.
+- Corrected active revision: `civiclens-00038-9w7`, serving 100 percent traffic.
+- Canonical public URL: `https://civiclens-py7ixxgroq-as.a.run.app`.
+- Alternate public URL: `https://civiclens-802067002365.asia-southeast1.run.app`.
+
+Public health/readiness after corrected deploy:
+
+- `/health`: HTTP 200, `status: ok`, `service: civiclens`, `mode: production`, timestamp `2026-06-27T13:38:13.186Z`.
+- `/readyz`: HTTP 200, `ready: true`, `adminDb: true`, `geminiConfigured: true`, `configValid: true`, no missing values, and expected warning that `CIVICLENS_REQUIRE_APP_CHECK` is not true.
+
+Final-polish implementation:
+
+- Mobile evidence inputs now include `accept="image/*"` and `capture="environment"` for report and closure uploads.
+- Header account control opens an accessible menu explaining citizen session, Google sign-in, and operator access status.
+- Public copy now uses `Demo stories`, `CivicLens pilot`, `CivicLens field reports`, and the boundary line `Independent civic pilot. Drafts stay inside CivicLens until a human acts outside the app.`
+- Internal smoke-test records are filtered from the default public feed and dashboard metrics.
+- Issue detail rendering is safe when confidence or coordinates are absent/null.
+
+Validation:
+
+- `npm ci`: passed; install audit still reports 3 moderate dev-dependency vulnerabilities, while production dependency audit is clean.
+- `npm run lint`: passed after the final nullable-field fix.
+- `npm test`: passed after the final nullable-field fix (17 files passed, 2 skipped; 77 tests passed, 7 skipped).
+- `npm run build`: passed after the final nullable-field fix with known Firebase chunk-size and mixed static/dynamic import warnings.
+- `npm audit --omit=dev`: passed; 0 vulnerabilities.
+- `npm run test:rules`: passed during this checkpoint before the UI-only nullable-field fix (3 emulator rules tests).
+- `npm run test:concurrency`: passed during this checkpoint before the UI-only nullable-field fix (4 emulator concurrency tests).
+- `npm run test:e2e`: passed after the final nullable-field fix (7 Playwright tests).
+
+Public smoke on `civiclens-00038-9w7`:
+
+- Passed: desktop homepage, map visible, default feed hides smoke-test records, sticky top nav, account/profile menu, mobile 390px homepage, fixed mobile bottom nav, mobile header sticky after scroll, report flow start, manual fallback visible, camera capture attribute present, saved synthetic issue detail loads, persisted 8-step server agent run visible, agent trace persists after refresh, demo operator synthetic-only boundary visible, unsupported-claim scan, and no console errors.
+- Authenticated Gemini triage API probe using a fresh anonymous Firebase ID token returned HTTP 200 with category `pothole`, title present, and low confidence `0.1` for synthetic evidence.
+- Final-polish public app screenshots are recorded in `docs/evidence/final/PUBLIC_SCREENSHOT_MANIFEST-FINAL-POLISH-2026-06-27.json`.
+
+Known residual polish:
+
+- One success-page label still says `Ticket Registration Number`; adjacent success copy explicitly states the report is saved to CivicLens and is not filed with any government system. Rename this to `CivicLens Ticket ID` in a future approved revision.
+
 ## Latest Completed Validation
 
 Latest UX refresh validation results:

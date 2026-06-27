@@ -1,0 +1,40 @@
+{
+  "checkpoint": "Final submission polish",
+  "capturedAt": "2026-06-27T13:38:58.275Z",
+  "cloudRunRevision": "civiclens-00038-9w7",
+  "publicUrl": "https://civiclens-py7ixxgroq-as.a.run.app",
+  "issueId": "0BEDaMGcQbUqFEaowlGd",
+  "notes": [
+    "Screenshots are public app page-content captures only; they do not include authenticated console pages or browser address bars.",
+    "The synthetic smoke-test issue is intentionally hidden from the default public feed by UI filtering and opened directly for detail/agent verification."
+  ],
+  "checks": {
+    "homepageDesktop": true,
+    "mapVisible": true,
+    "noSmokeRecordsDefault": true,
+    "stickyTopNav": true,
+    "noUnsupportedClaims": true,
+    "profileMenu": true,
+    "homepageMobile": true,
+    "bottomNavFixed": true,
+    "mobileHeaderStickyAfterScroll": true,
+    "reportFlowStart": true,
+    "manualFallbackVisible": true,
+    "cameraCaptureAttribute": true,
+    "savedIssueDetail": true,
+    "persistedAgentRun": true,
+    "agentTracePersistsAfterRefresh": true,
+    "demoOperatorSyntheticOnly": true,
+    "noConsoleErrors": true
+  },
+  "screenshots": [
+    "final-polish-2026-06-27T13-38-58-273Z-homepage-desktop.png",
+    "final-polish-2026-06-27T13-38-58-273Z-profile-account-menu.png",
+    "final-polish-2026-06-27T13-38-58-273Z-homepage-mobile.png",
+    "final-polish-2026-06-27T13-38-58-273Z-report-flow-start.png",
+    "final-polish-2026-06-27T13-38-58-273Z-saved-issue-detail.png",
+    "final-polish-2026-06-27T13-38-58-273Z-persisted-agent-run-tool-steps.png",
+    "final-polish-2026-06-27T13-38-58-273Z-agent-trace-after-refresh.png",
+    "final-polish-2026-06-27T13-38-58-273Z-demo-operator-synthetic-only.png"
+  ]
+}

@@ -140,17 +140,17 @@ See `docs/FINAL_EVIDENCE_REPORT.md` for exact command outputs, warnings, commit 
 - Project: `gen-lang-client-0871796745`
 - Region: `asia-southeast1`
 - Cloud Run service: `civiclens`
-- Active revision: `civiclens-00036-dcb`
+- Active revision: `civiclens-00038-9w7`
 - Public app URL: https://civiclens-py7ixxgroq-as.a.run.app
 - Alternate URL: https://civiclens-802067002365.asia-southeast1.run.app
-- Runtime source: current CivicLens UX refresh tree deployed from this repository workspace; the earlier production base commit was `fcf8946`.
+- Runtime source: final polish runtime commit `94246fe`; the earlier production base commit before UX refresh was `fcf8946`.
 - `/health`: passing on the public service.
 - `/readyz`: passing on the public service with App Check enforcement warning recorded.
 - Maps browser key restriction: HTTP referrers for the two Cloud Run origins and localhost, API target `maps-backend.googleapis.com`; confirmed again during the `civiclens-00036-dcb` evidence refresh.
 
 ## Screenshots List
 
-The public screenshot package is stored under `docs/evidence/final/` with `PUBLIC_SCREENSHOT_MANIFEST-2026-06-27.json` and the UX refresh manifest `PUBLIC_SCREENSHOT_MANIFEST-UX-REFRESH-2026-06-27.json`. These are Chrome/Playwright page-content screenshots, so they do not include the browser address bar; exact URLs are recorded in the manifests and evidence report. Sanitized CLI/API-backed infrastructure evidence is stored in `SANITIZED_GCP_FIREBASE_EVIDENCE-2026-06-27.json` and related `*-cli-evidence-2026-06-27.png` files. Authenticated GCP/Firebase/AI Studio console screenshots still require an approved authenticated Chrome session.
+The public screenshot package is stored under `docs/evidence/final/` with `PUBLIC_SCREENSHOT_MANIFEST-2026-06-27.json`, `PUBLIC_SCREENSHOT_MANIFEST-UX-REFRESH-2026-06-27.json`, and `PUBLIC_SCREENSHOT_MANIFEST-FINAL-POLISH-2026-06-27.json`. These are Chrome/Playwright page-content screenshots, so they do not include the browser address bar; exact URLs are recorded in the manifests and evidence report. Sanitized CLI/API-backed infrastructure evidence is stored in `SANITIZED_GCP_FIREBASE_EVIDENCE-2026-06-27.json` and related `*-cli-evidence-2026-06-27.png` files. Authenticated GCP/Firebase/AI Studio console screenshots still require an approved authenticated Chrome session.
 
 Captured public screenshot targets:
 

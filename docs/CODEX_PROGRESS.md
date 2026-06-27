@@ -7,7 +7,7 @@ Current branch/commit:
 - Branch: `master`
 - Original prototype baseline commit: `ffd4ebc chore: capture original prototype baseline`
 - Original prototype rollback tag: `baseline/original-prototype`
-- Current rebuild state: milestones 0-9 have been completed locally, the approved Cloud Run deployment/public smoke checkpoint is complete, and the UX refresh is deployed as revision `civiclens-00036-dcb`. The Maps browser key has been restricted for the public Cloud Run origins and localhost. The public Google Doc has been published and verified with anyone-with-link viewer access. Demo video publication, authenticated console screenshot packaging, App Check enforcement, and final submission remain external approval-gated.
+- Current rebuild state: milestones 0-9 have been completed locally, the approved Cloud Run deployment/public smoke checkpoint is complete, and the final polish build is deployed as revision `civiclens-00038-9w7`. The Maps browser key has been restricted for the public Cloud Run origins and localhost. The public Google Doc has been published and verified with anyone-with-link viewer access. Demo video publication, authenticated console screenshot packaging, App Check enforcement, and final submission remain external approval-gated.
 
 Validation commands:
 - `npm install --package-lock-only`: passed; generated a real lockfile from the previously empty `package-lock.json`; initial audit reported 8 moderate vulnerabilities.
@@ -680,6 +680,50 @@ Remaining risks:
 - 2026-06-27: Restricted the public Maps browser key to the two Cloud Run origins and localhost with Maps API access only, after confirming it is distinct from the Firebase browser API key and not used for server-side Maps calls.
 - 2026-06-27: Prepared the final Google Doc draft and recorded that App Check integration exists while enforcement remains disabled for judge access.
 - 2026-06-27: Published the public Google Doc at `https://docs.google.com/document/d/19nFBVMLHUOqlKipMi7tsML25BW2h_Q2s82cQukuzlMk/edit?usp=sharing` and verified unauthenticated access by text export.
+- 2026-06-27: Completed final submission polish: added mobile camera capture attributes, replaced opaque profile icon behavior with an account menu, refreshed public prototype wording to "pilot"/"demo stories", hid internal smoke-test records from public feed/metrics, and added regression tests.
+- 2026-06-27: Deployed `civiclens-00037-6x6` from source commit `7e9aa38`, then superseded it after public smoke found a saved-issue detail crash on nullable numeric fields. Patched the detail page and deployed corrected revision `civiclens-00038-9w7` from runtime commit `94246fe`.
+
+## Final Submission Polish Checkpoint
+Status: deployed to Cloud Run and public smoke verified on 2026-06-27; no submission performed
+
+Files changed:
+- `src/components/ReportPage.tsx` and `src/components/ClosureVerificationPanel.tsx`: added `capture="environment"` to image inputs and changed citizen copy to "Take photo or upload proof".
+- `src/components/Header.tsx`: changed the account icon into an accessible account menu that explains citizen session, Google sign-in, and operator access status without exposing private email text.
+- `src/components/LandingPage.tsx`, `src/components/ImpactDashboard.tsx`, `src/components/ReportAiEditForm.tsx`, and `src/utils/issueVisibility.ts`: refreshed public wording and filtered internal smoke-test records from public feed and metrics.
+- `src/components/IssueDetailPage.tsx`: made nullable confidence/coordinate rendering safe after public smoke found a crash on a synthetic fallback issue.
+- `src/issue-visibility.test.ts`, `src/ux-redesign.test.ts`, and `e2e/release-gates.pw.ts`: added coverage for camera capture, profile menu behavior, smoke-test filtering, sticky/mobile nav, and persisted agent traces.
+- `.gitignore`: ignored Playwright generated report/result folders.
+- `docs/evidence/final/`: added final-polish public app screenshots and `PUBLIC_SCREENSHOT_MANIFEST-FINAL-POLISH-2026-06-27.json`.
+
+Production actions:
+- Built image `asia-southeast1-docker.pkg.dev/gen-lang-client-0871796745/civiclens/civiclens:7e9aa38` with Cloud Build `74d16958-e9b3-4d96-934b-aa4240b041a5`, deployed as `civiclens-00037-6x6`, then superseded it because public smoke found the nullable-field detail crash.
+- Built image `asia-southeast1-docker.pkg.dev/gen-lang-client-0871796745/civiclens/civiclens:94246fe` with Cloud Build `cde70b30-77b6-4be6-8af3-c99f206093e2`.
+- Deployed corrected revision `civiclens-00038-9w7`, serving 100 percent traffic.
+- Confirmed canonical `/health` returned `status: ok` and `/readyz` returned `ready: true`, `adminDb: true`, `geminiConfigured: true`, and `configValid: true` at `2026-06-27T13:38:13Z`, with the expected App Check enforcement-disabled warning.
+
+Validation commands:
+- `npm ci`: passed; install audit still reports 3 moderate dev-dependency vulnerabilities, while production audit is clean.
+- `npm run lint`: passed after the final nullable-field fix.
+- `npm test`: passed after the final nullable-field fix (17 files passed, 2 skipped; 77 tests passed, 7 skipped).
+- `npm run build`: passed after the final nullable-field fix with the known Firebase chunk-size and mixed static/dynamic import warnings.
+- `npm audit --omit=dev`: passed after the final nullable-field fix; 0 vulnerabilities.
+- `npm run test:rules`: passed during this checkpoint before the UI-only nullable-field fix (3 emulator rules tests).
+- `npm run test:concurrency`: passed during this checkpoint before the UI-only nullable-field fix (4 emulator concurrency tests).
+- `npm run test:e2e`: passed after the final nullable-field fix (7 Playwright tests).
+
+Public smoke:
+- Revision `civiclens-00038-9w7` passed headless public smoke for desktop homepage, map visibility, hidden smoke-test records, sticky top nav, profile account menu, mobile layout at 390px, fixed mobile bottom nav, report flow start, camera capture attribute, manual fallback visibility, saved synthetic issue detail, persisted 8-step agent run, refresh-persistent agent trace, demo operator synthetic-only boundary, unsupported-claim scan, and zero console errors.
+- Authenticated Gemini triage API probe with a fresh anonymous Firebase ID token returned HTTP 200, `success: true`, category `pothole`, title present, and confidence `0.1` for synthetic evidence.
+- The final-polish browser screenshots are listed in `docs/evidence/final/PUBLIC_SCREENSHOT_MANIFEST-FINAL-POLISH-2026-06-27.json`.
+
+Decisions:
+- Did not delete production smoke-test records; instead, the UI now hides clearly labelled smoke/internal-test records from the default public feed and metrics.
+- Did not enable App Check enforcement. The accurate status remains: App Check integration exists, but enforcement is disabled for this hackathon deployment to avoid blocking judge access.
+- Did not change billing, rotate keys, delete resources, publish a demo video, edit BlockseBlock, or submit to BlockseBlock.
+
+Remaining risks:
+- One older success-page label still says "Ticket Registration Number"; surrounding success copy states the report is saved to CivicLens and is not filed with any government system. Rename to "CivicLens Ticket ID" in a future approved revision.
+- Authenticated console screenshots and optional demo video remain external/user-approval steps.
 
 ## External blockers
 - Demo video publication, authenticated console screenshot capture, final deployed audit packaging, and BlockseBlock submission require user/account approval before final submission actions.

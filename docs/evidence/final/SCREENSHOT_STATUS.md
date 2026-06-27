@@ -6,6 +6,8 @@ Public, non-authenticated screenshots were captured with Chrome through a Playwr
 
 UX refresh screenshots for Cloud Run revision `civiclens-00036-dcb` were captured and recorded in `PUBLIC_SCREENSHOT_MANIFEST-UX-REFRESH-2026-06-27.json`.
 
+Final submission polish screenshots for Cloud Run revision `civiclens-00038-9w7` were captured and recorded in `PUBLIC_SCREENSHOT_MANIFEST-FINAL-POLISH-2026-06-27.json`.
+
 Sanitized CLI/API-backed infrastructure evidence screenshots were also captured. They are evidence renderings, not authenticated Google/Firebase console screenshots. The raw sanitized metadata is in `SANITIZED_GCP_FIREBASE_EVIDENCE-2026-06-27.json`, updated during the UX refresh to record revision `civiclens-00036-dcb` and fresh public health/readiness timestamps.
 
 Chrome extension communication failed twice before authenticated Chrome-profile capture could start. Per the Chrome workflow, opening a fresh Chrome window/profile requires user permission. Do not claim authenticated GCP/Firebase/AI Studio console screenshot capture until those image files exist and have been reviewed for secrets, tokens, private emails, billing information, or hidden sensitive data.

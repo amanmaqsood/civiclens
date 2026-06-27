@@ -63,7 +63,7 @@ export function FirebaseProvider({ children }: { children: React.ReactNode }) {
     try {
       await signInWithPopup(auth, googleAuthProvider);
     } catch (error) {
-      console.error("Google sign-in error:", error);
+      console.warn("Google sign-in warning:", error);
       throw error;
     }
   };
@@ -72,7 +72,7 @@ export function FirebaseProvider({ children }: { children: React.ReactNode }) {
     try {
       await signOut(auth);
     } catch (error) {
-      console.error("Sign out error:", error);
+      console.warn("Sign out warning:", error);
       throw error;
     }
   };

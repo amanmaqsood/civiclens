@@ -365,6 +365,37 @@ Validation after this documentation and evidence update:
 - `npm run build`: passed with the known Firebase chunk-size and `src/services/issues.ts` mixed static/dynamic import warnings.
 - `npm audit --omit=dev`: passed; 0 vulnerabilities.
 
+Full local gate rerun after the Google Doc sync audit:
+
+- `npm ci`: passed; 880 packages installed/audited. Install audit still reports 3 moderate dev-dependency vulnerabilities; production audit below is clean.
+- `npm run lint`: passed (`tsc --noEmit`).
+- `npm test`: passed (17 files passed, 2 skipped; 77 tests passed, 7 skipped).
+- `npm run build`: passed with the known Firebase chunk-size and `src/services/issues.ts` mixed static/dynamic import warnings.
+- `npm audit --omit=dev`: passed; 0 vulnerabilities.
+- `npm run test:rules`: passed (1 emulator rules file, 3 tests).
+- `npm run test:concurrency`: passed (1 emulator concurrency file, 4 tests).
+- `npm run test:e2e`: passed (7 Playwright tests across mobile/tablet/desktop landing, sticky header, bottom nav, report upload/location fallback, account menu, persisted agent trace, and demo operator labels).
+
+Google Doc live-sync audit after final QA:
+
+- `docs/GOOGLE_DOC_DRAFT.md` is the current copy-ready submission text and includes `civiclens-00041-m2n`, commit `1121376`, and `FINAL-QA-2026-06-27-MANIFEST.json`.
+- Public Google Doc text export still returned HTTP 200, proving the Doc remains publicly viewable.
+- The same public export was stale during this audit: it still contained the older `civiclens-00034-82x` deployment evidence and did not contain `civiclens-00041-m2n`, commit `1121376`, or `FINAL-QA-2026-06-27-MANIFEST.json`.
+- Google Docs API sync could not be completed with the active Cloud SDK credentials: the default token received HTTP 403 from the Docs API, and requesting Drive/Docs scopes required a fresh Google auth flow.
+- Browser sync could not be completed in the available browser session because the Google Doc opened as viewer-only with a sign-in prompt. A local paste preview did not update the public export.
+- Required next step before BlockseBlock submission: sign in to the Google account that owns/can edit the Doc, replace the body with `docs/GOOGLE_DOC_DRAFT.md`, then verify public text export contains `civiclens-00041-m2n`, `1121376`, and `FINAL-QA-2026-06-27-MANIFEST.json`.
+
+Rubric score from verified current evidence:
+
+- Problem Solving & Impact: 19/20.
+- Agentic Depth: 20/20.
+- Innovation & Creativity: 19/20.
+- Google Technologies: 15/15.
+- Product Experience & Design: 10/10.
+- Technical Implementation: 10/10.
+- Completeness & Usability: 4/5 while the public Google Doc remains stale.
+- Current verified score: 97/100 for app/repo implementation quality, but submission readiness is blocked until the public Google Doc is refreshed from `docs/GOOGLE_DOC_DRAFT.md`.
+
 ## Latest Completed Validation
 
 Latest UX refresh validation results:

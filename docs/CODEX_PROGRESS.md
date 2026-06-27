@@ -761,6 +761,7 @@ Validation commands:
 - `npm run test:concurrency`: passed earlier in the final polish gate (4 emulator concurrency tests).
 - `npm run test:e2e`: passed after the final auth logging patch (7 Playwright tests).
 - Post-docs update validation: `npm run lint` passed; `npm test` passed (17 files passed, 2 skipped; 77 tests passed, 7 skipped); `npm run build` passed with the known Firebase chunk-size and mixed static/dynamic import warnings; `npm audit --omit=dev` passed with 0 vulnerabilities.
+- Full gate rerun after the Google Doc sync audit: `npm ci` passed; `npm run lint` passed; `npm test` passed (17 files passed, 2 skipped; 77 tests passed, 7 skipped); `npm run build` passed with the known Firebase chunk-size and mixed static/dynamic import warnings; `npm audit --omit=dev` passed with 0 vulnerabilities; `npm run test:rules` passed (3 tests); `npm run test:concurrency` passed (4 tests); `npm run test:e2e` passed (7 Playwright tests).
 
 Public smoke:
 - Final QA manifest `docs/evidence/final/FINAL-QA-2026-06-27-MANIFEST.json` records revision `civiclens-00041-m2n`, commit `1121376`, `persistedAgentRunStepCount: 8`, `realCaseDemoMutationDeniedStatus: 403`, `consoleErrorCount: 0`, and `pageErrorCount: 0`.
@@ -773,11 +774,12 @@ Decisions:
 
 Remaining risks:
 - Authenticated console screenshots and optional demo video remain external/user-approval steps.
-- The public Google Doc URL exists, but the live Google Doc may need a manual refresh from `docs/GOOGLE_DOC_DRAFT.md` if the final QA wording must appear there before submission.
+- The public Google Doc URL exists and remains publicly viewable, but the live Google Doc text export is stale relative to `docs/GOOGLE_DOC_DRAFT.md`; it still needs a signed-in manual refresh before BlockseBlock submission.
+- Current verified rubric score from app/repo evidence is 97/100, but submission readiness remains blocked until the public Google Doc is refreshed from the repo draft.
 
 ## External blockers
 - Demo video publication, authenticated console screenshot capture, live Google Doc refresh if desired, and BlockseBlock submission require user/account approval before final submission actions.
 - Production App Check enforcement requires a Firebase App Check site key and verified public browser tokens before enabling `CIVICLENS_REQUIRE_APP_CHECK=true`.
 
 ## Next milestone
-External approval/credential step: retry Chrome/GCP/Firebase/AI Studio screenshot capture in an approved authenticated Chrome session, publish a demo video if desired, refresh the live Google Doc from `docs/GOOGLE_DOC_DRAFT.md` if desired, and submit only after explicit user approval.
+External approval/credential step: sign in to the Google account that can edit the public Google Doc, replace the body with `docs/GOOGLE_DOC_DRAFT.md`, verify the public text export contains `civiclens-00041-m2n`, `1121376`, and `FINAL-QA-2026-06-27-MANIFEST.json`, optionally capture authenticated console screenshots or publish a demo video, and submit only after explicit user approval.

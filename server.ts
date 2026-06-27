@@ -2412,6 +2412,17 @@ Output ONLY valid JSON and nothing else.`;
 Issue: ${JSON.stringify(issue)}
 Steps: 1) call search_nearby_cases, 2) call compare_candidate_evidence using candidates if any, 3) call calculate_priority, 4) call find_responsible_authority, 5) call draft_action_packet, 6) call request_human_approval for any merge/routing/resolution recommendation, 7) call verify_closure to record that closure still needs human review, 8) call record_event. Call exactly one tool per turn.` }]}];
 
+      const requiredAgentSteps = [
+        "search_nearby_cases",
+        "compare_candidate_evidence",
+        "calculate_priority",
+        "find_responsible_authority",
+        "draft_action_packet",
+        "request_human_approval",
+        "verify_closure",
+        "record_event",
+      ];
+
       const steps: any[] = [];
       let final: any = null;
       let guard = 0;
@@ -2486,6 +2497,47 @@ Steps: 1) call search_nearby_cases, 2) call compare_candidate_evidence using can
           break;
         }
       }
+
+      const emittedByStep = new Map<string, any>();
+      for (const step of steps) {
+        if (!emittedByStep.has(step.step)) emittedByStep.set(step.step, step);
+      }
+      const normalizedSteps = requiredAgentSteps.map((stepName, index) => {
+        const emitted = emittedByStep.get(stepName);
+        const order = index + 1;
+        if (emitted) {
+          return {
+            ...emitted,
+            id: `${runRef.id}_${order}_${stepName}`,
+            order,
+          };
+        }
+
+        const skippedBecause = stepName === "compare_candidate_evidence" && safeCandidates.length === 0
+          ? "No nearby candidates were available to compare; the server recorded this required lifecycle step as skipped."
+          : "Gemini did not emit this required tool call before the run completed; the server recorded it as skipped for lifecycle completeness.";
+
+        return {
+          id: `${runRef.id}_${order}_${stepName}`,
+          runId: runRef.id,
+          issueId,
+          order,
+          step: stepName,
+          tool: `agent.${stepName}`,
+          status: "skipped",
+          inputDigest: stepName === "compare_candidate_evidence"
+            ? `candidateCount:${safeCandidates.length}`
+            : "No model tool call emitted.",
+          outputSummary: skippedBecause,
+          durationMs: 0,
+          ts: new Date().toISOString(),
+          rationale: skippedBecause,
+          model: "gemini-2.5-flash",
+          retried: false,
+          sources: [],
+        };
+      });
+      steps.splice(0, steps.length, ...normalizedSteps);
 
       // Generate the final rich resolution plan
       let resolutionPlan = null;

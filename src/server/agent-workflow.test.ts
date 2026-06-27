@@ -23,6 +23,10 @@ describe("persisted server agent workflow", () => {
     expect(server).toContain("claimSupported");
     expect(server).toContain("server-loaded candidate set");
     expect(server).toContain("const cid = result?.candidateId");
+    expect(server).toContain("const requiredAgentSteps = [");
+    expect(server).toContain('status: "skipped"');
+    expect(server).toContain("No nearby candidates were available to compare");
+    expect(server).toContain("steps.splice(0, steps.length, ...normalizedSteps)");
     expect(server).not.toContain("const { issue, candidates } = req.body");
   });
 

@@ -95,4 +95,4 @@ Cloud Run deployment is documented in `docs/DEPLOYMENT_CLOUD_RUN.md` and was per
 
 Maps browser-key restrictions were applied for the public Cloud Run origins and localhost during the final evidence checkpoint. App Check integration exists, but enforcement is disabled for this hackathon deployment to avoid blocking judge access.
 
-The public deployment includes the final anonymous-auth readiness fix and non-civic image clarification guardrail. The public Google Doc is published with anyone-with-link viewer access, but the live Google Doc still needs a signed-in refresh from `docs/GOOGLE_DOC_DRAFT.md` before final BlockseBlock submission. Demo video publication, App Check enforcement, and final hackathon submission still require explicit approval.
+The public deployment includes the final anonymous-auth readiness fix and non-civic image clarification guardrail. The public Google Doc is published with anyone-with-link viewer access and has been refreshed from `docs/GOOGLE_DOC_DRAFT.md` with the final `civiclens-00044-d5l` evidence. Demo video publication, App Check enforcement, and final hackathon submission still require explicit approval.

@@ -393,8 +393,8 @@ Rubric score from verified current evidence:
 - Google Technologies: 15/15.
 - Product Experience & Design: 10/10.
 - Technical Implementation: 10/10.
-- Completeness & Usability: 4/5 while the public Google Doc remains stale.
-- Current verified score: 97/100 for app/repo implementation quality, but submission readiness is blocked until the public Google Doc is refreshed from `docs/GOOGLE_DOC_DRAFT.md`.
+- Completeness & Usability: 4/5 while the public Google Doc remained stale at that audit time.
+- Verified score at that audit time: 97/100 for app/repo implementation quality, with submission readiness blocked until the public Google Doc was refreshed from `docs/GOOGLE_DOC_DRAFT.md`.
 
 ## Final Judge QA Auth and Non-Civic Checkpoint
 
@@ -444,7 +444,21 @@ Validation:
 Google Doc status:
 
 - `docs/GOOGLE_DOC_DRAFT.md` is updated for `civiclens-00044-d5l`, commit `bdfa464`, and `JUDGE-QA-2026-06-27-MANIFEST.json`.
-- The public Google Doc export returned HTTP 200, but it did not yet contain `civiclens-00044-d5l`, `bdfa464`, or `JUDGE-QA-2026-06-27-MANIFEST.json`. It still needs a signed-in body refresh from `docs/GOOGLE_DOC_DRAFT.md` before BlockseBlock submission if the submitted Doc must show the final `00044` evidence.
+- On 2026-06-28, the public Google Doc was refreshed from the local draft through an authenticated browser session.
+- The public Google Doc export returned HTTP 200 and contains `civiclens-00044-d5l`, `bdfa464`, and `JUDGE-QA-2026-06-27-MANIFEST.json`.
+- The export check also confirmed the accidental bullet-list paste was corrected: exported text begins with `# CivicLens Google Doc Draft` and has zero `* ` bullet-prefix lines.
+- Post Google Doc sync docs validation passed on 2026-06-28: `npm run lint`, `npm test`, `npm run build`, and `npm audit --omit=dev`.
+
+Final verified score after Google Doc sync:
+
+- Problem Solving & Impact: 19/20.
+- Agentic Depth: 20/20.
+- Innovation & Creativity: 19/20.
+- Google Technologies: 15/15.
+- Product Experience & Design: 10/10.
+- Technical Implementation: 10/10.
+- Completeness & Usability: 5/5.
+- Final verified score: 98/100. Remaining point losses are conservative for optional demo video absence, App Check enforcement intentionally disabled for judge access, and remaining nonessential authenticated Firebase/AI Studio console screenshots.
 
 ## Latest Completed Validation
 

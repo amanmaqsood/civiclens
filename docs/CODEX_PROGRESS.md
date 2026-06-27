@@ -793,6 +793,7 @@ Production actions:
 - Confirmed canonical `/health` returned HTTP 200 and canonical `/readyz` returned HTTP 200 with the expected App Check enforcement-disabled warning.
 
 Validation commands:
+- `npm ci`: passed; install audit still reports 3 moderate dev-dependency vulnerabilities, while production audit is clean.
 - `npm run lint`: passed.
 - `npm test`: passed (18 files passed, 2 skipped; 79 tests passed, 7 skipped).
 - `npm run build`: passed with known Firebase chunk-size and mixed static/dynamic import warnings.

@@ -1,8 +1,8 @@
-# CivicLens Google Doc Draft
+# CivicLens - Community Hero Submission
 
 Published Google Doc: https://docs.google.com/document/d/19nFBVMLHUOqlKipMi7tsML25BW2h_Q2s82cQukuzlMk/edit?usp=sharing
 
-CivicLens is a prototype, not a government service. Do not add unavailable links or claims.
+CivicLens is a prototype, not a government service. It supports human-reviewed civic issue triage and evidence organization; it does not file reports with public agencies or claim official authority acceptance.
 
 ## Live Application
 

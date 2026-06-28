@@ -7,7 +7,7 @@ Current branch/commit:
 - Branch: `master`
 - Original prototype baseline commit: `ffd4ebc chore: capture original prototype baseline`
 - Original prototype rollback tag: `baseline/original-prototype`
-- Current rebuild state: milestones 0-9 have been completed locally, the approved Cloud Run deployment/public smoke checkpoint is complete, and the latest flow-boundary hardening build is deployed as revision `civiclens-00046-7fn` from source commit `862f9eb`. The Maps browser key has been restricted for the public Cloud Run origins and localhost. The local Google Doc draft has been refreshed with `civiclens-00046-7fn` evidence; public Google Doc resync, demo video publication, remaining authenticated console screenshot packaging, App Check enforcement, and final BlockseBlock submission remain external approval-gated.
+- Current rebuild state: milestones 0-9 have been completed locally, the approved Cloud Run deployment/public smoke checkpoint is complete, and the latest flow-boundary hardening build is deployed as revision `civiclens-00046-7fn` from source commit `862f9eb`. The Maps browser key has been restricted for the public Cloud Run origins and localhost. The public Google Doc has been refreshed from `docs/GOOGLE_DOC_DRAFT.md`; unauthenticated text export contains `civiclens-00046-7fn`, `862f9eb`, and `FLOW-BOUNDARY-2026-06-28-MANIFEST.json`. Demo video publication, remaining authenticated console screenshot packaging, App Check enforcement, and final BlockseBlock submission remain external approval-gated.
 
 Validation commands:
 - `npm install --package-lock-only`: passed; generated a real lockfile from the previously empty `package-lock.json`; initial audit reported 8 moderate vulnerabilities.
@@ -947,8 +947,28 @@ Decisions:
 - Kept privileged draft/agent/lifecycle actions in the operator workspace while preserving read-only persisted evidence on public issue detail.
 
 Remaining risks:
-- The local `docs/GOOGLE_DOC_DRAFT.md` is updated for `civiclens-00046-7fn`; public Google Doc export is still accessible but remains at the older `civiclens-00044-d5l` / `bdfa464` checkpoint, so resync still requires an authenticated edit path.
+- The public Google Doc has been refreshed from `docs/GOOGLE_DOC_DRAFT.md` through an authenticated browser edit session. Unauthenticated text export returned HTTP 200 and contains `civiclens-00046-7fn`, `862f9eb`, and `FLOW-BOUNDARY-2026-06-28-MANIFEST.json`.
 - Optional demo video, additional authenticated console screenshots, App Check enforcement, and BlockseBlock submission remain approval-gated.
+
+## Public Google Doc Final Sync Checkpoint
+Status: completed on 2026-06-28; public Google Doc replaced from `docs/GOOGLE_DOC_DRAFT.md`
+
+Files changed:
+- `docs/GOOGLE_DOC_DRAFT.md`: changed the visible title to `CivicLens - Community Hero Submission` and replaced an internal draft reminder with a public-facing prototype disclosure.
+- `README.md`, `docs/FINAL_EVIDENCE_REPORT.md`, and this progress log: recorded the public Google Doc sync, latest export verification, current health/readiness checks, and docs-only validation.
+
+Commands and checks:
+- Public Google Doc export: HTTP 200; contains `CivicLens - Community Hero Submission`, `civiclens-00046-7fn`, `862f9eb`, and `FLOW-BOUNDARY-2026-06-28-MANIFEST.json`; does not contain the old `CivicLens Google Doc Draft` title or the internal draft reminder.
+- Public `/health`: HTTP 200 with `status: ok`.
+- Public `/readyz`: HTTP 200 with `ready: true`, `adminDb: true`, `geminiConfigured: true`, and `configValid: true`; the expected App Check enforcement-disabled warning remains.
+- `npm run lint`: passed.
+- `npm test`: passed (18 files passed, 2 skipped; 82 tests passed, 7 skipped).
+- `npm run build`: passed with the known Firebase chunk-size warning.
+- `npm audit --omit=dev`: passed with 0 vulnerabilities.
+
+Decisions:
+- Did not submit to BlockseBlock, change billing, delete resources, rotate keys, print secret values, or enable App Check enforcement.
+- Left the public Google Doc open in the authenticated Chrome session as the handoff page.
 
 ## Next milestone
 External approval/credential step: optionally capture additional authenticated console screenshots or publish a demo video, then submit only after explicit user approval. Do not enable App Check enforcement until real public browser App Check tokens are verified.

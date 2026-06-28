@@ -591,8 +591,20 @@ Public smoke and evidence:
 Google Doc status:
 
 - `docs/GOOGLE_DOC_DRAFT.md` has been refreshed locally for `civiclens-00046-7fn`, commit `862f9eb`, and `FLOW-BOUNDARY-2026-06-28-MANIFEST.json`.
-- Public Google Doc text export remained accessible, but the export check still contained the older `civiclens-00044-d5l`, `bdfa464`, and `JUDGE-QA-2026-06-27-MANIFEST.json` markers and did not contain `civiclens-00046-7fn`, `862f9eb`, or `FLOW-BOUNDARY-2026-06-28-MANIFEST.json`.
-- Public Google Doc resync still requires an authenticated edit path. Do not claim the public Google Doc contains this `00046` checkpoint until the public export is refreshed and verified.
+- On 2026-06-28, the public Google Doc was replaced from `docs/GOOGLE_DOC_DRAFT.md` through an authenticated browser edit session. The paste used formatted heading, list, code, and link HTML generated from the local Markdown draft.
+- Google Docs reported the document saved to Drive after the replacement.
+- Unauthenticated public text export returned HTTP 200 and contains `civiclens-00046-7fn`, `862f9eb`, and `FLOW-BOUNDARY-2026-06-28-MANIFEST.json`.
+- The text export begins with `CivicLens - Community Hero Submission`, no longer contains the old `CivicLens Google Doc Draft` title or internal draft reminder, and confirms the shared Google Doc content now carries the latest flow-boundary evidence.
+
+Post Google Doc sync validation:
+
+- Public Google Doc export: HTTP 200; contains `CivicLens - Community Hero Submission`, `civiclens-00046-7fn`, `862f9eb`, and `FLOW-BOUNDARY-2026-06-28-MANIFEST.json`; does not contain the old `CivicLens Google Doc Draft` title or internal draft reminder.
+- Public `/health`: HTTP 200 with `status: ok`.
+- Public `/readyz`: HTTP 200 with `ready: true`, `adminDb: true`, `geminiConfigured: true`, and `configValid: true`; the expected warning remains `CIVICLENS_REQUIRE_APP_CHECK is not true; backend App Check enforcement is disabled.`
+- `npm run lint`: passed.
+- `npm test`: passed (18 files passed, 2 skipped; 82 tests passed, 7 skipped).
+- `npm run build`: passed with the known Firebase chunk-size warning.
+- `npm audit --omit=dev`: passed with 0 vulnerabilities.
 
 ## Local Release Evidence
 

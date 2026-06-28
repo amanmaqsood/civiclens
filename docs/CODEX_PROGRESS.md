@@ -7,7 +7,7 @@ Current branch/commit:
 - Branch: `master`
 - Original prototype baseline commit: `ffd4ebc chore: capture original prototype baseline`
 - Original prototype rollback tag: `baseline/original-prototype`
-- Current rebuild state: milestones 0-9 have been completed locally, the approved Cloud Run deployment/public smoke checkpoint is complete, and the final judge QA build is deployed as revision `civiclens-00044-d5l` from source commit `bdfa464`. The Maps browser key has been restricted for the public Cloud Run origins and localhost. The public Google Doc has been published with anyone-with-link viewer access and refreshed from `docs/GOOGLE_DOC_DRAFT.md` with the final `civiclens-00044-d5l` evidence. Demo video publication, remaining authenticated console screenshot packaging, App Check enforcement, and final BlockseBlock submission remain external approval-gated.
+- Current rebuild state: milestones 0-9 have been completed locally, the approved Cloud Run deployment/public smoke checkpoint is complete, and the final hardening build is deployed as revision `civiclens-00045-7sz` from source commit `aec9ebd`. The Maps browser key has been restricted for the public Cloud Run origins and localhost. The local Google Doc draft has been refreshed with the final `civiclens-00045-7sz` evidence; public Google Doc resync, demo video publication, remaining authenticated console screenshot packaging, App Check enforcement, and final BlockseBlock submission remain external approval-gated.
 
 Validation commands:
 - `npm install --package-lock-only`: passed; generated a real lockfile from the previously empty `package-lock.json`; initial audit reported 8 moderate vulnerabilities.
@@ -871,6 +871,43 @@ Decisions:
 Remaining risks:
 - These changes are still local and uncommitted.
 - The current Cloud Run revision remains `civiclens-00044-d5l`; public deployed verification, final screenshots, Google Doc sync if needed, commit, push, and final scoring remain open.
+
+## Final Hardening Deploy and Public Smoke Checkpoint
+Status: deployed to Cloud Run as `civiclens-00045-7sz` on 2026-06-28; not submitted to BlockseBlock
+
+Files changed after the local hardening commit:
+- `docs/evidence/final/FINAL-HARDENING-2026-06-28-*`: added safe public app screenshots and a manifest covering desktop, tablet, mobile, profile menu, report upload choices, location suggestions, saved issue detail, and persisted agent trace evidence for the new revision.
+- `README.md`, `docs/GOOGLE_DOC_DRAFT.md`, `docs/FINAL_EVIDENCE_REPORT.md`, and this progress log: updated deployed revision, source commit, validation, public smoke, and remaining approval-gated steps.
+
+Production actions:
+- Built image `asia-southeast1-docker.pkg.dev/gen-lang-client-0871796745/civiclens/civiclens:aec9ebd-configured` with Cloud Build `d60b2ebf-d2b5-49db-96e1-c198ec45a59c`.
+- Deployed image digest `sha256:26e75db1dc6d176aa0782f14630db534b2d683dcb66cc6a6e3093369e68bf7a8`.
+- Deployed Cloud Run revision `civiclens-00045-7sz`, serving 100 percent traffic at `https://civiclens-py7ixxgroq-as.a.run.app`.
+
+Health and public smoke:
+- `/health`: HTTP 200 with `status: ok`, `service: civiclens`, and `mode: production`.
+- `/readyz`: HTTP 200 with `ready: true`, `adminDb: true`, `geminiConfigured: true`, and `configValid: true`; the expected App Check enforcement-disabled warning remains.
+- Public Playwright smoke manifest `FINAL-HARDENING-2026-06-28-MANIFEST.json` recorded map visible, sticky desktop header top `0` after scroll, issue detail visible, persisted agent trace visible, no desktop/tablet/mobile horizontal overflow, fixed mobile bottom nav, profile menu "English active. Hindi coming soon." visible, dead Google sign-in unavailable button absent, manual location suggestion selection working, console error count `0`, and page error count `0`.
+
+Validation commands:
+- `npm ci`: passed; install audit still reports 3 moderate dev-dependency vulnerabilities, while production audit is clean.
+- `npm run lint`: passed.
+- `npm test`: passed (18 files passed, 2 skipped; 82 tests passed, 7 skipped).
+- `npm run build`: passed with the known Firebase chunk-size warning.
+- `npm audit --omit=dev`: passed with 0 vulnerabilities.
+- `npm run test:rules`: passed (3 tests).
+- `npm run test:concurrency`: passed on rerun after an initial parallel-emulator port conflict.
+- `npm run test:e2e`: passed (7 Playwright tests).
+
+Decisions:
+- Did not enable App Check enforcement, rotate keys, change billing, delete resources, print secret values, or submit to BlockseBlock.
+- Did not enable Google Places from code; manual location suggestions remain a safe curated fallback until Places API/library setup is explicitly approved and verified.
+- Kept the public UI truthful by hiding Google sign-in and showing Hindi as coming soon.
+
+Remaining risks:
+- Changes after commit `aec9ebd` are docs/evidence updates and still need a follow-up commit and push.
+- The local `docs/GOOGLE_DOC_DRAFT.md` is updated for `civiclens-00045-7sz`; public Google Doc resync still requires an authenticated edit path.
+- Optional demo video, additional authenticated console screenshots, App Check enforcement, and BlockseBlock submission remain approval-gated.
 
 ## Next milestone
 External approval/credential step: optionally capture additional authenticated console screenshots or publish a demo video, then submit only after explicit user approval. Do not enable App Check enforcement until real public browser App Check tokens are verified.

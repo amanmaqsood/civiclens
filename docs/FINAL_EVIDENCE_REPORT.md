@@ -460,7 +460,55 @@ Final verified score after Google Doc sync:
 - Completeness & Usability: 5/5.
 - Final verified score: 98/100. Remaining point losses are conservative for optional demo video absence, App Check enforcement intentionally disabled for judge access, and remaining nonessential authenticated Firebase/AI Studio console screenshots.
 
+## Final Hardening Deployment Checkpoint
+
+This checkpoint was performed on 2026-06-28 from source commit `aec9ebd fix: harden final judge ux flows`. It did not submit to BlockseBlock, change billing, rotate keys, delete resources, print secret values, or enable App Check enforcement.
+
+Deployment:
+
+- Cloud Build ID: `d60b2ebf-d2b5-49db-96e1-c198ec45a59c`.
+- Image: `asia-southeast1-docker.pkg.dev/gen-lang-client-0871796745/civiclens/civiclens:aec9ebd-configured`.
+- Image digest: `sha256:26e75db1dc6d176aa0782f14630db534b2d683dcb66cc6a6e3093369e68bf7a8`.
+- Cloud Run revision: `civiclens-00045-7sz`, serving 100 percent traffic.
+- Canonical URL: `https://civiclens-py7ixxgroq-as.a.run.app`.
+- Alternate URL: `https://civiclens-802067002365.asia-southeast1.run.app`.
+
+Health and readiness:
+
+- `/health`: HTTP 200 with `status: ok`, `service: civiclens`, and `mode: production` at `2026-06-28T00:18:24.198Z`.
+- `/readyz`: HTTP 200 with `ready: true`, `adminDb: true`, `geminiConfigured: true`, and `configValid: true`; the expected warning remains `CIVICLENS_REQUIRE_APP_CHECK is not true; backend App Check enforcement is disabled.`
+
+Local validation before deploy:
+
+- `npm ci`: passed; install audit still reports 3 moderate dev-dependency vulnerabilities, while production audit is clean.
+- `npm run lint`: passed.
+- `npm test`: passed (18 files passed, 2 skipped; 82 tests passed, 7 skipped).
+- `npm run build`: passed with the known Firebase chunk-size warning.
+- `npm audit --omit=dev`: passed with 0 vulnerabilities.
+- `npm run test:rules`: passed (3 tests).
+- `npm run test:concurrency`: passed on rerun after an initial parallel-emulator port conflict with the rules test.
+- `npm run test:e2e`: passed (7 Playwright tests) after updating expectations for the removed floating landing CTA, removed dead Google sign-in action, and accessible manual-location combobox.
+
+Public deployed browser smoke:
+
+- Manifest: `docs/evidence/final/FINAL-HARDENING-2026-06-28-MANIFEST.json`.
+- Captured screenshots: desktop home, desktop sticky header after scroll, saved issue detail, persisted agent trace, tablet home, mobile header/bottom nav, profile menu with Hindi-coming-soon status, report camera/gallery choices, location search suggestions, and selected manual location.
+- Verified checks: map visible, sticky header top after scroll `0`, issue detail visible, persisted agent trace visible, no desktop/tablet/mobile horizontal overflow, mobile bottom nav fixed, profile menu shows `English active. Hindi coming soon.`, no dead `Google sign-in unavailable` button, manual location suggestion selection worked, console error count `0`, and page error count `0`.
+
+Behavior changes verified:
+
+- Manual location fallback now provides curated Bengaluru suggestions and saves a selected human-readable address plus coordinates.
+- The incomplete Hindi toggle is no longer exposed; the public UI states English is active and Hindi is coming soon.
+- The mobile header uses a compact no-wrap row, with language/session/operator status moved into the profile menu.
+- The public Google sign-in dead action is removed; anonymous reporting remains enabled.
+
+Updated score:
+
+- Current verified score remains 98/100. The app/repo implementation improved on location fallback, mobile header polish, and truthful language controls; remaining conservative point losses are still optional demo video absence, App Check enforcement intentionally disabled for judge access, and nonessential authenticated console screenshot gaps.
+
 ## Latest Completed Validation
+
+Latest final hardening validation results are recorded in the Final Hardening Deployment Checkpoint above. The previous UX refresh and evidence checkpoints remain below for history.
 
 Latest UX refresh validation results:
 

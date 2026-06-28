@@ -64,6 +64,8 @@ The system is intentionally human-governed. Gemini recommends and drafts; determ
 - Demo operator mode limited to explicitly synthetic demo records.
 - Real operator mode resolved server-side from Firebase identity, custom claims, or verified allowlisted email.
 - Responsive citizen and operator layouts for desktop and mobile.
+- Manual location fallback with curated Bengaluru suggestions when GPS is blocked or unavailable.
+- Public language status is truthful: English is active, with Hindi marked as coming soon rather than exposed as a partial toggle.
 - Metrics separated between real records and synthetic demo data, with "Not enough data" shown where denominators are insufficient.
 
 ## Technologies Used
@@ -118,6 +120,8 @@ CivicLens focuses on civic coordination rather than a generic chatbot. The diffe
 
 The app uses a responsive shell rather than a fake device frame. Citizens can scan the map/feed/report flow on mobile or desktop, while operators get a denser case workspace with queue, selected issue details, evidence, agent trace, and approval panels. The rebuilt UI includes labeled controls, keyboard/focus support, larger touch targets, loading/empty/error states, and accessibility-oriented E2E checks.
 
+The final hardening pass added a no-wrap compact mobile header, removed the dead public Google sign-in action, and replaced the incomplete Hindi toggle with "English active. Hindi coming soon." copy.
+
 ## Impact Dashboard and Metrics
 
 The dashboard derives metrics from persisted lifecycle fields and separates real records from synthetic demo data. It does not invent citywide impact numbers. Where there is not enough persisted data to support a metric, the UI reports "Not enough data" instead of displaying a fake percentage or average.
@@ -136,6 +140,7 @@ Latest recorded validation covers:
 - Public Cloud Run `/health` and `/readyz` smoke checks.
 - Live API smoke for Gemini triage, issue save, persisted agent steps, demo-operator boundary, anonymous denial, and closure recommendation without auto-resolution.
 - Public judge QA smoke verified a fresh anonymous visitor can submit Gemini triage without a 401 race, and a synthetic waffle/non-civic image is routed to a low-confidence clarification screen before saving.
+- Final hardening validation passed `npm ci`, lint, unit tests, production build, production audit, Firestore/Storage Rules emulator tests, concurrency tests, and Playwright/axe E2E. Public deployed smoke on `civiclens-00045-7sz` verified map visibility, sticky header, desktop/tablet/mobile no-overflow layouts, fixed mobile bottom nav, profile menu language status, camera/gallery choices, manual location suggestions, saved issue detail, persisted agent trace, and zero browser console/page errors.
 
 See `docs/FINAL_EVIDENCE_REPORT.md` for exact command outputs, warnings, commit references, and remaining gaps.
 
@@ -144,22 +149,25 @@ See `docs/FINAL_EVIDENCE_REPORT.md` for exact command outputs, warnings, commit 
 - Project: `gen-lang-client-0871796745`
 - Region: `asia-southeast1`
 - Cloud Run service: `civiclens`
-- Active revision: `civiclens-00044-d5l`
+- Active revision: `civiclens-00045-7sz`
 - Public app URL: https://civiclens-py7ixxgroq-as.a.run.app
 - Alternate URL: https://civiclens-802067002365.asia-southeast1.run.app
-- Runtime source: final judge QA commit `bdfa464`; the earlier production base commit before UX refresh was `fcf8946`.
+- Runtime source: final hardening commit `aec9ebd`; the earlier final judge QA commit was `bdfa464`.
 - `/health`: passing on the public service.
 - `/readyz`: passing on the public service with App Check enforcement warning recorded.
-- Maps browser key restriction: HTTP referrers for the two Cloud Run origins and localhost, API target `maps-backend.googleapis.com`; confirmed again during the `civiclens-00044-d5l` final judge QA checkpoint.
+- Maps browser key restriction: HTTP referrers for the two Cloud Run origins and localhost, API target `maps-backend.googleapis.com`; confirmed during the final judge QA checkpoint and preserved for `civiclens-00045-7sz`.
 
 ## Screenshots List
 
-The public screenshot package is stored under `docs/evidence/final/` with `JUDGE-QA-2026-06-27-MANIFEST.json`, `FINAL-QA-2026-06-27-MANIFEST.json`, `PUBLIC_SCREENSHOT_MANIFEST-2026-06-27.json`, `PUBLIC_SCREENSHOT_MANIFEST-UX-REFRESH-2026-06-27.json`, and `PUBLIC_SCREENSHOT_MANIFEST-FINAL-POLISH-2026-06-27.json`. These are Chrome/Playwright page-content screenshots, so they do not include the browser address bar; exact URLs are recorded in the manifests and evidence report. Sanitized CLI/API-backed infrastructure evidence is stored in `SANITIZED_GCP_FIREBASE_EVIDENCE-2026-06-27.json` and related `*-cli-evidence-2026-06-27.png` files. The final package also includes a redacted authenticated Cloud Run console screenshot for revision `civiclens-00044-d5l`; remaining Firebase/AI Studio console screenshots still require a safe authenticated capture if desired.
+The public screenshot package is stored under `docs/evidence/final/` with `FINAL-HARDENING-2026-06-28-MANIFEST.json`, `JUDGE-QA-2026-06-27-MANIFEST.json`, `FINAL-QA-2026-06-27-MANIFEST.json`, `PUBLIC_SCREENSHOT_MANIFEST-2026-06-27.json`, `PUBLIC_SCREENSHOT_MANIFEST-UX-REFRESH-2026-06-27.json`, and `PUBLIC_SCREENSHOT_MANIFEST-FINAL-POLISH-2026-06-27.json`. These are Chrome/Playwright page-content screenshots, so they do not include the browser address bar; exact URLs are recorded in the manifests and evidence report. Sanitized CLI/API-backed infrastructure evidence is stored in `SANITIZED_GCP_FIREBASE_EVIDENCE-2026-06-27.json` and related `*-cli-evidence-2026-06-27.png` files. The final package also includes a redacted authenticated Cloud Run console screenshot for revision `civiclens-00044-d5l`; remaining Firebase/AI Studio console screenshots still require a safe authenticated capture if desired.
 
 Captured public screenshot targets:
 
 - Cloud Run app homepage page content.
 - Report flow start.
+- Camera/gallery choices.
+- Manual location suggestions and selected location.
+- Profile menu showing English active and Hindi coming soon.
 - Synthetic/demo label visible.
 - Map visible.
 - Gemini triage result.
@@ -211,6 +219,7 @@ Do not claim authenticated console screenshot capture until those files exist an
 - Draft routing/action packets, escalation letters, RTI text, and closure assessments require human review before any use outside the app.
 - App Check integration exists, but enforcement is disabled for this hackathon deployment to avoid blocking judge access.
 - Google sign-in is intentionally unavailable in the public judge build until Firebase Authorized Domains are verified. Anonymous reporting remains enabled.
+- Hindi localization is not claimed as complete. The public UI shows English active and Hindi coming soon.
 - Metrics are scoped to persisted app records and are not citywide impact claims.
 - Demo records are synthetic and labelled as such.
 - No demo video is included in this checkpoint.

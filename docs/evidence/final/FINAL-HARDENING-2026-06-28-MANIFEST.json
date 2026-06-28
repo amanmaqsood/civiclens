@@ -1,0 +1,33 @@
+{
+  "base": "https://civiclens-py7ixxgroq-as.a.run.app",
+  "timestamp": "2026-06-28T00:22:27.474Z",
+  "screenshots": [
+    "FINAL-HARDENING-2026-06-28-desktop-home.png",
+    "FINAL-HARDENING-2026-06-28-desktop-sticky-header-after-scroll.png",
+    "FINAL-HARDENING-2026-06-28-saved-issue-detail.png",
+    "FINAL-HARDENING-2026-06-28-agent-trace-section.png",
+    "FINAL-HARDENING-2026-06-28-tablet-home.png",
+    "FINAL-HARDENING-2026-06-28-mobile-header-bottom-nav.png",
+    "FINAL-HARDENING-2026-06-28-profile-menu-hindi-coming-soon.png",
+    "FINAL-HARDENING-2026-06-28-report-camera-gallery-choices.png",
+    "FINAL-HARDENING-2026-06-28-location-search-suggestions.png",
+    "FINAL-HARDENING-2026-06-28-location-suggestion-selected.png"
+  ],
+  "checks": {
+    "desktopMapVisible": true,
+    "desktopHorizontalOverflow": false,
+    "desktopHeaderTopAfterScroll": 0,
+    "issueDetailVisible": true,
+    "agentTraceVisible": true,
+    "tabletHorizontalOverflow": false,
+    "mobileBottomNavFixed": true,
+    "mobileHorizontalOverflow": false,
+    "hindiComingSoonVisible": true,
+    "googleUnavailableButtonAbsent": true,
+    "locationSuggestionSelectionWorked": true,
+    "consoleErrorCount": 0,
+    "pageErrorCount": 0
+  },
+  "consoleErrors": [],
+  "pageErrors": []
+}

@@ -9,6 +9,7 @@ interface ReportAiEditFormProps {
   setAiResult: (val: any) => void;
   serverCategories: string[];
   categoryMap: Record<string, string>;
+  t: (key: string) => string;
   onConfirm: (e: React.FormEvent) => void;
 }
 
@@ -20,6 +21,7 @@ export default function ReportAiEditForm({
   setAiResult,
   serverCategories,
   categoryMap,
+  t,
   onConfirm,
 }: ReportAiEditFormProps) {
   return (
@@ -27,17 +29,17 @@ export default function ReportAiEditForm({
       <div className="flex items-center justify-between border-b border-hairline pb-2.5">
         <h2 className="text-2xl font-display font-black text-ink flex items-center gap-2">
           <Sparkles className="w-4 h-4 text-marigold" />
-          Confirm Gemini draft
+          {t("report.confirmDraft")}
         </h2>
         <span className="text-sm font-mono bg-paper border border-hairline text-slate font-bold px-3 py-1 rounded-lg">
-          Step 5 of 5
+          {t("report.stepFive")}
         </span>
       </div>
 
       <div className="bg-marigold/10 border border-marigold/15 p-3 rounded-xl flex items-start gap-2.5">
         <Info className="w-4 h-4 text-marigold shrink-0 mt-0.5" />
         <p className="text-base text-ink/90 font-medium font-sans leading-relaxed">
-          Gemini drafted this report summary. Review and edit it before saving it to the CivicLens pilot.
+          {t("report.confirmHelp")}
         </p>
       </div>
 
@@ -47,16 +49,16 @@ export default function ReportAiEditForm({
           <img src={image} alt="Hazard Preview" className="w-full h-full object-cover" />
         </div>
         <div className="min-w-0 flex-1">
-          <p className="text-sm font-mono font-bold text-slate">Estimated location</p>
+          <p className="text-sm font-mono font-bold text-slate">{t("report.estimatedLocation")}</p>
           <p className="text-base font-semibold text-ink truncate mt-0.5">
-            {manualAddress || addressPlaceholder || "Geographic point secured"}
+            {manualAddress || addressPlaceholder || t("report.locationSecured")}
           </p>
         </div>
       </div>
 
       {/* Title */}
       <div className="flex flex-col gap-1">
-        <label htmlFor="ai-title" className="text-sm font-mono text-slate block">Incident heading</label>
+        <label htmlFor="ai-title" className="text-sm font-mono text-slate block">{t("report.incidentHeading")}</label>
         <input
           id="ai-title"
           type="text"
@@ -68,7 +70,7 @@ export default function ReportAiEditForm({
 
       {/* Description Summary */}
       <div className="flex flex-col gap-1">
-        <label htmlFor="ai-summary" className="text-sm font-mono text-slate block">Diagnostic summary</label>
+        <label htmlFor="ai-summary" className="text-sm font-mono text-slate block">{t("report.diagnosticSummary")}</label>
         <textarea
           id="ai-summary"
           value={aiResult.summary || ""}
@@ -80,7 +82,7 @@ export default function ReportAiEditForm({
       {/* Category and Urgency dropdowns */}
       <div className="grid grid-cols-1 gap-3 text-base sm:grid-cols-2">
         <div className="flex flex-col gap-1">
-          <label htmlFor="ai-category" className="text-sm font-mono text-slate block">Category</label>
+          <label htmlFor="ai-category" className="text-sm font-mono text-slate block">{t("report.category")}</label>
           <select
             id="ai-category"
             value={aiResult.category || "other"}
@@ -96,16 +98,16 @@ export default function ReportAiEditForm({
         </div>
 
         <div className="flex flex-col gap-1">
-          <label htmlFor="ai-urgency" className="text-sm font-mono text-slate block">Urgency</label>
+          <label htmlFor="ai-urgency" className="text-sm font-mono text-slate block">{t("report.urgency")}</label>
           <select
             id="ai-urgency"
             value={aiResult.urgency || "routine"}
             onChange={(e) => setAiResult({ ...aiResult, urgency: e.target.value })}
             className="min-h-[44px] w-full text-base border border-hairline bg-white py-2 px-3 rounded-xl font-semibold text-ink"
           >
-            <option value="routine">Routine</option>
-            <option value="priority">Priority</option>
-            <option value="urgent">Urgent</option>
+            <option value="routine">{t("urgency.routine")}</option>
+            <option value="priority">{t("urgency.priority")}</option>
+            <option value="urgent">{t("urgency.urgent")}</option>
           </select>
         </div>
       </div>
@@ -113,7 +115,7 @@ export default function ReportAiEditForm({
       {/* Severity slider */}
       <div className="flex flex-col gap-1.5 bg-paper border border-hairline p-3 rounded-xl">
         <div className="flex items-center justify-between text-sm font-mono">
-          <label htmlFor="ai-severity" className="text-slate cursor-pointer">AI severity rating</label>
+          <label htmlFor="ai-severity" className="text-slate cursor-pointer">{t("report.severity")}</label>
           <span className="px-2 py-0.5 bg-white border border-hairline text-ink rounded font-bold">
             {aiResult.severity} / 5
           </span>
@@ -138,7 +140,7 @@ export default function ReportAiEditForm({
         type="submit"
         className="w-full flex min-h-[52px] items-center justify-center gap-2 bg-marigold border border-hairline text-ink font-bold text-base py-3 px-5 rounded-xl shadow-xs cursor-pointer hover:bg-marigold/90 active:scale-[0.99] transition-all"
       >
-        <span>Confirm & Save Report</span>
+        <span>{t("report.confirmSave")}</span>
         <ChevronRight className="w-4 h-4" />
       </button>
     </form>

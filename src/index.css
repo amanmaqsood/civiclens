@@ -45,3 +45,13 @@ body {
   outline-offset: 2px;
 }
 
+.civiclens-places-autocomplete {
+  display: block;
+  width: 100%;
+  min-height: 44px;
+  color-scheme: light;
+  --gmpx-color-primary: var(--color-marigold);
+  --gmpx-color-surface: #ffffff;
+  --gmpx-color-on-surface: var(--color-ink);
+  --gmpx-font-family-base: var(--font-sans);
+}

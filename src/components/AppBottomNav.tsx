@@ -1,6 +1,7 @@
 import React from "react";
 import { BarChart3, ClipboardList, Home, MapPinned, ShieldCheck } from "lucide-react";
 import { ActiveView } from "../types";
+import { useLanguage } from "../context/LanguageContext";
 
 interface AppBottomNavProps {
   currentView: ActiveView;
@@ -17,6 +18,7 @@ export default function AppBottomNav({
   onNavigate,
   onTogglePersona,
 }: AppBottomNavProps) {
+  const { t } = useLanguage();
   const canUseDesk = operatorAccess !== "none";
   const handleDeskToggle = () => {
     if (persona === "operator") {
@@ -51,7 +53,7 @@ export default function AppBottomNav({
           className={itemClass(persona === "citizen" && currentView === "landing")}
         >
           <MapPinned className="h-5 w-5" />
-          <span>Map</span>
+          <span>{t("nav.map")}</span>
         </button>
         <button
           type="button"
@@ -63,7 +65,7 @@ export default function AppBottomNav({
           className={itemClass(persona === "citizen" && currentView === "report")}
         >
           <ClipboardList className="h-5 w-5" />
-          <span>Report</span>
+          <span>{t("nav.report")}</span>
         </button>
         <button
           type="button"
@@ -75,7 +77,7 @@ export default function AppBottomNav({
           className={itemClass(persona === "citizen" && currentView === "dashboard")}
         >
           <BarChart3 className="h-5 w-5" />
-          <span>Metrics</span>
+          <span>{t("nav.metrics")}</span>
         </button>
         {canUseDesk && (
           <button
@@ -86,7 +88,7 @@ export default function AppBottomNav({
             className={itemClass(persona === "operator")}
           >
             {persona === "operator" ? <Home className="h-5 w-5" /> : <ShieldCheck className="h-5 w-5" />}
-            <span>{operatorAccess === "real" ? "Desk" : "Demo"}</span>
+            <span>{operatorAccess === "real" ? t("nav.desk") : t("nav.demo")}</span>
           </button>
         )}
       </div>

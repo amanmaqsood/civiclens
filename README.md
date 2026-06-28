@@ -51,7 +51,7 @@ npm run dev
 Set real values in `.env` as needed:
 
 - `GEMINI_API_KEY` for Gemini calls.
-- `GOOGLE_MAPS_PLATFORM_KEY` or `VITE_GOOGLE_MAPS_PLATFORM_KEY` for Google Maps.
+- `GOOGLE_MAPS_PLATFORM_KEY` or `VITE_GOOGLE_MAPS_PLATFORM_KEY` for Google Maps and Places autocomplete.
 - `VITE_FIREBASE_API_KEY`, `VITE_FIREBASE_AUTH_DOMAIN`, `VITE_FIREBASE_PROJECT_ID`, `VITE_FIREBASE_APP_ID`, and optional Firebase browser fields before building the frontend. If these are absent, the app falls back to the public `firebase-applet-config.json`.
 - `FIREBASE_PROJECT_ID` or Cloud Run's `GOOGLE_CLOUD_PROJECT` for Firebase Admin SDK project selection.
 - `FIRESTORE_DATABASE_ID`, defaulting to `(default)`, when using a named Firestore database.
@@ -95,4 +95,4 @@ Cloud Run deployment is documented in `docs/DEPLOYMENT_CLOUD_RUN.md` and was per
 
 Maps browser-key restrictions were applied for the public Cloud Run origins and localhost during the final evidence checkpoint. App Check integration exists, but enforcement is disabled for this hackathon deployment to avoid blocking judge access.
 
-The public deployment includes the final anonymous-auth readiness fix, non-civic image clarification guardrail, manual location suggestions, compact mobile header, honest Hindi-coming-soon state, removed dead public Google sign-in action, public issue-detail read-only agent evidence, and operator-owned agent/lifecycle controls with required rationale. The public Google Doc has been refreshed from `docs/GOOGLE_DOC_DRAFT.md` with `civiclens-00046-7fn` evidence and verified by unauthenticated text export. Demo video publication, App Check enforcement, and final hackathon submission still require explicit approval.
+The current source adds the final judge-facing UX pass: Google Places autocomplete for manual location search with fallback suggestions, visible Google sign-in with popup/redirect handling, persistent Hindi localization for the core citizen flow, a compact sticky header subtitle, public issue-detail read-only agent evidence, and operator-owned agent/lifecycle controls with required rationale. Demo video publication, App Check enforcement, and final hackathon submission still require explicit approval.

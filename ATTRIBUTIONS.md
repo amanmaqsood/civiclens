@@ -13,6 +13,7 @@ CivicLens is original hackathon prototype work assembled in this repository. No 
 - Firebase JavaScript SDK and Firebase Admin SDK for Auth, Firestore, Storage, App Check verification, and server-owned writes.
 - `@google/genai` for Gemini multimodal, structured output, and function-calling flows.
 - `@vis.gl/react-google-maps` for Google Maps rendering.
+- Google Maps JavaScript Places library / `PlaceAutocompleteElement` for manual place search in the report flow.
 - `dotenv` for local environment loading.
 - Vitest for test execution.
 - Sharp is included as a development dependency for image-related tooling.
@@ -22,7 +23,7 @@ CivicLens is original hackathon prototype work assembled in this repository. No 
 - Google AI Studio was used as the development/provenance environment for the prototype and Gemini integration.
 - Gemini via `@google/genai` powers report analysis, duplicate comparison support, draft resolution planning, closure image assessment, escalation/RTI drafting, translation, and the server-side tool loop.
 - Firebase Auth, Firestore, Storage, Admin SDK, and App Check verification form the identity/data/storage boundary.
-- Google Maps Platform renders the local map view.
+- Google Maps Platform renders the local map view and provides Places autocomplete for manual location search.
 - Google Cloud Run is the target deployment path. Public deployment remains credential and approval gated.
 
 ## Demo Assets

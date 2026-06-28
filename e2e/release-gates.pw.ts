@@ -179,6 +179,9 @@ async function preparePage(page: Page, viewport: { width: number; height: number
   await page.setViewportSize(viewport);
   await page.addInitScript(() => {
     window.localStorage.setItem("has_seen_onboarding", "true");
+    if (!window.localStorage.getItem("preferred_language")) {
+      window.localStorage.setItem("preferred_language", "en");
+    }
   });
   await page.goto("/");
   await expect(page.locator("#main-content")).toBeVisible();
@@ -229,7 +232,7 @@ for (const viewport of [
 
     await expect(page.getByRole("heading", { name: "CivicLens Field Command Center" })).toBeVisible();
     await expect(page.locator("#report-issue-btn")).toBeVisible();
-    await expect(page.getByText("Demo stories", { exact: true })).toBeVisible();
+    await expect(page.getByText("Synthetic demo story", { exact: true })).toBeVisible();
     await expect(page.getByText("E2E demo pothole")).toBeVisible();
     await expect(page.getByText("E2E hidden demo overflow")).toHaveCount(0);
     await expect(page.getByText("Synthetic Cloud Run smoke test pothole")).toHaveCount(0);
@@ -268,6 +271,73 @@ test("mobile report flow exposes stepper, location denial, and manual pin fallba
         },
       },
     });
+
+    (window as any).google = {
+      maps: {
+        importLibrary: async () => ({
+          PlaceAutocompleteElement: function FakePlaceAutocompleteElement(this: any) {
+            const element = document.createElement("div") as any;
+            element.className = "mock-place-autocomplete";
+            const input = document.createElement("input");
+            input.id = "mock-google-places-input";
+            input.setAttribute("aria-label", "Search location manually");
+            input.setAttribute("role", "combobox");
+            input.setAttribute("aria-autocomplete", "list");
+            input.setAttribute("aria-controls", "mock-google-places-listbox");
+            input.setAttribute("aria-expanded", "false");
+            input.style.minHeight = "44px";
+            input.style.width = "100%";
+            const listbox = document.createElement("div");
+            listbox.id = "mock-google-places-listbox";
+            listbox.setAttribute("role", "listbox");
+            const option = document.createElement("button");
+            option.type = "button";
+            option.setAttribute("role", "option");
+            option.textContent = "Indiranagar Metro Station, CMH Road, Bengaluru";
+            option.style.display = "none";
+            input.addEventListener("input", () => {
+              option.style.display = input.value ? "block" : "none";
+              input.setAttribute("aria-expanded", input.value ? "true" : "false");
+            });
+            option.addEventListener("click", () => {
+              input.setAttribute("aria-expanded", "false");
+              const event = new Event("gmp-select", { bubbles: true });
+              Object.defineProperty(event, "placePrediction", {
+                value: {
+                  placeId: "mock-indiranagar",
+                  mainText: { text: "Indiranagar Metro Station" },
+                  secondaryText: { text: "CMH Road, Bengaluru" },
+                  toPlace: () => ({
+                    id: "mock-indiranagar",
+                    displayName: { text: "Indiranagar Metro Station" },
+                    formattedAddress: "Indiranagar Metro Station, CMH Road, Bengaluru",
+                    location: { toJSON: () => ({ lat: 12.97837, lng: 77.64084 }) },
+                    fetchFields: async () => undefined,
+                  }),
+                },
+              });
+              element.dispatchEvent(event);
+            });
+            Object.defineProperty(element, "placeholder", {
+              set(value: string) {
+                input.placeholder = value;
+              },
+            });
+            Object.defineProperty(element, "value", {
+              get() {
+                return input.value;
+              },
+              set(value: string) {
+                input.value = value || "";
+              },
+            });
+            listbox.append(option);
+            element.append(input, listbox);
+            return element;
+          },
+        }),
+      },
+    };
   });
   await preparePage(page, { width: 390, height: 844 });
 
@@ -294,11 +364,12 @@ test("mobile report flow exposes stepper, location denial, and manual pin fallba
   await expect(page.locator("#manual-pin-fallback")).toBeVisible();
   await page.getByRole("button", { name: /Drop pin manually/i }).click();
   await expect(page.getByText("Coordinates locked.")).toBeVisible();
-  await expect(page.locator("#manual-location-search")).toBeVisible();
-  await page.locator("#manual-location-search").fill("Indira");
+  await expect(page.locator("#google-places-autocomplete")).toBeVisible();
+  await expect(page.getByText("Powered by Google Places autocomplete")).toBeVisible();
+  await page.locator("#mock-google-places-input").fill("Indira");
   await expect(page.getByRole("option", { name: /Indiranagar Metro Station/i })).toBeVisible();
   await page.getByRole("option", { name: /Indiranagar Metro Station/i }).click();
-  await expect(page.locator("#manual-location-search")).toHaveValue("Indiranagar Metro Station, CMH Road, Bengaluru");
+  await expect(page.locator("#mock-google-places-input")).toHaveValue("Indiranagar Metro Station, CMH Road, Bengaluru");
   await expect(page.getByText("Coordinates locked.")).toBeVisible();
   await expectHeaderPinnedAfterScroll(page);
   await expectNoHorizontalOverflow(page);
@@ -318,11 +389,18 @@ test("header account menu explains citizen session and operator access", async (
   await expect(page.locator("#account-menu")).toBeVisible();
   await expect(page.getByText("Citizen session")).toBeVisible();
   await expect(page.getByText("Public access")).toBeVisible();
-  await expect(page.getByText("Google sign-in is hidden until Firebase Authorized Domains are verified")).toBeVisible();
+  await expect(page.getByText("Sign in with Google to attach a verified identity")).toBeVisible();
   await expect(page.getByText("Language")).toBeVisible();
-  await expect(page.getByText("English active. Hindi coming soon.")).toBeVisible();
+  await expect(page.locator("#lang-hi-btn")).toBeVisible();
+  await page.locator("#lang-hi-btn").click();
+  await expect(page.getByText("AI-सहायित नागरिक रिपोर्ट")).toBeVisible();
+  await page.reload();
+  await expect(page.getByText("AI-सहायित नागरिक रिपोर्ट")).toBeVisible();
+  await page.locator("#header-account-button").click();
+  await page.locator("#lang-en-btn").click();
+  await expect(page.getByText("AI-assisted civic reports")).toBeVisible();
   await expect(page.getByText(/Operator access status: (none|demo|real)/)).toBeVisible();
-  await expect(page.locator("#account-menu button")).toHaveCount(0);
+  await expect(page.getByRole("button", { name: "Sign in with Google" })).toBeVisible();
   await expect(page.getByRole("button", { name: "Google sign-in unavailable" })).toHaveCount(0);
   await expect(page.locator("#account-auth-error")).toHaveCount(0);
 
@@ -334,7 +412,7 @@ test("header account menu explains citizen session and operator access", async (
   await expect(page.locator("#account-menu")).toHaveCount(0);
 
   await page.locator("#header-account-button").click();
-  await expect(page.getByRole("button", { name: "Google sign-in unavailable" })).toHaveCount(0);
+  await expect(page.getByRole("button", { name: "Sign in with Google" })).toBeVisible();
   await expect(page.locator("#account-auth-error")).toHaveCount(0);
 });
 

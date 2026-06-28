@@ -2,7 +2,9 @@ import React, { createContext, useContext, useEffect, useState } from "react";
 import { 
   User as FirebaseUser, 
   onAuthStateChanged, 
+  getRedirectResult,
   signInWithPopup, 
+  signInWithRedirect,
   signOut,
   signInAnonymously
 } from "firebase/auth";
@@ -23,6 +25,10 @@ export function FirebaseProvider({ children }: { children: React.ReactNode }) {
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
+    getRedirectResult(auth).catch((error) => {
+      console.warn("Google redirect sign-in warning:", error);
+    });
+
     const unsubscribe = onAuthStateChanged(auth, async (currentUser) => {
       if (!currentUser) {
         try {
@@ -43,8 +49,8 @@ export function FirebaseProvider({ children }: { children: React.ReactNode }) {
         if (!userSnap.exists()) {
           await setDoc(userRef, {
             userId: currentUser.uid,
-            displayName: "Anonymous Citizen",
-            email: "",
+            displayName: currentUser.displayName || (currentUser.isAnonymous ? "Anonymous Citizen" : "Google Citizen"),
+            email: currentUser.email || "",
             createdAt: new Date().toISOString()
           });
         }
@@ -60,10 +66,28 @@ export function FirebaseProvider({ children }: { children: React.ReactNode }) {
   }, []);
 
   const signInWithGoogle = async () => {
+    const isMobileViewport =
+      typeof window !== "undefined" &&
+      (window.matchMedia?.("(max-width: 767px)").matches || /Android|iPhone|iPad|iPod/i.test(window.navigator.userAgent));
+
     try {
+      if (isMobileViewport) {
+        await signInWithRedirect(auth, googleAuthProvider);
+        return;
+      }
       await signInWithPopup(auth, googleAuthProvider);
-    } catch (error) {
+    } catch (error: any) {
       console.warn("Google sign-in warning:", error);
+      const code = String(error?.code || "");
+      if (
+        code === "auth/popup-blocked" ||
+        code === "auth/popup-closed-by-user" ||
+        code === "auth/cancelled-popup-request" ||
+        code === "auth/operation-not-supported-in-this-environment"
+      ) {
+        await signInWithRedirect(auth, googleAuthProvider);
+        return;
+      }
       throw error;
     }
   };

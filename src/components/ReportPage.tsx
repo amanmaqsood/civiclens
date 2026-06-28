@@ -10,6 +10,7 @@ import ReportProgressView from "./ReportProgressView";
 import ReportClarificationView from "./ReportClarificationView";
 import ReportAiEditForm from "./ReportAiEditForm";
 import ReportFallbackForm from "./ReportFallbackForm";
+import PlacesAutocompleteField, { SelectedPlace } from "./PlacesAutocompleteField";
 import { apiFetch } from "../services/api";
 
 interface ReportPageProps {
@@ -19,20 +20,7 @@ interface ReportPageProps {
   prefilledData?: Partial<IssueReport> | null;
 }
 
-const categoryMap: Record<string, string> = {
-  pothole: "Pothole & Roads",
-  water_leak: "Water Supply & Leakage",
-  streetlight: "Street Light Fault",
-  waste: "Garbage & Sanitation",
-  drainage: "Drainage & Sewerage",
-  road_damage: "Road Damage",
-  other: "Others"
-};
-
 const serverCategories = ["pothole", "water_leak", "streetlight", "waste", "drainage", "road_damage", "other"];
-
-const LOCATION_PERMISSION_FALLBACK_COPY =
-  "Location permission is blocked or unavailable. Search for a location, drop a pin manually, or type a nearby landmark.";
 
 type ManualLocationSuggestion = {
   label: string;
@@ -93,7 +81,16 @@ const MANUAL_LOCATION_SUGGESTIONS: ManualLocationSuggestion[] = [
 ];
 
 export default function ReportPage({ onBack, onSubmit, prefilledLocation, prefilledData }: ReportPageProps) {
-  const { t } = useLanguage();
+  const { language, t } = useLanguage();
+  const categoryMap = useMemo<Record<string, string>>(() => ({
+    pothole: t("category.pothole"),
+    water_leak: t("category.water_leak"),
+    streetlight: t("category.streetlight"),
+    waste: t("category.waste"),
+    drainage: t("category.drainage"),
+    road_damage: t("category.road_damage"),
+    other: t("category.other"),
+  }), [t]);
   const [image, setImage] = useState<string | null>(prefilledData?.image || null);
   const [description, setDescription] = useState(prefilledData?.description || prefilledData?.summary || "");
   const [location, setLocation] = useState<LocationData | null>(
@@ -133,19 +130,6 @@ export default function ReportPage({ onBack, onSubmit, prefilledLocation, prefil
 
   const liveFileInputRef = useRef<HTMLInputElement>(null);
   const galleryFileInputRef = useRef<HTMLInputElement>(null);
-
-  const manualLocationSuggestions = useMemo(() => {
-    const query = manualAddress.trim().toLowerCase();
-    const matches = query
-      ? MANUAL_LOCATION_SUGGESTIONS.filter(
-          (suggestion) =>
-            suggestion.label.toLowerCase().includes(query) ||
-            suggestion.address.toLowerCase().includes(query)
-        )
-      : MANUAL_LOCATION_SUGGESTIONS;
-
-    return matches.slice(0, query ? 5 : 3);
-  }, [manualAddress]);
 
   const stages = [
     { label: "Evidence Optimization", detail: "Compressing proof photo client-side..." },
@@ -208,13 +192,21 @@ export default function ReportPage({ onBack, onSubmit, prefilledLocation, prefil
     setLocError(null);
   };
 
-  const handleSelectManualLocation = (suggestion: ManualLocationSuggestion) => {
-    setManualAddress(suggestion.address);
-    setLocation({
-      lat: suggestion.lat,
-      lng: suggestion.lng,
-      addressPlaceholder: suggestion.address,
-    });
+  const handleSelectPlace = (place: SelectedPlace) => {
+    setManualAddress(place.address || place.label);
+    if (typeof place.lat === "number" && typeof place.lng === "number") {
+      setLocation({
+        lat: place.lat,
+        lng: place.lng,
+        addressPlaceholder: place.address || place.label,
+      });
+    } else if (!location) {
+      setLocation({
+        lat: 12.9716,
+        lng: 77.5946,
+        addressPlaceholder: place.address || place.label,
+      });
+    }
     setLocError(null);
   };
 
@@ -225,7 +217,7 @@ export default function ReportPage({ onBack, onSubmit, prefilledLocation, prefil
       const allowedTypes = ["image/jpeg", "image/png", "image/webp"];
       if (!allowedTypes.includes(file.type)) {
         input.value = "";
-        setImageError("Unsupported format. Please upload JPEG, PNG, or WebP proof files.");
+        setImageError(t("report.unsupportedImage"));
         return;
       }
       try {
@@ -233,7 +225,7 @@ export default function ReportPage({ onBack, onSubmit, prefilledLocation, prefil
         const compressedBase64 = await compressImage(file);
         setImage(compressedBase64);
       } catch (err: any) {
-        setImageError("Failed to process image. Try another photo.");
+        setImageError(t("report.imageProcessError"));
       } finally {
         input.value = "";
       }
@@ -383,6 +375,7 @@ export default function ReportPage({ onBack, onSubmit, prefilledLocation, prefil
         setAiResult={setAiResult}
         serverCategories={serverCategories}
         categoryMap={categoryMap}
+        t={t}
         onConfirm={handleConfirmPersist}
       />
     );
@@ -396,17 +389,18 @@ export default function ReportPage({ onBack, onSubmit, prefilledLocation, prefil
         serverCategories={serverCategories}
         categoryMap={categoryMap}
         description={description}
+        t={t}
         onSubmit={handleFallbackSubmit}
       />
     );
   }
 
   const stepperItems = [
-    { label: "Photo", done: !!image },
-    { label: "Location", done: !!location || !!manualAddress },
-    { label: "Description", done: description.trim().length > 0 },
-    { label: "Gemini triage", done: !!aiResult },
-    { label: "Confirm", done: false },
+    { label: t("report.step.photo"), done: !!image },
+    { label: t("report.step.location"), done: !!location || !!manualAddress },
+    { label: t("report.step.description"), done: description.trim().length > 0 },
+    { label: t("report.step.gemini"), done: !!aiResult },
+    { label: t("report.step.confirm"), done: false },
   ];
 
   return (
@@ -419,10 +413,10 @@ export default function ReportPage({ onBack, onSubmit, prefilledLocation, prefil
             className="flex min-h-[44px] items-center gap-2 rounded-xl px-2 text-base font-semibold text-ink hover:bg-white cursor-pointer"
         >
           <ArrowLeft className="w-3.5 h-3.5" />
-          <span>Exit</span>
+          <span>{t("report.exit")}</span>
         </button>
         <span className="rounded-lg bg-marigold px-3 py-1 text-sm font-bold text-ink">
-          New field report
+          {t("report.badge")}
         </span>
       </div>
 
@@ -450,7 +444,7 @@ export default function ReportPage({ onBack, onSubmit, prefilledLocation, prefil
 
       {/* Upload proof */}
       <div className="flex flex-col gap-1.5">
-        <label className="text-sm font-mono text-[#334155] block">Proof photograph</label>
+        <label className="text-sm font-mono text-[#334155] block">{t("report.imageLabel")}</label>
         <input
           id="report-live-photo-input"
           type="file"
@@ -469,7 +463,7 @@ export default function ReportPage({ onBack, onSubmit, prefilledLocation, prefil
           className="hidden"
         />
         {imageError && (
-          <p role="alert" className="rounded-lg border border-alert/20 bg-alert/10 p-2 text-sm font-semibold text-alert">
+        <p role="alert" className="rounded-lg border border-alert/20 bg-alert/10 p-2 text-sm font-semibold text-alert">
             {imageError}
           </p>
         )}
@@ -480,11 +474,11 @@ export default function ReportPage({ onBack, onSubmit, prefilledLocation, prefil
                 <Camera className="w-5 h-5 text-slate" />
               </div>
               <div>
-                <p className="text-base font-semibold text-ink">Add proof photograph</p>
+                <p className="text-base font-semibold text-ink">{t("report.addPhoto")}</p>
                 <p className="text-sm text-[#334155] mt-0.5">
-                  Use a live photo on site, or upload an existing image from your gallery.
+                  {t("report.imageHint")}
                 </p>
-                <p className="text-sm text-[#334155] mt-0.5">JPEG, PNG, or WebP. The browser compresses it before upload.</p>
+                <p className="text-sm text-[#334155] mt-0.5">{t("report.imageHint2")}</p>
               </div>
             </div>
             <div className="mt-4 grid gap-2 sm:grid-cols-2">
@@ -494,7 +488,7 @@ export default function ReportPage({ onBack, onSubmit, prefilledLocation, prefil
                 className="inline-flex min-h-[44px] items-center justify-center gap-2 rounded-xl bg-ink px-4 text-base font-bold text-paper hover:bg-ink/90"
               >
                 <Camera className="h-4 w-4 text-marigold" />
-                Take live photo
+                {t("report.takeLivePhoto")}
               </button>
               <button
                 type="button"
@@ -502,7 +496,7 @@ export default function ReportPage({ onBack, onSubmit, prefilledLocation, prefil
                 className="inline-flex min-h-[44px] items-center justify-center gap-2 rounded-xl border border-hairline bg-white px-4 text-base font-bold text-ink hover:bg-paper"
               >
                 <ImagePlus className="h-4 w-4 text-marigold" />
-                Upload from gallery
+                {t("report.uploadGallery")}
               </button>
             </div>
           </div>
@@ -515,19 +509,19 @@ export default function ReportPage({ onBack, onSubmit, prefilledLocation, prefil
                 onClick={() => liveFileInputRef.current?.click()}
                 className="min-h-[44px] bg-ink/90 hover:bg-marigold text-white hover:text-ink border border-white/15 px-3 py-2 rounded-lg text-sm font-bold transition-all cursor-pointer shadow-xs text-center"
               >
-                Retake
+                {t("report.retake")}
               </button>
               <button
                 type="button"
                 onClick={() => galleryFileInputRef.current?.click()}
                 className="min-h-[44px] bg-ink/90 hover:bg-marigold text-white hover:text-ink border border-white/15 px-3 py-2 rounded-lg text-sm font-bold transition-all cursor-pointer shadow-xs text-center"
               >
-                Gallery
+                {t("report.gallery")}
               </button>
               <button
                 type="button"
                 onClick={clearImage}
-                aria-label="Remove proof photograph"
+                aria-label={t("report.removePhoto")}
                 className="flex min-h-[44px] min-w-[44px] items-center justify-center bg-alert/90 hover:bg-alert text-white rounded-lg transition-colors cursor-pointer"
               >
                 <Trash2 className="w-4 h-4 mx-auto" />
@@ -539,27 +533,27 @@ export default function ReportPage({ onBack, onSubmit, prefilledLocation, prefil
 
       {/* Geolocation Live Capture Component */}
       <div className="bg-paper border border-hairline p-4 rounded-xl flex flex-col gap-2.5">
-        <label className="text-sm font-mono text-[#334155] block">Location</label>
+        <label className="text-sm font-mono text-[#334155] block">{t("report.locationLabel")}</label>
         
         <div className="text-sm font-semibold leading-normal py-0.5">
           {locLoading && (
             <span className="text-marigold flex items-center gap-1 animate-pulse">
-              <Loader2 className="w-3.5 h-3.5 animate-spin" /> Acquiring coordinates...
+              <Loader2 className="w-3.5 h-3.5 animate-spin" /> {t("report.locationLoading")}
             </span>
           )}
           {!locLoading && location && (
             <span className="text-ink flex items-center gap-1">
-              <CheckCircle2 className="w-3.5 h-3.5 text-verify" /> Coordinates locked.
+              <CheckCircle2 className="w-3.5 h-3.5 text-verify" /> {t("report.locationLocked")}
             </span>
           )}
           {!locLoading && locError && (
             <span className="text-alert flex items-center gap-1">
-              {LOCATION_PERMISSION_FALLBACK_COPY}
+              {t("report.locationFallback")}
             </span>
           )}
           {!locLoading && !location && !locError && (
             <span className="text-slate flex items-center gap-1">
-              Coordinates missing. Use location or manual pin.
+              {t("report.locationMissing")}
             </span>
           )}
         </div>
@@ -568,7 +562,7 @@ export default function ReportPage({ onBack, onSubmit, prefilledLocation, prefil
           <div className="flex items-start gap-2 bg-verify/5 text-ink p-2 rounded-lg border border-verify/20 select-none">
             <CheckCircle2 className="w-3.5 h-3.5 text-verify mt-0.5 flex-shrink-0" />
             <div className="text-sm font-semibold">
-              <p>GPS Geo-reference locked</p>
+              <p>{t("report.gpsLocked")}</p>
               <p className="font-mono text-sm text-[#334155] mt-0.5">
                 {location.lat.toFixed(5)}, {location.lng.toFixed(5)}
               </p>
@@ -578,7 +572,7 @@ export default function ReportPage({ onBack, onSubmit, prefilledLocation, prefil
               onClick={handleFetchLocation}
               className="ml-auto min-h-[44px] rounded-lg px-2 text-sm font-mono text-ink hover:bg-white"
             >
-              Refresh
+              {t("report.refreshLocation")}
             </button>
           </div>
         ) : (
@@ -588,7 +582,7 @@ export default function ReportPage({ onBack, onSubmit, prefilledLocation, prefil
             className="w-full flex min-h-[44px] items-center justify-center gap-2 border border-hairline bg-white hover:bg-paper text-slate hover:text-ink py-2 px-3 rounded-lg text-base font-semibold cursor-pointer shadow-2xs"
           >
             {locLoading ? <Loader2 className="w-3.5 h-3.5 animate-spin text-marigold" /> : <MapPin className="w-3.5 h-3.5 text-marigold" />}
-            <span>Use my current location</span>
+            <span>{t("report.useCurrentLocation")}</span>
           </button>
         )}
         {(locError || !location) && (
@@ -596,9 +590,9 @@ export default function ReportPage({ onBack, onSubmit, prefilledLocation, prefil
             <div className="flex items-start gap-3">
               <MapPinned className="mt-0.5 h-5 w-5 shrink-0 text-marigold" />
               <div className="flex-1">
-                <p className="text-base font-bold text-ink">Drop pin manually</p>
+                <p className="text-base font-bold text-ink">{t("report.manualPinTitle")}</p>
                 <p className="mt-1 text-sm leading-relaxed text-[#334155]">
-                  If GPS is blocked, use an approximate pin or type a nearby landmark below.
+                  {t("report.manualPinHelp")}
                 </p>
               </div>
             </div>
@@ -609,60 +603,28 @@ export default function ReportPage({ onBack, onSubmit, prefilledLocation, prefil
             >
               <MapPinned className="h-4 w-4 text-marigold" />
               <span className="flex flex-col leading-tight">
-                <span>Drop pin manually</span>
-                <span className="text-sm font-semibold text-paper/80">Continue with approximate location</span>
+                <span>{t("report.manualPinCta")}</span>
+                <span className="text-sm font-semibold text-paper/80">{t("report.manualPinSub")}</span>
               </span>
             </button>
           </div>
         )}
-        <div className="flex flex-col gap-2">
-          <label htmlFor="manual-location-search" className="text-base font-bold text-ink">
-            Search location manually
-          </label>
-          <input
-            id="manual-location-search"
-            type="text"
-            role="combobox"
-            value={manualAddress}
-            onChange={(e) => setManualAddress(e.target.value)}
-            placeholder="Type a nearby landmark, road, or neighbourhood"
-            className="min-h-[44px] w-full rounded-xl border border-hairline bg-white p-3 text-base text-ink focus:border-marigold focus:outline-none focus:ring-1 focus:ring-marigold"
-            aria-autocomplete="list"
-            aria-controls="manual-location-suggestions"
-            aria-expanded={manualLocationSuggestions.length > 0}
-          />
-          <div
-            id="manual-location-suggestions"
-            role="listbox"
-            className="grid gap-2"
-            aria-label="Manual location suggestions"
-          >
-            {manualLocationSuggestions.length > 0 ? (
-              manualLocationSuggestions.map((suggestion) => (
-                <button
-                  key={suggestion.address}
-                  type="button"
-                  role="option"
-                  aria-selected={manualAddress === suggestion.address}
-                  onClick={() => handleSelectManualLocation(suggestion)}
-                  className="flex min-h-[52px] items-center justify-between gap-3 rounded-xl border border-hairline bg-white p-3 text-left text-ink shadow-2xs transition hover:border-marigold/50 hover:bg-marigold/5"
-                >
-                  <span className="min-w-0">
-                    <span className="block text-base font-bold">{suggestion.label}</span>
-                    <span className="block truncate text-sm font-medium text-[#334155]">{suggestion.address}</span>
-                  </span>
-                  <span className="shrink-0 rounded-lg bg-paper px-2 py-1 text-sm font-bold text-[#334155]">
-                    Use
-                  </span>
-                </button>
-              ))
-            ) : (
-              <p className="rounded-xl border border-dashed border-hairline bg-white p-3 text-sm leading-relaxed text-[#334155]">
-                No saved suggestion matches yet. You can continue with the typed landmark or use the approximate pin.
-              </p>
-            )}
-          </div>
-        </div>
+        <PlacesAutocompleteField
+          value={manualAddress}
+          onValueChange={setManualAddress}
+          onPlaceSelected={handleSelectPlace}
+          fallbackSuggestions={MANUAL_LOCATION_SUGGESTIONS}
+          label={t("report.searchLocation")}
+          placeholder={t("report.searchLocationPlaceholder")}
+          helperText={t("report.placesHelper")}
+          loadingText={t("report.placesLoading")}
+          noKeyText={t("report.placesNoKey")}
+          failedText={t("report.placesFailed")}
+          fallbackTitle={t("report.fallbackSuggestions")}
+          noFallbackText={t("report.noFallback")}
+          useLabel={t("report.usePlace")}
+          language={language}
+        />
       </div>
 
       {/* Voice Input Block */}
@@ -674,7 +636,7 @@ export default function ReportPage({ onBack, onSubmit, prefilledLocation, prefil
             </span>
             <div className="flex items-center gap-1.5">
               <span className="w-1.5 h-1.5 rounded-full bg-marigold animate-ping" />
-              <span className="text-sm font-mono text-[#334155] font-bold">English Active</span>
+              <span className="text-sm font-mono text-[#334155] font-bold">{t("report.englishActive")}</span>
             </div>
           </div>
           
@@ -694,12 +656,12 @@ export default function ReportPage({ onBack, onSubmit, prefilledLocation, prefil
             {isListening ? (
               <>
                 <MicOff className="w-4 h-4 text-white animate-spin" />
-                <span>Stop Recording...</span>
+                <span>{t("report.stopRecording")}</span>
               </>
             ) : (
               <>
                 <Mic className="w-4 h-4 text-marigold" />
-                <span>Start Voice Dictation</span>
+                <span>{t("report.startVoice")}</span>
               </>
             )}
           </button>

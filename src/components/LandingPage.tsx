@@ -64,18 +64,18 @@ export default function LandingPage({
   const proofCards = [
     {
       icon: Camera,
-      title: "Field report",
-      body: "Photo, description, and location are captured as a draft pilot case.",
+      title: t("proof.field.title"),
+      body: t("proof.field.body"),
     },
     {
       icon: Sparkles,
-      title: "Server agent",
-      body: "Gemini runs bounded tools and persists every real tool step for review.",
+      title: t("proof.agent.title"),
+      body: t("proof.agent.body"),
     },
     {
       icon: ShieldCheck,
-      title: "Human approval",
-      body: "Routing drafts, closure, and reopen decisions remain human-controlled.",
+      title: t("proof.human.title"),
+      body: t("proof.human.body"),
     },
   ];
 
@@ -90,16 +90,16 @@ export default function LandingPage({
               <Users className="h-5 w-5" />
             </div>
             <div className="min-w-0 flex-1">
-              <p className="text-base font-bold">Demo stories</p>
+              <p className="text-base font-bold">{t("demo.title")}</p>
               <p className="mt-1 max-w-3xl text-base leading-relaxed text-[#334155]">
-                These Bengaluru cases are synthetic demo stories for judging the workflow. They are not live civic complaints.
+                {t("demo.banner")}
               </p>
             </div>
             <button
               type="button"
               onClick={() => setShowDemoBanner(false)}
               className="flex min-h-[44px] min-w-[44px] items-center justify-center rounded-xl text-xl font-bold text-slate hover:bg-white/70 hover:text-ink"
-              aria-label="Dismiss demo stories notice"
+              aria-label={t("demo.dismiss")}
             >
               &times;
             </button>
@@ -112,14 +112,14 @@ export default function LandingPage({
           <div className="relative z-10 flex h-full min-h-[360px] flex-col justify-between gap-8">
             <div className="flex flex-col gap-5">
               <span className="w-fit rounded-lg bg-marigold px-3 py-1 text-sm font-bold text-ink">
-                CivicLens pilot
+                {t("hero.badge")}
               </span>
               <div className="max-w-2xl">
                 <h2 className="text-4xl font-black leading-[1.02] tracking-normal text-white sm:text-5xl lg:text-6xl">
-                  CivicLens Field Command Center
+                  {t("hero.title")}
                 </h2>
                 <p className="mt-5 max-w-[62ch] text-lg leading-relaxed text-white/78">
-                  Report a local issue, let Gemini draft and compare evidence, then follow the human-reviewed civic lifecycle without implying outside submission.
+                  {t("hero.subtitle")}
                 </p>
               </div>
               <div className="flex flex-col gap-3 sm:flex-row">
@@ -138,7 +138,7 @@ export default function LandingPage({
                   className="inline-flex min-h-[52px] items-center justify-center gap-2 rounded-2xl border border-white/20 bg-white/8 px-5 text-base font-bold text-white transition hover:bg-white/12 active:scale-[0.98]"
                 >
                   <MapPinned className="h-5 w-5 text-marigold" />
-                  Review case stories
+                  {t("hero.viewIssues")}
                 </button>
               </div>
             </div>
@@ -161,16 +161,16 @@ export default function LandingPage({
         <div className="rounded-3xl border border-hairline bg-white p-4 shadow-[0_12px_42px_-34px_rgba(14,26,43,0.7)] sm:p-5">
           <div className="mb-3 flex items-center justify-between gap-3">
             <div>
-              <h3 className="text-xl font-bold text-ink">Live map</h3>
-              <p className="mt-1 text-base text-[#334155]">Map-first preview of saved pilot cases.</p>
+              <h3 className="text-xl font-bold text-ink">{t("hero.mapTitle")}</h3>
+              <p className="mt-1 text-base text-[#334155]">{t("hero.mapSubtitle")}</p>
             </div>
             {demoIssues.length > 0 && (
               <span className="rounded-lg border border-marigold/30 bg-marigold/10 px-3 py-1 text-sm font-bold text-[#7A4300]">
-                Synthetic demo visible
+                {t("hero.syntheticVisible")}
               </span>
             )}
           </div>
-          <Suspense fallback={<div className="h-[320px] rounded-2xl border border-hairline bg-paper p-4 text-base font-bold text-slate">Loading map...</div>}>
+          <Suspense fallback={<div className="h-[320px] rounded-2xl border border-hairline bg-paper p-4 text-base font-bold text-slate">{t("hero.loadingMap")}</div>}>
             <HomeMap
               issues={visibleIssues}
               onSelectIssue={onSelectIssue}
@@ -183,28 +183,28 @@ export default function LandingPage({
 
       <section className="grid gap-4 md:grid-cols-3">
         <div className="rounded-2xl border border-hairline bg-white p-5 shadow-xs">
-          <p className="text-sm font-bold text-[#334155]">Loaded records</p>
+          <p className="text-sm font-bold text-[#334155]">{t("hero.loadedRecords")}</p>
           <p id="stats-total-reported" className="mt-2 text-4xl font-black text-marigold">{visibleIssues.length}</p>
-          <p className="mt-1 text-base text-[#334155]">Visible records only</p>
+          <p className="mt-1 text-base text-[#334155]">{t("hero.visibleRecords")}</p>
         </div>
         <div className="rounded-2xl border border-hairline bg-white p-5 shadow-xs">
-          <p className="text-sm font-bold text-[#334155]">Active cases</p>
+          <p className="text-sm font-bold text-[#334155]">{t("hero.activeCases")}</p>
           <p id="stats-in-progress" className="mt-2 text-4xl font-black text-[#2563EB]">{activeCount}</p>
-          <p className="mt-1 text-base text-[#334155]">Submitted, verified, or in progress</p>
+          <p className="mt-1 text-base text-[#334155]">{t("hero.activeCasesHint")}</p>
         </div>
         <div className="rounded-2xl border border-hairline bg-white p-5 shadow-xs">
-          <p className="text-sm font-bold text-[#334155]">Resolved records</p>
+          <p className="text-sm font-bold text-[#334155]">{t("hero.resolvedRecords")}</p>
           <p id="stats-resolved" className="mt-2 text-4xl font-black text-verify">{resolvedCount}</p>
-          <p className="mt-1 text-base text-[#334155]">Derived from persisted status</p>
+          <p className="mt-1 text-base text-[#334155]">{t("hero.resolvedHint")}</p>
         </div>
       </section>
 
       <section className="flex flex-col gap-4">
         <div className="flex flex-col justify-between gap-3 sm:flex-row sm:items-end">
           <div>
-            <h3 className="text-2xl font-black text-ink">Case stories</h3>
+            <h3 className="text-2xl font-black text-ink">{t("hero.caseStories")}</h3>
             <p className="mt-1 max-w-3xl text-base leading-relaxed text-[#334155]">
-              Metrics are calculated from the records currently loaded in this prototype, with synthetic demo records labelled separately.
+              {t("hero.metricsNote")}
             </p>
           </div>
           {!showAllDemoData && hiddenDemoCount > 0 && (
@@ -215,7 +215,7 @@ export default function LandingPage({
               className="inline-flex min-h-[44px] items-center justify-center gap-2 rounded-xl border border-hairline bg-white px-4 text-base font-bold text-ink shadow-2xs hover:bg-paper"
             >
               <GitMerge className="h-4 w-4 text-marigold" />
-              Show all demo data ({hiddenDemoCount} hidden)
+              {t("hero.showAllDemo")} ({hiddenDemoCount} hidden)
             </button>
           )}
         </div>
@@ -237,11 +237,11 @@ export default function LandingPage({
               disabled={loadingMoreIssues}
               className="min-h-[44px] rounded-xl border border-hairline bg-white px-4 text-base font-bold text-ink shadow-2xs hover:bg-paper disabled:opacity-60"
             >
-              {loadingMoreIssues ? "Loading more records..." : "Load more saved records"}
+              {loadingMoreIssues ? t("hero.loadingMore") : t("hero.loadMore")}
             </button>
           ) : (
             <p className="text-sm font-medium text-[#334155]">
-              Showing all records loaded by the current query page.
+              {t("hero.showingAll")}
             </p>
           )}
         </div>
@@ -250,7 +250,7 @@ export default function LandingPage({
       <div className="flex items-center justify-center gap-2 py-2 text-center">
         <CheckCircle2 className="h-4 w-4 text-verify" />
         <span className="text-sm font-semibold text-[#334155]">
-          Independent civic pilot. Drafts stay inside CivicLens until a human acts outside the app.
+          {t("app.boundary")}
         </span>
       </div>
     </div>

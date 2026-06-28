@@ -14,6 +14,10 @@ Generated 2026-06-28 from static grep/read-only inspection. No product code was 
 - The submitting screen uses `AgentTraceTimeline` in `local-progress` mode so browser-side save progress is not labeled as a persisted server run.
 - Detail routes can fetch a canonical issue by ID when the record is outside the currently loaded feed page.
 - Operator status transitions require a written rationale before the confirmation action is enabled; the UI no longer auto-fills a generic rationale.
+- The report flow now uses Google Places autocomplete as the primary manual-location search, with curated fallback suggestions only when Places is unavailable.
+- Google sign-in is visible in the account menu and uses popup with redirect fallback; anonymous reporting remains available and operator authorization still resolves server-side.
+- Hindi localization is enabled and persisted for the core public experience; the previous "Hindi coming soon" audit finding is superseded for citizen-facing flows.
+- The issue list no longer uses "File a New Report" copy, and support labels are routed through localization keys.
 
 ## High Severity Findings
 

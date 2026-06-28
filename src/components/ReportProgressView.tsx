@@ -1,5 +1,6 @@
 import React from "react";
 import { Check, Sparkles } from "lucide-react";
+import { useLanguage } from "../context/LanguageContext";
 
 interface ReportProgressViewProps {
   stages: Array<{ label: string; detail: string }>;
@@ -7,6 +8,7 @@ interface ReportProgressViewProps {
 }
 
 export default function ReportProgressView({ stages, currentStageIndex }: ReportProgressViewProps) {
+  const { t } = useLanguage();
   return (
     <div className="flex min-h-[440px] flex-col items-center justify-center gap-6 px-5 py-8 font-sans text-ink">
       <div className="flex flex-col items-center gap-2 text-center">
@@ -16,8 +18,8 @@ export default function ReportProgressView({ stages, currentStageIndex }: Report
             <Sparkles className="h-7 w-7 animate-pulse text-marigold" />
           </div>
         </div>
-        <p className="mt-2 text-xl font-black text-ink">Gemini triage in progress</p>
-        <p className="text-sm font-semibold text-slate">Preparing a draft report...</p>
+        <p className="mt-2 text-xl font-black text-ink">{t("report.submittingTitle")}</p>
+        <p className="text-sm font-semibold text-slate">{t("report.submittingSubtitle")}</p>
       </div>
 
       <div className="flex w-full max-w-sm flex-col gap-3.5 rounded-2xl border border-hairline bg-white p-4 shadow-2xs">
@@ -54,7 +56,7 @@ export default function ReportProgressView({ stages, currentStageIndex }: Report
       </div>
 
       <p className="max-w-sm text-center text-sm italic text-slate">
-        Analyzing report details to categorize and assess.
+        {t("report.submittingFooter")}
       </p>
     </div>
   );

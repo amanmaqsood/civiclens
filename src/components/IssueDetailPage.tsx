@@ -142,17 +142,17 @@ export default function IssueDetailPage({
           </button>
           <div>
             <span className="text-sm font-mono text-slate block">
-              REPORT
+              {t("nav.report").toUpperCase()}
             </span>
             <h2 className="text-sm font-mono font-semibold text-ink">
-              ID: {issue.ticketId}
+              {t("detail.ticketId")}: {issue.ticketId}
             </h2>
           </div>
         </div>
 
         <div className="rounded-xl border border-hairline bg-white px-3 py-2 text-right text-sm font-semibold text-slate shadow-2xs">
-          <span className="block text-ink">English active</span>
-          <span className="block">Hindi coming soon</span>
+          <span className="block text-ink">{t("account.language")}</span>
+          <span className="block">{lang === "hi" ? "हिन्दी सक्रिय" : "English active"}</span>
         </div>
       </div>
 

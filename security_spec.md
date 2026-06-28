@@ -5,7 +5,8 @@ This document records the local rebuild security posture. It is intentionally co
 ## Current Boundary
 
 - Firebase Auth signs visitors in anonymously for low-friction citizen access.
-- Google sign-in support remains in the auth layer, but the public judge menu hides the sign-in action until Firebase Authorized Domains are verified. Anonymous reporting remains available.
+- Google sign-in is exposed in the account menu for verified citizen/operator identity and uses popup with redirect fallback. Anonymous reporting remains available.
+- If Firebase Google provider or Authorized Domains are misconfigured, the app shows an inline sign-in error rather than granting operator permissions.
 - Real operator authorization is resolved on the server from verified allowlist email, custom claim, or configured role source.
 - Public real-operator switching is not available in the UI. The server-reported session decides whether the operator desk is available.
 - Demo operator mode is explicit and request-marked. Demo operators can mutate only documents marked `isDemoData == true`.

@@ -26,34 +26,34 @@ describe("UX redesign contract", () => {
     expect(header).toContain('id="header-account-button"');
     expect(header).toContain('id="account-menu"');
     expect(header).toContain('id="account-auth-error"');
-    expect(header).toContain("Citizen session");
-    expect(header).toContain("Operator access status");
-    expect(header).toContain("Public access");
-    expect(header).toContain("Anonymous reporting is active");
-    expect(header).toContain("Google sign-in is hidden until Firebase Authorized Domains are verified");
+    expect(header).toContain("account.title");
+    expect(header).toContain("account.operatorStatus");
+    expect(header).toContain("account.publicAccess");
+    expect(header).toContain("signInWithGoogle");
+    expect(header).toContain("account.signIn");
     expect(header).toContain("flex flex-nowrap");
-    expect(header).toContain("English active. Hindi coming soon.");
-    expect(header).not.toContain('id="lang-hi-btn"');
-    expect(header).not.toContain('setLanguage("hi")');
+    expect(header).toContain("app.subtitle");
+    expect(header).toContain('id="lang-hi-btn"');
+    expect(header).toContain('setLanguage("hi")');
+    expect(header).toContain("<LogIn");
     expect(header).not.toContain("Google sign-in unavailable");
     expect(header).not.toContain("disabled={!signedInWithGoogle}");
-    expect(header).not.toContain("<LogIn");
   });
 
   it("keeps the landing page map-first and truthful about synthetic demo data", () => {
     const landing = readProjectFile("src/components/LandingPage.tsx");
 
-    expect(landing).toContain("CivicLens Field Command Center");
-    expect(landing).toContain("Review case stories");
-    expect(landing).toContain("Demo stories");
-    expect(landing).toContain("Synthetic demo visible");
+    expect(landing).toContain("hero.title");
+    expect(landing).toContain("hero.viewIssues");
+    expect(landing).toContain("demo.title");
+    expect(landing).toContain("hero.syntheticVisible");
     expect(landing).toContain("slice(0, 3)");
     expect(landing).toContain("defaultStories");
     expect(landing).toContain("visibleIssues.length");
     expect(landing).toContain('id="show-all-demo-data"');
     expect(landing).toContain("isInternalSmokeTestIssue");
-    expect(landing).toContain("They are not live civic complaints");
-    expect(landing).toContain("Independent civic pilot. Drafts stay inside CivicLens until a human acts outside the app.");
+    expect(landing).toContain("demo.banner");
+    expect(landing).toContain("app.boundary");
   });
 
   it("records static-audit release fixes for orphaned actions and inconsistent controls", () => {
@@ -84,34 +84,35 @@ describe("UX redesign contract", () => {
     const clarification = readProjectFile("src/components/ReportClarificationView.tsx");
 
     expect(report).toContain('id="report-stepper"');
-    expect(report).toContain("Use my current location");
+    expect(report).toContain('t("report.useCurrentLocation")');
     expect(report).toContain('id="manual-pin-fallback"');
-    expect(report).toContain("Drop pin manually");
-    expect(report).toContain("Continue with approximate location");
-    expect(report).toContain("Location permission is blocked or unavailable. Search for a location, drop a pin manually, or type a nearby landmark.");
-    expect(report).toContain("MANUAL_LOCATION_SUGGESTIONS");
+    expect(report).toContain("report.manualPinTitle");
+    expect(report).toContain("report.manualPinSub");
+    expect(report).toContain("report.locationFallback");
+    expect(report).toContain("PlacesAutocompleteField");
     expect(report).toContain("Indiranagar Metro Station");
-    expect(report).toContain("manualLocationSuggestions");
-    expect(report).toContain("matches.slice(0, query ? 5 : 3)");
-    expect(report).toContain("handleSelectManualLocation");
-    expect(report).toContain('id="manual-location-search"');
-    expect(report).toContain('id="manual-location-suggestions"');
-    expect(report).toContain("Search location manually");
-    expect(report).toContain("setManualAddress(suggestion.address)");
-    expect(report).toContain("lat: suggestion.lat");
-    expect(report).toContain("lng: suggestion.lng");
-    expect(report).toContain("Use a live photo on site, or upload an existing image from your gallery.");
+    expect(report).not.toContain("manualLocationSuggestions");
+    expect(report).not.toContain("matches.slice(0, query ? 5 : 3)");
+    expect(report).toContain("handleSelectPlace");
+    expect(report).toContain('label={t("report.searchLocation")}');
+    expect(report).toContain('helperText={t("report.placesHelper")}');
+    const placesField = readProjectFile("src/components/PlacesAutocompleteField.tsx");
+    expect(placesField).toContain("PlaceAutocompleteElement");
+    expect(placesField).toContain('includedRegionCodes: ["in"]');
+    expect(placesField).toContain('id = "google-places-autocomplete"');
+    expect(placesField).toContain("fallbackSuggestions");
+    expect(report).toContain('t("report.imageHint")');
     expect(report).toContain('id="report-live-photo-input"');
     expect(report).toContain('id="report-gallery-upload-input"');
-    expect(report).toContain("Take live photo");
-    expect(report).toContain("Upload from gallery");
+    expect(report).toContain("report.takeLivePhoto");
+    expect(report).toContain("report.uploadGallery");
     const reportLiveInput = report.slice(report.indexOf('id="report-live-photo-input"'), report.indexOf('id="report-gallery-upload-input"'));
     const reportGalleryInput = report.slice(report.indexOf('id="report-gallery-upload-input"'), report.indexOf("{!image ?"));
     expect(reportLiveInput).toContain('accept="image/*"');
     expect(reportLiveInput).toContain('capture="environment"');
     expect(reportGalleryInput).toContain('accept="image/*"');
     expect(reportGalleryInput).not.toContain("capture=");
-    expect(clarification).toContain("Low-confidence Gemini triage");
+    expect(clarification).toContain("report.lowConfidence");
   });
 
   it("keeps success copy, persisted agent trace, closure upload choices, and operator demo boundary visible", () => {
@@ -152,22 +153,23 @@ describe("UX redesign contract", () => {
     expect(success).toContain("Pilot record - not a government filing");
   });
 
-  it("keeps incomplete Hindi localization honest instead of exposing a fake toggle", () => {
+  it("enables real Hindi localization and keeps it persistent", () => {
     const languageContext = readProjectFile("src/context/LanguageContext.tsx");
     const header = readProjectFile("src/components/Header.tsx");
     const detail = readProjectFile("src/components/IssueDetailPage.tsx");
     const report = readProjectFile("src/components/ReportPage.tsx");
     const i18n = readProjectFile("src/i18n.ts");
 
-    expect(languageContext).toContain("HINDI_LOCALIZATION_AVAILABLE = false");
-    expect(languageContext).toContain('return lang === "hi" && !HINDI_LOCALIZATION_AVAILABLE ? "en" : lang;');
-    expect(header).toContain("Hindi coming soon");
-    expect(detail).toContain("Hindi coming soon");
-    expect(header).not.toContain('id="lang-hi-btn"');
-    expect(detail).not.toContain('setLang("hi")');
-    expect(report).toContain("English Active");
+    expect(languageContext).toContain("HINDI_LOCALIZATION_AVAILABLE = true");
+    expect(languageContext).toContain('localStorage.setItem("preferred_language", lang)');
+    expect(header).toContain('id="lang-hi-btn"');
+    expect(header).toContain('setLanguage("hi")');
+    expect(detail).not.toContain("Hindi coming soon");
+    expect(report).toContain('t("report.englishActive")');
     expect(report).not.toContain("Hindi active");
-    expect(i18n).toContain("English transcription is active in this build.");
+    expect(i18n).toContain("hi: {");
+    expect(i18n).toContain("app.subtitle");
+    expect(i18n).not.toContain("à¤");
   });
 
   it("keeps duplicate comparison readable and free of corrupted metadata glyphs", () => {

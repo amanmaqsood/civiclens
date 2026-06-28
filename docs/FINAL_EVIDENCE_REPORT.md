@@ -634,6 +634,35 @@ Post Google Doc sync validation:
 - `docs/evidence/README.md` records the real-screenshot capture rules and filenames to use after approved account/deployment actions.
 - The built server starts locally in production mode and serves `/health`; full readiness remains gated by real production secrets.
 
+## Final Places/Auth/Hindi Local Hardening Checkpoint
+
+This checkpoint was performed on 2026-06-28 from the local source after the public Google Doc sync commit `2e350a9`. It did not submit to BlockseBlock, change billing, rotate keys, delete resources, print secret values, or enable App Check enforcement.
+
+Source changes:
+
+- Added Google Places autocomplete for manual report location search, with India-biased predictions when the Places library is available and curated fallback suggestions only when the library or key is unavailable.
+- Restored a visible sticky header subtitle under CivicLens and kept the mobile header compact across the tested viewports.
+- Exposed Google sign-in in the account menu with desktop popup and mobile/popup-blocked redirect fallback while preserving anonymous reporting.
+- Enabled persistent Hindi localization for the core public flow and removed the stale "Hindi coming soon" status from source-facing UI checks.
+- Kept live-photo and gallery-upload inputs separate for report evidence and confirmed the closure evidence uploader already follows the same live/gallery pattern.
+- Updated release-gate E2E coverage for Places predictions, selected-location state, camera/gallery controls, visible Google sign-in, Hindi refresh persistence, sticky header, and responsive accessibility.
+
+Validation:
+
+- `npm ci`: passed; install audit reported 3 moderate dev-dependency vulnerabilities, while production audit below is clean.
+- `npm run lint`: passed.
+- `npm test`: passed (18 files passed, 2 skipped; 82 tests passed, 7 skipped).
+- `npm run build`: passed with the known Firebase chunk-size warning.
+- `npm audit --omit=dev`: passed with 0 vulnerabilities.
+- `npm run test:rules`: passed sequentially (3 tests). An earlier attempt failed because it was run in parallel with another Firestore emulator on port 8080.
+- `npm run test:concurrency`: passed sequentially (4 tests).
+- `npm run test:e2e`: passed (7 Playwright tests). Earlier iterations fixed the Places mock ARIA shape and preserved language preference across reload.
+
+Deployment status:
+
+- The current public Cloud Run revision remains `civiclens-00046-7fn` until a final image is built and deployed from this source.
+- Public deployed verification, evidence screenshots, public Google Doc resync if the draft changes materially after deployment, commit/push, and final rubric scoring remain open.
+
 ## External Blockers
 
 - Explicit user approval is still required before demo video publication, authenticated console screenshot packaging, or hackathon submission.

@@ -1,7 +1,8 @@
 import React, { useEffect, useRef, useState } from "react";
-import { ArrowLeft, BarChart3, ChevronDown, Languages, LogOut, ShieldCheck, UserCircle } from "lucide-react";
+import { ArrowLeft, BarChart3, ChevronDown, Languages, LogIn, LogOut, ShieldCheck, UserCircle } from "lucide-react";
 import { ActiveView } from "../types";
 import { useFirebase } from "../context/FirebaseContext";
+import { useLanguage } from "../context/LanguageContext";
 
 interface HeaderProps {
   currentView: ActiveView;
@@ -12,16 +13,16 @@ interface HeaderProps {
 }
 
 export default function Header({ currentView, onNavigate, persona, onTogglePersona, operatorAccess }: HeaderProps) {
-  const { user, signOutUser, loading } = useFirebase();
+  const { user, signInWithGoogle, signOutUser, loading } = useFirebase();
+  const { language, setLanguage, t } = useLanguage();
   const [accountOpen, setAccountOpen] = useState(false);
   const [accountError, setAccountError] = useState<string | null>(null);
+  const [authActionPending, setAuthActionPending] = useState(false);
   const accountMenuRef = useRef<HTMLDivElement>(null);
   const signedInWithGoogle = !!user && !user.isAnonymous;
   const canShowOperatorDesk = operatorAccess !== "none";
-  const citizenSessionLabel = signedInWithGoogle ? "Google signed in" : user ? "Anonymous active" : "Starting session";
+  const citizenSessionLabel = signedInWithGoogle ? t("account.googleSignedIn") : user ? t("account.anonymousActive") : t("account.starting");
   const operatorAccessLabel = operatorAccess === "real" ? "real" : operatorAccess === "demo" ? "demo" : "none";
-  const anonymousSessionDescription =
-    "Anonymous reporting is active for the public judge build. Google sign-in is hidden until Firebase Authorized Domains are verified.";
 
   useEffect(() => {
     if (!accountOpen) return;
@@ -45,14 +46,19 @@ export default function Header({ currentView, onNavigate, persona, onTogglePerso
 
   const handleAuthAction = async () => {
     setAccountError(null);
+    setAuthActionPending(true);
     try {
       if (signedInWithGoogle) {
         await signOutUser();
-      } else return;
-      setAccountOpen(false);
-    } catch {
+        setAccountOpen(false);
+      } else {
+        await signInWithGoogle();
+      }
+    } catch (error) {
       setAccountOpen(true);
-      setAccountError("Sign out could not complete. Please check your connection and try again.");
+      setAccountError(signedInWithGoogle ? t("account.signOutError") : t("account.signInError"));
+    } finally {
+      setAuthActionPending(false);
     }
   };
 
@@ -86,12 +92,8 @@ export default function Header({ currentView, onNavigate, persona, onTogglePerso
             <h1 className="flex truncate text-lg font-black tracking-normal text-white sm:text-xl">
               Civic<span className="text-marigold">Lens</span>
             </h1>
-            <p className="hidden truncate text-sm font-medium leading-tight text-[#94a3b8] sm:block">
-              {persona === "citizen"
-                ? "CivicLens field reports"
-                : operatorAccess === "real"
-                  ? "Server-authorized operator"
-                  : "Synthetic demo desk"}
+            <p className="block max-w-[12.5rem] truncate text-xs font-medium leading-tight text-[#CBD5E1] sm:max-w-[18rem] sm:text-sm lg:max-w-[28rem]">
+              {persona === "citizen" ? t("app.subtitle") : operatorAccess === "real" ? "Server-authorized operator" : "Synthetic demo desk"}
             </p>
           </div>
         </div>
@@ -138,7 +140,7 @@ export default function Header({ currentView, onNavigate, persona, onTogglePerso
             aria-label="Open impact dashboard"
           >
             <BarChart3 className="h-3.5 w-3.5" />
-            <span className="hidden text-sm font-bold sm:inline">Stats</span>
+            <span className="hidden text-sm font-bold sm:inline">{t("nav.stats")}</span>
           </button>
         )}
 
@@ -154,8 +156,8 @@ export default function Header({ currentView, onNavigate, persona, onTogglePerso
                 setAccountOpen((open) => !open);
               }}
               className="flex min-h-[44px] items-center gap-2 rounded-lg border border-white/10 bg-white/5 px-2 py-1 text-paper transition-colors hover:bg-white/10 hover:text-white"
-              title="Open account menu"
-              aria-label="Open account menu"
+              title={t("account.open")}
+              aria-label={t("account.open")}
               aria-haspopup="dialog"
               aria-expanded={accountOpen}
               aria-controls="account-menu"
@@ -175,7 +177,7 @@ export default function Header({ currentView, onNavigate, persona, onTogglePerso
                 <div className="flex items-start gap-2 rounded-xl bg-paper p-3">
                   <UserCircle className="mt-0.5 h-5 w-5 shrink-0 text-marigold" />
                   <div>
-                    <p className="text-sm font-black text-ink">Citizen session</p>
+                    <p className="text-sm font-black text-ink">{t("account.title")}</p>
                     <p className="mt-0.5 text-sm font-semibold text-[#334155]">{citizenSessionLabel}</p>
                   </div>
                 </div>
@@ -183,29 +185,48 @@ export default function Header({ currentView, onNavigate, persona, onTogglePerso
                 <div className="mt-2 flex items-start gap-2 rounded-xl border border-hairline p-3">
                   <ShieldCheck className="mt-0.5 h-5 w-5 shrink-0 text-[#0F766E]" />
                   <div>
-                    <p className="text-sm font-black text-ink">Operator access status: {operatorAccessLabel}</p>
+                    <p className="text-sm font-black text-ink">{t("account.operatorStatus")}: {operatorAccessLabel}</p>
                     <p className="mt-0.5 text-sm leading-relaxed text-[#334155]">
-                      Demo operator actions are limited to synthetic cases; real operator actions require server authorization.
+                      {t("account.operatorHelp")}
                     </p>
                   </div>
                 </div>
 
                 <div className="mt-2 flex items-start gap-2 rounded-xl border border-hairline p-3">
                   <Languages className="mt-0.5 h-5 w-5 shrink-0 text-[#0F766E]" />
-                  <div>
-                    <p className="text-sm font-black text-ink">Language</p>
-                    <p className="mt-0.5 text-sm leading-relaxed text-[#334155]">
-                      English active. Hindi coming soon.
-                    </p>
+                  <div className="min-w-0 flex-1">
+                    <p className="text-sm font-black text-ink">{t("account.language")}</p>
+                    <div className="mt-2 grid grid-cols-2 gap-2" role="group" aria-label="Language">
+                      <button
+                        id="lang-en-btn"
+                        type="button"
+                        onClick={() => setLanguage("en")}
+                        aria-pressed={language === "en"}
+                        className={`min-h-[44px] rounded-xl px-3 text-sm font-bold ${
+                          language === "en" ? "bg-ink text-white" : "border border-hairline bg-white text-ink"
+                        }`}
+                      >
+                        {t("account.english")}
+                      </button>
+                      <button
+                        id="lang-hi-btn"
+                        type="button"
+                        onClick={() => setLanguage("hi")}
+                        aria-pressed={language === "hi"}
+                        className={`min-h-[44px] rounded-xl px-3 text-sm font-bold ${
+                          language === "hi" ? "bg-ink text-white" : "border border-hairline bg-white text-ink"
+                        }`}
+                      >
+                        {t("account.hindi")}
+                      </button>
+                    </div>
                   </div>
                 </div>
 
                 <div className="mt-2 rounded-xl border border-hairline p-3">
-                  <p className="text-sm font-black text-ink">{signedInWithGoogle ? "Google session" : "Public access"}</p>
+                  <p className="text-sm font-black text-ink">{signedInWithGoogle ? t("account.googleSession") : t("account.publicAccess")}</p>
                   <p className="mt-0.5 text-sm leading-relaxed text-[#334155]">
-                    {signedInWithGoogle
-                      ? "You can sign out of the Google session. Anonymous reporting remains available after sign-out."
-                      : anonymousSessionDescription}
+                    {signedInWithGoogle ? t("account.googleActiveHelp") : t("account.googleHelp")}
                   </p>
                   {accountError && (
                     <p
@@ -216,16 +237,15 @@ export default function Header({ currentView, onNavigate, persona, onTogglePerso
                       {accountError}
                     </p>
                   )}
-                  {signedInWithGoogle && (
-                    <button
-                      type="button"
-                      onClick={handleAuthAction}
-                      className="mt-3 inline-flex min-h-[44px] w-full items-center justify-center gap-2 rounded-xl bg-ink px-4 text-base font-bold text-white hover:bg-[#1f314d]"
-                    >
-                      <LogOut className="h-4 w-4 text-marigold" />
-                      Sign out
-                    </button>
-                  )}
+                  <button
+                    type="button"
+                    onClick={handleAuthAction}
+                    disabled={authActionPending}
+                    className="mt-3 inline-flex min-h-[44px] w-full items-center justify-center gap-2 rounded-xl bg-ink px-4 text-base font-bold text-white hover:bg-[#1f314d] disabled:cursor-wait disabled:opacity-70"
+                  >
+                    {signedInWithGoogle ? <LogOut className="h-4 w-4 text-marigold" /> : <LogIn className="h-4 w-4 text-marigold" />}
+                    {authActionPending ? t("account.signingIn") : signedInWithGoogle ? t("account.signOut") : t("account.signIn")}
+                  </button>
                 </div>
               </div>
             )}

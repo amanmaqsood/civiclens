@@ -970,5 +970,36 @@ Decisions:
 - Did not submit to BlockseBlock, change billing, delete resources, rotate keys, print secret values, or enable App Check enforcement.
 - Left the public Google Doc open in the authenticated Chrome session as the handoff page.
 
+## Final Places/Auth/Hindi Local Hardening Checkpoint
+Status: local source/docs hardening in progress on 2026-06-28; not yet deployed in this checkpoint
+
+Files changed:
+- `src/components/PlacesAutocompleteField.tsx` and `src/components/ReportPage.tsx`: added Google Places autocomplete as the primary manual location search path, India-biased when available, with curated fallback suggestions only for unavailable Places/key states.
+- `src/components/Header.tsx` and `src/context/FirebaseContext.tsx`: restored a visible sticky header subtitle, exposed Google sign-in in the account menu, and added popup plus redirect fallback handling.
+- `src/context/LanguageContext.tsx`, `src/i18n.ts`, and public components: enabled persisted Hindi localization across the core public flow and removed the previous Hindi-coming-soon source state.
+- `src/components/IssueListWithFilter.tsx`: removed the "File a New Report" empty-state wording and localized support/list labels.
+- `e2e/release-gates.pw.ts` and `src/ux-redesign.test.ts`: added regression coverage for Places autocomplete, selected-location updates, live/gallery upload controls, visible sign-in, Hindi persistence after refresh, sticky header behavior, and responsive axe checks.
+- `README.md`, `security_spec.md`, `docs/GOOGLE_DOC_DRAFT.md`, `docs/FINAL_EVIDENCE_REPORT.md`, `ATTRIBUTIONS.md`, and `audit.md`: updated current-source wording for Places, sign-in, Hindi, and the local validation evidence.
+
+Validation commands:
+- `npm ci`: passed; install audit reported 3 moderate dev-dependency vulnerabilities, while production audit is clean.
+- `npm run lint`: passed.
+- `npm test`: passed (18 files passed, 2 skipped; 82 tests passed, 7 skipped).
+- `npm run build`: passed with the known Firebase chunk-size warning.
+- `npm audit --omit=dev`: passed with 0 vulnerabilities.
+- `npm run test:rules`: passed on the final sequential gate (3 tests). An earlier attempt failed because it was run in parallel with another Firestore emulator on port 8080.
+- `npm run test:concurrency`: passed sequentially (4 tests).
+- `npm run test:e2e`: passed (7 Playwright tests).
+
+Decisions:
+- Kept App Check enforcement disabled and documented truthfully for judge access.
+- Did not rotate keys, change billing, delete resources, expose secrets, or submit to BlockseBlock.
+- Kept curated manual location suggestions as fallback only; the primary manual search path is Google Places autocomplete.
+- Preserved server-side operator authorization even though Google sign-in is now visible.
+
+Remaining risks:
+- The public Cloud Run revision remains `civiclens-00046-7fn` until the final image is built and deployed.
+- Public verification, safe evidence screenshots, Google Doc resync if the draft changes materially after deployment, commit/push, and final scoring remain open.
+
 ## Next milestone
 External approval/credential step: optionally capture additional authenticated console screenshots or publish a demo video, then submit only after explicit user approval. Do not enable App Check enforcement until real public browser App Check tokens are verified.

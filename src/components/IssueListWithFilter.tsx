@@ -50,7 +50,7 @@ export default function IssueListWithFilter({
         <Search className="absolute left-3.5 top-1/2 h-3.5 w-3.5 -translate-y-1/2 text-slate" />
         <input
           type="text"
-          placeholder="Search registered incidents..."
+          placeholder={t("card.search")}
           value={searchTerm}
           onChange={(event) => setSearchTerm(event.target.value)}
           className="min-h-[44px] w-full rounded-xl border border-hairline bg-white py-2.5 pl-10 pr-4 text-base text-ink shadow-2xs outline-none transition-colors placeholder:text-slate/60 focus:border-marigold focus:ring-1 focus:ring-marigold"
@@ -77,8 +77,8 @@ export default function IssueListWithFilter({
       </div>
 
       <div className="flex items-center justify-between px-1 text-sm font-bold text-[#334155]">
-        <span>Reports</span>
-        <span>{filteredIssues.length} matching</span>
+        <span>{t("card.reports")}</span>
+        <span>{filteredIssues.length} {t("card.matching")}</span>
       </div>
 
       <div className="flex flex-col gap-3">
@@ -104,14 +104,14 @@ export default function IssueListWithFilter({
           ))
         ) : filteredIssues.length === 0 ? (
           <div className="flex flex-col items-center gap-3 rounded-2xl border border-hairline bg-white p-6 text-center shadow-xs">
-            <p className="text-sm font-medium text-[#334155]">No active records match the filter.</p>
+            <p className="text-sm font-medium text-[#334155]">{t("card.empty")}</p>
             {onNavigateToReport && (
               <button
                 type="button"
                 onClick={onNavigateToReport}
                 className="min-h-[44px] rounded-xl bg-marigold px-4 py-2 text-base font-bold text-ink shadow-3xs hover:bg-marigold/90"
               >
-                File a New Report
+                {t("card.saveNew")}
               </button>
             )}
           </div>
@@ -203,13 +203,7 @@ export default function IssueListWithFilter({
                     <span>
                       {upvoteLoadingId === issue.id
                         ? "..."
-                        : `${issue.citizenUpvotes} ${
-                            language === "hi"
-                              ? "Support"
-                              : issue.citizenUpvotes === 1
-                                ? "Support"
-                                : "Supports"
-                          }`}
+                        : `${issue.citizenUpvotes} ${language === "hi" ? t("card.support") : issue.citizenUpvotes === 1 ? "Support" : "Supports"}`}
                     </span>
                   </button>
                 </div>

@@ -138,7 +138,7 @@ export default function LandingPage({
                   className="inline-flex min-h-[52px] items-center justify-center gap-2 rounded-2xl border border-white/20 bg-white/8 px-5 text-base font-bold text-white transition hover:bg-white/12 active:scale-[0.98]"
                 >
                   <MapPinned className="h-5 w-5 text-marigold" />
-                  Review map cases
+                  Review case stories
                 </button>
               </div>
             </div>

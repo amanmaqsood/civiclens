@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useRef } from "react";
+import React, { useState, useEffect, useMemo, useRef } from "react";
 import { Camera, ImagePlus, MapPin, MapPinned, Trash2, CheckCircle2, ChevronRight, Loader2, Mic, MicOff, ArrowLeft } from "lucide-react";
 import { IssueReport } from "../types";
 import { getCurrentLocation, LocationData } from "../utils/location";
@@ -31,8 +31,69 @@ const categoryMap: Record<string, string> = {
 
 const serverCategories = ["pothole", "water_leak", "streetlight", "waste", "drainage", "road_damage", "other"];
 
+const LOCATION_PERMISSION_FALLBACK_COPY =
+  "Location permission is blocked or unavailable. Search for a location, drop a pin manually, or type a nearby landmark.";
+
+type ManualLocationSuggestion = {
+  label: string;
+  address: string;
+  lat: number;
+  lng: number;
+};
+
+const MANUAL_LOCATION_SUGGESTIONS: ManualLocationSuggestion[] = [
+  {
+    label: "Indiranagar Metro Station",
+    address: "Indiranagar Metro Station, CMH Road, Bengaluru",
+    lat: 12.97837,
+    lng: 77.64084,
+  },
+  {
+    label: "Koramangala BDA Complex",
+    address: "Koramangala BDA Complex, 3rd Block, Bengaluru",
+    lat: 12.93462,
+    lng: 77.62212,
+  },
+  {
+    label: "Jayanagar 4th Block",
+    address: "Jayanagar 4th Block, Bengaluru",
+    lat: 12.92501,
+    lng: 77.5938,
+  },
+  {
+    label: "MG Road Metro Station",
+    address: "MG Road Metro Station, Bengaluru",
+    lat: 12.97557,
+    lng: 77.60684,
+  },
+  {
+    label: "Hebbal Flyover",
+    address: "Hebbal Flyover, Outer Ring Road, Bengaluru",
+    lat: 13.03576,
+    lng: 77.59702,
+  },
+  {
+    label: "Whitefield Main Road",
+    address: "Whitefield Main Road, Bengaluru",
+    lat: 12.9698,
+    lng: 77.75,
+  },
+  {
+    label: "Yeshwanthpur Railway Station",
+    address: "Yeshwanthpur Railway Station, Bengaluru",
+    lat: 13.02383,
+    lng: 77.55092,
+  },
+  {
+    label: "Banashankari Bus Station",
+    address: "Banashankari TTMC Bus Station, Bengaluru",
+    lat: 12.91766,
+    lng: 77.57357,
+  },
+];
+
 export default function ReportPage({ onBack, onSubmit, prefilledLocation, prefilledData }: ReportPageProps) {
-  const { language, t } = useLanguage();
+  const { t } = useLanguage();
   const [image, setImage] = useState<string | null>(prefilledData?.image || null);
   const [description, setDescription] = useState(prefilledData?.description || prefilledData?.summary || "");
   const [location, setLocation] = useState<LocationData | null>(
@@ -73,6 +134,19 @@ export default function ReportPage({ onBack, onSubmit, prefilledLocation, prefil
   const liveFileInputRef = useRef<HTMLInputElement>(null);
   const galleryFileInputRef = useRef<HTMLInputElement>(null);
 
+  const manualLocationSuggestions = useMemo(() => {
+    const query = manualAddress.trim().toLowerCase();
+    const matches = query
+      ? MANUAL_LOCATION_SUGGESTIONS.filter(
+          (suggestion) =>
+            suggestion.label.toLowerCase().includes(query) ||
+            suggestion.address.toLowerCase().includes(query)
+        )
+      : MANUAL_LOCATION_SUGGESTIONS;
+
+    return matches.slice(0, query ? 5 : 3);
+  }, [manualAddress]);
+
   const stages = [
     { label: "Evidence Optimization", detail: "Compressing proof photo client-side..." },
     { label: "Preparing evidence", detail: "Preparing evidence for the prototype report..." },
@@ -83,9 +157,9 @@ export default function ReportPage({ onBack, onSubmit, prefilledLocation, prefil
 
   useEffect(() => {
     if (recognitionRef.current) {
-      recognitionRef.current.lang = language === "hi" ? "hi-IN" : "en-IN";
+      recognitionRef.current.lang = "en-IN";
     }
-  }, [language]);
+  }, []);
 
   useEffect(() => {
     if (!prefilledLocation) {
@@ -97,7 +171,7 @@ export default function ReportPage({ onBack, onSubmit, prefilledLocation, prefil
       const rec = new SpeechRec();
       rec.continuous = false;
       rec.interimResults = false;
-      rec.lang = language === "hi" ? "hi-IN" : "en-IN";
+      rec.lang = "en-IN";
       rec.onstart = () => setIsListening(true);
       rec.onend = () => setIsListening(false);
       rec.onresult = (e: any) => {
@@ -131,6 +205,16 @@ export default function ReportPage({ onBack, onSubmit, prefilledLocation, prefil
       addressPlaceholder: "Approximate manual map pin near Bengaluru center",
     });
     setManualAddress((current) => current || "Approximate manual map pin near Bengaluru center");
+    setLocError(null);
+  };
+
+  const handleSelectManualLocation = (suggestion: ManualLocationSuggestion) => {
+    setManualAddress(suggestion.address);
+    setLocation({
+      lat: suggestion.lat,
+      lng: suggestion.lng,
+      addressPlaceholder: suggestion.address,
+    });
     setLocError(null);
   };
 
@@ -470,7 +554,7 @@ export default function ReportPage({ onBack, onSubmit, prefilledLocation, prefil
           )}
           {!locLoading && locError && (
             <span className="text-alert flex items-center gap-1">
-              Location permission is blocked or unavailable. Drop a pin manually or type a nearby landmark.
+              {LOCATION_PERMISSION_FALLBACK_COPY}
             </span>
           )}
           {!locLoading && !location && !locError && (
@@ -531,13 +615,54 @@ export default function ReportPage({ onBack, onSubmit, prefilledLocation, prefil
             </button>
           </div>
         )}
-        <input
-          type="text"
-          value={manualAddress}
-          onChange={(e) => setManualAddress(e.target.value)}
-          placeholder="Or type descriptive location e.g. Indiranagar, Metro Station"
-          className="min-h-[44px] w-full text-base border border-hairline bg-white p-3 rounded-xl focus:outline-none focus:border-marigold focus:ring-1 focus:ring-marigold"
-        />
+        <div className="flex flex-col gap-2">
+          <label htmlFor="manual-location-search" className="text-base font-bold text-ink">
+            Search location manually
+          </label>
+          <input
+            id="manual-location-search"
+            type="text"
+            role="combobox"
+            value={manualAddress}
+            onChange={(e) => setManualAddress(e.target.value)}
+            placeholder="Type a nearby landmark, road, or neighbourhood"
+            className="min-h-[44px] w-full rounded-xl border border-hairline bg-white p-3 text-base text-ink focus:border-marigold focus:outline-none focus:ring-1 focus:ring-marigold"
+            aria-autocomplete="list"
+            aria-controls="manual-location-suggestions"
+            aria-expanded={manualLocationSuggestions.length > 0}
+          />
+          <div
+            id="manual-location-suggestions"
+            role="listbox"
+            className="grid gap-2"
+            aria-label="Manual location suggestions"
+          >
+            {manualLocationSuggestions.length > 0 ? (
+              manualLocationSuggestions.map((suggestion) => (
+                <button
+                  key={suggestion.address}
+                  type="button"
+                  role="option"
+                  aria-selected={manualAddress === suggestion.address}
+                  onClick={() => handleSelectManualLocation(suggestion)}
+                  className="flex min-h-[52px] items-center justify-between gap-3 rounded-xl border border-hairline bg-white p-3 text-left text-ink shadow-2xs transition hover:border-marigold/50 hover:bg-marigold/5"
+                >
+                  <span className="min-w-0">
+                    <span className="block text-base font-bold">{suggestion.label}</span>
+                    <span className="block truncate text-sm font-medium text-[#334155]">{suggestion.address}</span>
+                  </span>
+                  <span className="shrink-0 rounded-lg bg-paper px-2 py-1 text-sm font-bold text-[#334155]">
+                    Use
+                  </span>
+                </button>
+              ))
+            ) : (
+              <p className="rounded-xl border border-dashed border-hairline bg-white p-3 text-sm leading-relaxed text-[#334155]">
+                No saved suggestion matches yet. You can continue with the typed landmark or use the approximate pin.
+              </p>
+            )}
+          </div>
+        </div>
       </div>
 
       {/* Voice Input Block */}
@@ -549,9 +674,7 @@ export default function ReportPage({ onBack, onSubmit, prefilledLocation, prefil
             </span>
             <div className="flex items-center gap-1.5">
               <span className="w-1.5 h-1.5 rounded-full bg-marigold animate-ping" />
-              <span className="text-sm font-mono text-[#334155] font-bold">
-                {language === "hi" ? "Hindi active" : "English Active"}
-              </span>
+              <span className="text-sm font-mono text-[#334155] font-bold">English Active</span>
             </div>
           </div>
           
@@ -571,12 +694,12 @@ export default function ReportPage({ onBack, onSubmit, prefilledLocation, prefil
             {isListening ? (
               <>
                 <MicOff className="w-4 h-4 text-white animate-spin" />
-                <span>{language === "hi" ? "Stop recording..." : "Stop Recording..."}</span>
+                <span>Stop Recording...</span>
               </>
             ) : (
               <>
                 <Mic className="w-4 h-4 text-marigold" />
-                <span>{language === "hi" ? "Start voice dictation" : "Start Voice Dictation"}</span>
+                <span>Start Voice Dictation</span>
               </>
             )}
           </button>

@@ -13,7 +13,7 @@ export default function FloatingReportAction({
   persona,
   onNavigate,
 }: FloatingReportActionProps) {
-  const hiddenForViews: ActiveView[] = ["report", "submitting", "duplicate", "success"];
+  const hiddenForViews: ActiveView[] = ["landing", "report", "submitting", "duplicate", "success", "dashboard"];
   if (persona !== "citizen" || hiddenForViews.includes(currentView)) return null;
 
   return (

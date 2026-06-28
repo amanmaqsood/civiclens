@@ -2,6 +2,11 @@ import React, { createContext, useContext, useState } from "react";
 import { translations } from "../i18n";
 
 export type Language = "en" | "hi";
+export const HINDI_LOCALIZATION_AVAILABLE = false;
+
+function normalizeLanguage(lang: Language): Language {
+  return lang === "hi" && !HINDI_LOCALIZATION_AVAILABLE ? "en" : lang;
+}
 
 interface LanguageContextProps {
   language: Language;
@@ -14,12 +19,13 @@ const LanguageContext = createContext<LanguageContextProps | undefined>(undefine
 export function LanguageProvider({ children }: { children: React.ReactNode }) {
   const [language, setLanguageState] = useState<Language>(() => {
     const saved = localStorage.getItem("preferred_language");
-    return (saved === "hi" ? "hi" : "en") as Language;
+    return normalizeLanguage(saved === "hi" ? "hi" : "en");
   });
 
   const setLanguage = (lang: Language) => {
-    setLanguageState(lang);
-    localStorage.setItem("preferred_language", lang);
+    const nextLanguage = normalizeLanguage(lang);
+    setLanguageState(nextLanguage);
+    localStorage.setItem("preferred_language", nextLanguage);
   };
 
   const t = (key: string): string => {

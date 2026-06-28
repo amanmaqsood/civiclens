@@ -240,7 +240,8 @@ for (const viewport of [
     if (viewport.name === "mobile") {
       await expect(page.locator("#mobile-bottom-nav")).toBeVisible();
       await expect(page.locator("#mobile-bottom-nav")).toHaveCSS("position", "fixed");
-      await expect(page.locator("#floating-report-cta")).toBeVisible();
+      await expect(page.locator("#floating-report-cta")).toHaveCount(0);
+      await expect(page.locator("#mobile-bottom-nav").getByRole("button", { name: "Report" })).toBeVisible();
       const bottomNavBox = await page.locator("#mobile-bottom-nav").boundingBox();
       expect(bottomNavBox?.y || 0).toBeGreaterThan(0);
       expect((bottomNavBox?.y || 0) + (bottomNavBox?.height || 0)).toBeLessThanOrEqual(viewport.height + 2);
@@ -270,7 +271,7 @@ test("mobile report flow exposes stepper, location denial, and manual pin fallba
   });
   await preparePage(page, { width: 390, height: 844 });
 
-  await page.locator("#floating-report-cta").click();
+  await page.locator("#mobile-bottom-nav").getByRole("button", { name: "Report" }).click();
   await expect(page.locator("#report-stepper")).toBeVisible();
   await expect(page.getByRole("button", { name: "Take live photo" })).toBeVisible();
   await expect(page.getByRole("button", { name: "Upload from gallery" })).toBeVisible();
@@ -289,9 +290,15 @@ test("mobile report flow exposes stepper, location denial, and manual pin fallba
   await expect(page.getByAltText("Civic preview")).toBeVisible();
 
   await expect(page.getByRole("button", { name: /Use my current location/i })).toBeVisible();
-  await expect(page.getByText("Location permission is blocked or unavailable. Drop a pin manually or type a nearby landmark.")).toBeVisible();
+  await expect(page.getByText("Location permission is blocked or unavailable. Search for a location, drop a pin manually, or type a nearby landmark.")).toBeVisible();
   await expect(page.locator("#manual-pin-fallback")).toBeVisible();
   await page.getByRole("button", { name: /Drop pin manually/i }).click();
+  await expect(page.getByText("Coordinates locked.")).toBeVisible();
+  await expect(page.locator("#manual-location-search")).toBeVisible();
+  await page.locator("#manual-location-search").fill("Indira");
+  await expect(page.getByRole("option", { name: /Indiranagar Metro Station/i })).toBeVisible();
+  await page.getByRole("option", { name: /Indiranagar Metro Station/i }).click();
+  await expect(page.locator("#manual-location-search")).toHaveValue("Indiranagar Metro Station, CMH Road, Bengaluru");
   await expect(page.getByText("Coordinates locked.")).toBeVisible();
   await expectHeaderPinnedAfterScroll(page);
   await expectNoHorizontalOverflow(page);
@@ -310,12 +317,14 @@ test("header account menu explains citizen session and operator access", async (
 
   await expect(page.locator("#account-menu")).toBeVisible();
   await expect(page.getByText("Citizen session")).toBeVisible();
-  await expect(page.getByText("Sign in with Google").first()).toBeVisible();
+  await expect(page.getByText("Public access")).toBeVisible();
+  await expect(page.getByText("Google sign-in is hidden until Firebase Authorized Domains are verified")).toBeVisible();
+  await expect(page.getByText("Language")).toBeVisible();
+  await expect(page.getByText("English active. Hindi coming soon.")).toBeVisible();
   await expect(page.getByText(/Operator access status: (none|demo|real)/)).toBeVisible();
-  await expect(page.locator("#account-menu button")).toHaveCount(1);
-  await expect(page.getByRole("button", { name: "Google sign-in unavailable" })).toBeDisabled();
-  await expect(page.locator("#account-auth-error")).toBeVisible();
-  await expect(page.locator("#account-auth-error")).toContainText("Anonymous reporting still works");
+  await expect(page.locator("#account-menu button")).toHaveCount(0);
+  await expect(page.getByRole("button", { name: "Google sign-in unavailable" })).toHaveCount(0);
+  await expect(page.locator("#account-auth-error")).toHaveCount(0);
 
   await page.keyboard.press("Escape");
   await expect(page.locator("#account-menu")).toHaveCount(0);
@@ -325,8 +334,8 @@ test("header account menu explains citizen session and operator access", async (
   await expect(page.locator("#account-menu")).toHaveCount(0);
 
   await page.locator("#header-account-button").click();
-  await expect(page.getByRole("button", { name: "Google sign-in unavailable" })).toBeDisabled();
-  await expect(page.locator("#account-auth-error")).toBeVisible();
+  await expect(page.getByRole("button", { name: "Google sign-in unavailable" })).toHaveCount(0);
+  await expect(page.locator("#account-auth-error")).toHaveCount(0);
 });
 
 test("persisted agent run remains visible after refresh", async ({ page }) => {

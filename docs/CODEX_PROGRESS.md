@@ -820,5 +820,57 @@ Remaining risks:
 - Demo video publication, authenticated console screenshot capture, and BlockseBlock submission require user/account approval before final submission actions.
 - Production App Check enforcement requires a Firebase App Check site key and verified public browser tokens before enabling `CIVICLENS_REQUIRE_APP_CHECK=true`.
 
+## Final Hardening Static Audit Checkpoint
+Status: local source/docs hardening started on 2026-06-28; not deployed in this checkpoint
+
+Files changed:
+- `audit.md`: added a static UI/flow audit covering inconsistent buttons, orphaned actions, duplicate components, risky mobile/operator flows, copy drift, touch targets, demo controls, and clipboard handling.
+- `src/components/AppBottomNav.tsx` and `src/components/FloatingReportAction.tsx`: made mobile operator persona switching choose an intentional landing route and hid the floating report CTA where landing/bottom-nav CTAs already exist.
+- `src/components/Header.tsx` and `security_spec.md`: removed the dead public Google sign-in CTA while preserving anonymous reporting and documenting that sign-in remains hidden until Firebase Authorized Domains are verified.
+- `src/components/OperatorDetailView.tsx`, `src/components/AutoEscalationPanel.tsx`, `src/components/ResolutionPlanWidget.tsx`, and `src/components/SuccessPage.tsx`: replaced blocking or silent failure paths with inline alert/error feedback.
+- `src/components/IssueFeed.tsx`: removed the unused duplicate issue-feed component.
+- `src/constants/status.ts`, `src/components/IssueListWithFilter.tsx`, and `src/components/OperatorQueue.tsx`: centralized status tone classes and made citizen support terminology consistent.
+- `src/components/Onboarding.tsx` and `src/components/DuplicateCheckPage.tsx`: improved touch targets and readable button text for release-facing flows.
+- `src/ux-redesign.test.ts`: added regression guards for the static-audit fixes.
+
+Validation commands:
+- `npm run lint`: passed.
+- `npm test`: passed (18 files passed, 2 skipped; 80 tests passed, 7 skipped).
+- `npm run build`: passed with the known Firebase chunk-size and `src/services/issues.ts` mixed static/dynamic import warnings.
+- `npm audit --omit=dev`: passed with 0 vulnerabilities.
+
+Remaining risks:
+- This checkpoint has not yet completed location search suggestions, full Hindi localization, mobile header redesign, deployed Cloud Run verification, evidence screenshots, Google Doc sync, or final scoring.
+- The current Cloud Run revision remains the previously deployed `civiclens-00044-d5l` until a later approved deploy.
+
+## Final Hardening UX Continuation Checkpoint
+Status: local UX/source hardening completed on 2026-06-28; not committed or deployed in this checkpoint
+
+Files changed:
+- `src/components/ReportPage.tsx`: added curated Bengaluru manual location suggestions with combobox/listbox semantics, exact GPS-denied fallback copy, selectable address/coordinate updates, and English-only voice copy while Hindi localization is incomplete.
+- `src/context/LanguageContext.tsx`, `src/components/Header.tsx`, `src/components/IssueDetailPage.tsx`, and `src/i18n.ts`: disabled the partial Hindi toggle honestly, normalized stale saved Hindi preferences back to English, and surfaced "English active. Hindi coming soon." in judge-facing status UI.
+- `src/components/Header.tsx`: changed the mobile header to a no-wrap compact row, removed the public dead Google sign-in control, and kept account/session/operator status in the menu.
+- `src/components/DuplicateCheckPage.tsx`, `src/components/AutoEscalationPanel.tsx`, `src/components/ResolutionPlanWidget.tsx`, `src/components/PriorityBreakdownWidget.tsx`, and `src/components/Onboarding.tsx`: raised important mobile text sizes, removed corrupted glyphs, and kept critical actions at 44px or larger.
+- `e2e/release-gates.pw.ts` and `src/ux-redesign.test.ts`: updated tests for bottom-nav report flow, hidden floating CTA on landing, manual location suggestions, the removed fake sign-in action, the honest Hindi-coming-soon state, and readable duplicate comparison copy.
+
+Validation commands:
+- `npm ci`: passed; install audit still reports 3 moderate dev-dependency vulnerabilities, while production audit is clean.
+- `npm run lint`: passed after the final source/test changes.
+- `npm test`: passed after the final source/test changes (18 files passed, 2 skipped; 82 tests passed, 7 skipped).
+- `npm run build`: passed after the final source/test changes with the known Firebase chunk-size warning.
+- `npm audit --omit=dev`: passed with 0 vulnerabilities.
+- `npm run test:rules`: passed (3 tests). Expected emulator rule-denial warnings appeared during negative security cases.
+- `npm run test:concurrency`: initially conflicted with the parallel rules emulator on port 8080, then passed on rerun (4 tests).
+- `npm run test:e2e`: initially failed on stale expectations for the removed floating CTA/sign-in control and then on combobox accessibility; after updating the tests and ARIA semantics it passed (7 Playwright tests).
+
+Decisions:
+- Did not enable Google Places or mutate Google Cloud key/API settings from code. The report flow now uses a safe curated fallback because the current Maps code loads only Maps JavaScript, not the Places library.
+- Chose the honest Hindi-coming-soon path rather than shipping a fake partial localization toggle.
+- Kept Google sign-in hidden for the public judge build until Firebase Authorized Domains are verified; anonymous reporting remains the public path.
+
+Remaining risks:
+- These changes are still local and uncommitted.
+- The current Cloud Run revision remains `civiclens-00044-d5l`; public deployed verification, final screenshots, Google Doc sync if needed, commit, push, and final scoring remain open.
+
 ## Next milestone
 External approval/credential step: optionally capture additional authenticated console screenshots or publish a demo video, then submit only after explicit user approval. Do not enable App Check enforcement until real public browser App Check tokens are verified.

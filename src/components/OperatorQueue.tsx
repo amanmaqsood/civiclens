@@ -3,7 +3,7 @@ import { IssueReport } from "../types";
 import { ShieldCheck, Eye, RefreshCw, Layers, Database } from "lucide-react";
 import { seedDemoIssuesBengaluru, clearDemoIssues } from "../services/issues";
 import { humanizeCategory } from "../utils/humanize";
-import { issueStatusLabel } from "../constants/status";
+import { issueStatusLabel, issueStatusToneClass } from "../constants/status";
 
 interface OperatorQueueProps {
   issues: IssueReport[];
@@ -61,15 +61,6 @@ export default function OperatorQueue({
   };
 
   const sortedIssues = [...issues].sort((a, b) => (b.priorityScore || 0) - (a.priorityScore || 0));
-
-  const getStatusStyle = (status: string) => {
-    switch (status) {
-      case "verified": return "bg-marigold/10 border-marigold/20 text-[#7A4300]";
-      case "in_progress": return "bg-[#3B82F6]/10 border-[#3B82F6]/20 text-[#1D4ED8]";
-      case "resolved": return "bg-verify/10 border-verify/20 text-[#047857]";
-      default: return "bg-slate/10 border-slate/20 text-[#334155]";
-    }
-  };
 
   const rootClassName = embedded
     ? "flex flex-col gap-4 p-4 sm:p-5 lg:p-6 font-sans bg-paper min-h-full text-ink"
@@ -130,7 +121,7 @@ export default function OperatorQueue({
           </button>
         </div>
 
-        {(issues.length < 3 || issues.some(i => i.isDemoData)) && (
+        {accessMode === "demo" && (issues.length < 3 || issues.some(i => i.isDemoData)) && (
           <div className="bg-paper border border-hairline rounded-xl p-3 flex flex-col items-center text-center gap-2 select-none">
             <div className="w-8 h-8 rounded-full bg-white flex items-center justify-center border border-hairline">
               <Database className="w-4 h-4 text-marigold" />
@@ -236,7 +227,7 @@ export default function OperatorQueue({
                         Demo
                       </span>
                     )}
-                    <span className={`text-sm font-mono font-bold px-2 py-1 rounded-lg border ${getStatusStyle(issue.status)}`}>
+                    <span className={`text-sm font-mono font-bold px-2 py-1 rounded-lg border ${issueStatusToneClass(issue.status)}`}>
                       {issueStatusLabel(issue.status)}
                     </span>
                     <div className="w-5 h-5 rounded border border-hairline bg-white flex items-center justify-center text-slate">

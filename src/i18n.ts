@@ -19,7 +19,7 @@ export const translations: Record<string, Record<string, string>> = {
     "report.descLabel": "Citizen Additional Context",
     "report.descPlaceholder": "Describe the issue, specific location landmarks, or details...",
     "report.voiceInput": "Voice Input",
-    "report.voiceHint": "Tap and describe the issue in Hindi or English",
+    "report.voiceHint": "Tap and describe the issue. English transcription is active in this build.",
     "report.detectLocation": "Detect Location",
     "report.submitting": "Saving & Analyzing...",
     "report.submit": "Save Incident Report",

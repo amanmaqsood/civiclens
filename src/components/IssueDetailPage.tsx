@@ -9,7 +9,7 @@ import AgentTraceTimeline from "./AgentTraceTimeline";
 import ResolutionPlanWidget from "./ResolutionPlanWidget";
 import AutoEscalationPanel from "./AutoEscalationPanel";
 import { humanizeCategory, humanizeUrgency } from "../utils/humanize";
-import { apiFetch, fetchLatestAgentRun, runAgentForIssue } from "../services/api";
+import { fetchLatestAgentRun, runAgentForIssue } from "../services/api";
 import { ISSUE_STATUS_KEYS, issueStatusLabel } from "../constants/status";
 
 interface IssueDetailPageProps {
@@ -80,8 +80,7 @@ export default function IssueDetailPage({
   const [activities, setActivities] = useState<IssueActivity[]>([]);
   const [loadingAct, setLoadingAct] = useState(true);
   
-  const { language: lang, setLanguage: setLang, t } = useLanguage();
-  const [translating, setTranslating] = useState(false);
+  const { language: lang, t } = useLanguage();
 
   const [triageRunning, setTriageRunning] = useState(false);
   const [triageError, setTriageError] = useState<string | null>(null);
@@ -114,35 +113,6 @@ export default function IssueDetailPage({
       setTriageRunning(false);
     }
   };
-
-  useEffect(() => {
-    if (lang === "hi" && (!issue.titleHi || !issue.summaryHi) && !translating) {
-      setTranslating(true);
-      const translateContent = async () => {
-        try {
-          const res = await apiFetch("/api/translate", {
-            method: "POST",
-            body: JSON.stringify({
-              title: issue.title || "Geotagged Civic Incident",
-              summary: issue.summary || issue.description || ""
-            })
-          });
-          const json = await res.json();
-          if (json.success && json.data) {
-            const { titleHi, summaryHi } = json.data;
-            const { updateIssueTranslations } = await import("../services/issues");
-            await updateIssueTranslations(issue.id, titleHi, summaryHi);
-            onRefresh();
-          }
-        } catch (err) {
-          console.error("Failed to translate dynamically:", err);
-        } finally {
-          setTranslating(false);
-        }
-      };
-      translateContent();
-    }
-  }, [lang, issue.id, issue.title, issue.summary, issue.description, issue.titleHi, issue.summaryHi, translating, onRefresh]);
 
   useEffect(() => {
     let active = true;
@@ -211,26 +181,9 @@ export default function IssueDetailPage({
           </div>
         </div>
 
-        {/* Translation Switch segment */}
-        <div className="flex bg-white border border-hairline p-0.5 rounded-lg text-sm font-mono font-bold select-none">
-          <button
-            type="button"
-            onClick={() => setLang("en")}
-            className={`min-h-[44px] min-w-[44px] px-2 py-1 rounded-md transition-all cursor-pointer ${
-              lang === "en" ? "bg-ink text-paper shadow-2xs" : "text-slate hover:text-ink"
-            }`}
-          >
-            EN
-          </button>
-          <button
-            type="button"
-            onClick={() => setLang("hi")}
-            className={`min-h-[44px] min-w-[52px] px-2 py-1 rounded-md transition-all cursor-pointer ${
-              lang === "hi" ? "bg-ink text-paper shadow-2xs" : "text-slate hover:text-ink"
-            }`}
-          >
-            HI
-          </button>
+        <div className="rounded-xl border border-hairline bg-white px-3 py-2 text-right text-sm font-semibold text-slate shadow-2xs">
+          <span className="block text-ink">English active</span>
+          <span className="block">Hindi coming soon</span>
         </div>
       </div>
 

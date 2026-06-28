@@ -52,8 +52,9 @@ export default function Onboarding({ onDismiss }: OnboardingProps) {
 
         {/* Skip/Close button */}
         <button
+          type="button"
           onClick={handleComplete}
-          className="absolute top-4 right-4 text-slate hover:text-ink transition-colors p-1 rounded-full hover:bg-slate-50 cursor-pointer"
+          className="absolute top-3 right-3 flex min-h-[44px] min-w-[44px] items-center justify-center text-slate hover:text-ink transition-colors rounded-full hover:bg-slate-50 cursor-pointer"
           aria-label="Skip onboarding"
         >
           <X className="w-4 h-4" />
@@ -67,12 +68,12 @@ export default function Onboarding({ onDismiss }: OnboardingProps) {
           <h3 className="text-base font-display font-black text-ink px-2 leading-snug">
             {cards[step].title}
           </h3>
-          <p className="text-xs text-slate px-4 leading-relaxed">
+          <p className="text-base text-slate px-4 leading-relaxed">
             {cards[step].desc}
           </p>
         </div>
 
-        <div className="bg-marigold/10 border border-marigold/25 rounded-xl px-3 py-2 text-[11px] text-ink font-semibold leading-relaxed">
+        <div className="bg-marigold/10 border border-marigold/25 rounded-xl px-3 py-2 text-sm text-ink font-semibold leading-relaxed">
           Prototype only: CivicLens is not affiliated with, connected to, or submitting records to any government system.
         </div>
 
@@ -81,28 +82,37 @@ export default function Onboarding({ onDismiss }: OnboardingProps) {
           {/* Dot Indicators */}
           <div className="flex gap-1.5">
             {cards.map((_, idx) => (
-              <div
+              <button
+                type="button"
                 key={idx}
                 onClick={() => setStep(idx)}
-                className={`w-2 h-2 rounded-full cursor-pointer transition-all ${
-                  idx === step ? "bg-marigold w-4" : "bg-slate-200 hover:bg-slate-300"
+                className={`flex min-h-[44px] min-w-[44px] items-center justify-center rounded-full cursor-pointer transition-all ${
+                  idx === step ? "bg-marigold/15" : "hover:bg-slate-50"
                 }`}
-              />
+                aria-label={`Go to onboarding step ${idx + 1}`}
+                aria-current={idx === step ? "step" : undefined}
+              >
+                <span className={`h-2 rounded-full transition-all ${
+                  idx === step ? "w-4 bg-marigold" : "w-2 bg-slate-200"
+                }`} />
+              </button>
             ))}
           </div>
 
           <div className="flex gap-2">
             {step > 0 && (
               <button
+                type="button"
                 onClick={() => setStep(step - 1)}
-                className="px-4 py-2 text-xs font-bold text-slate hover:text-ink cursor-pointer"
+                className="min-h-[44px] px-4 py-2 text-base font-bold text-slate hover:text-ink cursor-pointer"
               >
                 Back
               </button>
             )}
             <button
+              type="button"
               onClick={handleNext}
-              className="px-5 py-2.5 bg-slate-900 text-white hover:bg-slate-800 transition-colors rounded-xl font-bold text-xs cursor-pointer shadow-sm"
+              className="min-h-[44px] px-5 py-2.5 bg-slate-900 text-white hover:bg-slate-800 transition-colors rounded-xl font-bold text-base cursor-pointer shadow-sm"
             >
               {step === cards.length - 1 ? "Get Started" : "Next"}
             </button>

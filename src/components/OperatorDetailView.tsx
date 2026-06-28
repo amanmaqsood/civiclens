@@ -22,6 +22,7 @@ export default function OperatorDetailView({ issue, onBack, onRefresh, demoOpera
   const [actionPending, setActionPending] = useState(false);
   const [manualOverride, setManualOverride] = useState(false);
   const [approvalRationale, setApprovalRationale] = useState("");
+  const [actionError, setActionError] = useState<string | null>(null);
 
   const loadActivities = async () => {
     setLoadingAct(true);
@@ -41,6 +42,7 @@ export default function OperatorDetailView({ issue, onBack, onRefresh, demoOpera
 
   const handleAdvanceStatus = async (nextStatus: IssueStatusKey) => {
     setActionPending(true);
+    setActionError(null);
     try {
       const rationale = approvalRationale.trim() || `Operator reviewed the case and approved transition to ${issueStatusLabel(nextStatus)}.`;
       await updateIssueStatus(issue.id, nextStatus, { demoOperator, rationale });
@@ -55,8 +57,8 @@ export default function OperatorDetailView({ issue, onBack, onRefresh, demoOpera
       }
       await loadActivities();
       onRefresh();
-    } catch (e) {
-      alert("Failed updating incident status state.");
+    } catch (e: any) {
+      setActionError(e?.message || "Failed updating incident status state.");
     } finally {
       setActionPending(false);
     }
@@ -64,6 +66,7 @@ export default function OperatorDetailView({ issue, onBack, onRefresh, demoOpera
 
   const handleApproveRouting = async () => {
     setActionPending(true);
+    setActionError(null);
     try {
       await approveRoutingPlan(
         issue.id,
@@ -73,7 +76,7 @@ export default function OperatorDetailView({ issue, onBack, onRefresh, demoOpera
       await loadActivities();
       onRefresh();
     } catch (e: any) {
-      alert(e.message || "Failed approving routing plan.");
+      setActionError(e.message || "Failed approving routing plan.");
     } finally {
       setActionPending(false);
     }
@@ -81,6 +84,7 @@ export default function OperatorDetailView({ issue, onBack, onRefresh, demoOpera
 
   const handleFinalizeEscalation = async () => {
     setActionPending(true);
+    setActionError(null);
     try {
       await finalizeEscalation(
         issue.id,
@@ -90,7 +94,7 @@ export default function OperatorDetailView({ issue, onBack, onRefresh, demoOpera
       await loadActivities();
       onRefresh();
     } catch (e: any) {
-      alert(e.message || "Failed finalizing escalation draft.");
+      setActionError(e.message || "Failed finalizing escalation draft.");
     } finally {
       setActionPending(false);
     }
@@ -124,6 +128,12 @@ export default function OperatorDetailView({ issue, onBack, onRefresh, demoOpera
 
       <div className="grid gap-4 xl:grid-cols-[minmax(0,1fr)_minmax(320px,420px)] xl:items-start">
         <div className="flex flex-col gap-4">
+          {actionError && (
+            <div role="alert" className="rounded-xl border border-alert/20 bg-alert/10 p-3 text-base font-semibold leading-relaxed text-alert">
+              {actionError}
+            </div>
+          )}
+
           <ClosureVerificationPanel issue={issue} onVerified={() => { loadActivities(); onRefresh(); }} />
 
           <div className="bg-white border rounded-2xl p-4 shadow-3xs flex flex-col gap-3">
@@ -267,8 +277,8 @@ export default function OperatorDetailView({ issue, onBack, onRefresh, demoOpera
               aria-label="Operator rationale for status transition"
             />
             <div className="flex gap-2 justify-center">
-              <button onClick={() => { setConfirmingStatus(null); setApprovalRationale(""); }} className="min-h-[44px] bg-slate-100 text-slate-700 text-base font-bold py-2 px-4 rounded-lg cursor-pointer border">No</button>
-              <button onClick={() => handleAdvanceStatus(confirmingStatus)} disabled={actionPending} className="min-h-[44px] bg-[#4F46E5] text-white text-base font-bold py-2 px-4 rounded-lg cursor-pointer">Yes</button>
+              <button type="button" onClick={() => { setConfirmingStatus(null); setApprovalRationale(""); }} className="min-h-[44px] bg-slate-100 text-slate-700 text-base font-bold py-2 px-4 rounded-lg cursor-pointer border">No</button>
+              <button type="button" onClick={() => handleAdvanceStatus(confirmingStatus)} disabled={actionPending} className="min-h-[44px] bg-[#4F46E5] text-white text-base font-bold py-2 px-4 rounded-lg cursor-pointer disabled:opacity-60">Yes</button>
             </div>
           </div>
         </div>

@@ -32,3 +32,16 @@ export function normalizeIssueStatus(value: unknown): IssueStatusKey {
 export function issueStatusLabel(value: unknown): string {
   return ISSUE_STATUS_LABELS[normalizeIssueStatus(value)];
 }
+
+export function issueStatusToneClass(value: unknown): string {
+  switch (normalizeIssueStatus(value)) {
+    case "verified":
+      return "bg-marigold/10 border-marigold/25 text-[#7A4300]";
+    case "in_progress":
+      return "bg-[#3B82F6]/10 border-[#3B82F6]/25 text-[#1D4ED8]";
+    case "resolved":
+      return "bg-verify/10 border-verify/25 text-[#047857]";
+    default:
+      return "bg-slate/10 border-slate/25 text-[#334155]";
+  }
+}

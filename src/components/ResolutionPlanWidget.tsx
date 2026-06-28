@@ -23,6 +23,7 @@ export default function ResolutionPlanWidget({ issue, onRefresh, lang = "en" }: 
   const [loading, setLoading] = useState(false);
   const [copied, setCopied] = useState(false);
   const [errorMsg, setErrorMsg] = useState<string | null>(null);
+  const [copyError, setCopyError] = useState<string | null>(null);
 
   const handleGenerate = async () => {
     setLoading(true);
@@ -41,11 +42,16 @@ export default function ResolutionPlanWidget({ issue, onRefresh, lang = "en" }: 
   const plan = issue.resolutionPlan;
   const displayedBody = (lang === "hi" && plan?.actionPacket.bodyHindi) ? plan.actionPacket.bodyHindi : plan?.actionPacket.body || "";
 
-  const copyToClipboard = () => {
+  const copyToClipboard = async () => {
     if (!plan) return;
-    navigator.clipboard.writeText(displayedBody);
-    setCopied(true);
-    setTimeout(() => setCopied(false), 2000);
+    setCopyError(null);
+    try {
+      await navigator.clipboard.writeText(displayedBody);
+      setCopied(true);
+      setTimeout(() => setCopied(false), 2000);
+    } catch {
+      setCopyError("Copy failed. Select the draft text manually if clipboard permission is blocked.");
+    }
   };
 
   return (
@@ -59,24 +65,24 @@ export default function ResolutionPlanWidget({ issue, onRefresh, lang = "en" }: 
             <Compass className="w-5 h-5 text-marigold" />
           </div>
           <div className="flex flex-col gap-1">
-            <h4 className="text-xs font-display font-bold uppercase tracking-wider text-ink">
-              RESOLUTION PLAN
+            <h4 className="text-base font-display font-bold text-ink">
+              Resolution plan
             </h4>
-            <p className="text-[10.5px] text-slate max-w-xs leading-relaxed">
+            <p className="text-sm text-slate max-w-xs leading-relaxed">
               Draft a possible authority contact, follow-up window, and complaint text for a human to verify before use.
             </p>
           </div>
 
           <button
+            type="button"
             onClick={handleGenerate}
             disabled={loading}
-            className="mt-1 w-full flex items-center justify-center gap-1.5 bg-marigold hover:bg-marigold/90 text-ink text-xs font-bold py-2.5 px-4 rounded-xl cursor-pointer disabled:bg-paper disabled:text-slate disabled:cursor-not-allowed transition-all duration-150 border border-hairline"
-            style={{ minHeight: "38px" }}
+            className="mt-1 w-full min-h-[44px] flex items-center justify-center gap-1.5 bg-marigold hover:bg-marigold/90 text-ink text-base font-bold py-2.5 px-4 rounded-xl cursor-pointer disabled:bg-paper disabled:text-slate disabled:cursor-not-allowed transition-all duration-150 border border-hairline"
           >
             {loading ? (
               <>
                 <RefreshCw className="w-3.5 h-3.5 animate-spin" />
-                <span className="font-mono text-[10.5px]">Researching options...</span>
+                <span className="font-mono text-sm">Researching options...</span>
               </>
             ) : (
               <>
@@ -85,13 +91,13 @@ export default function ResolutionPlanWidget({ issue, onRefresh, lang = "en" }: 
               </>
             )}
           </button>
-          {errorMsg && <p className="text-[10px] font-mono text-alert mt-1">{errorMsg}</p>}
+          {errorMsg && <p className="text-sm font-mono text-alert mt-1">{errorMsg}</p>}
         </div>
       ) : (
         <div className="flex flex-col gap-3.5">
           <div className="flex items-center justify-between border-b border-hairline pb-3">
-            <span className="text-[9pt] font-mono uppercase text-slate">Draft authority plan</span>
-            <span className="text-[9px] font-mono font-semibold text-verify bg-verify/5 px-2 py-0.5 rounded border border-verify/20 flex items-center gap-1">
+            <span className="text-sm font-mono font-bold text-slate">Draft authority plan</span>
+            <span className="text-sm font-mono font-semibold text-verify bg-verify/5 px-2 py-1 rounded border border-verify/20 flex items-center gap-1">
               <ShieldCheck className="w-3 h-3 text-verify" />
               Needs review
             </span>
@@ -99,21 +105,21 @@ export default function ResolutionPlanWidget({ issue, onRefresh, lang = "en" }: 
 
           {/* Department Detail Cards */}
           <div className="grid grid-cols-1 gap-2">
-            <div className="bg-paper border border-hairline p-3 rounded-xl flex items-start gap-2.5 text-xs">
+            <div className="bg-paper border border-hairline p-3 rounded-xl flex items-start gap-2.5 text-sm">
               <MapPin className="w-4 h-4 text-marigold shrink-0 mt-0.5" />
               <div className="flex flex-col min-w-0">
-                <span className="text-[8px] font-mono text-slate uppercase tracking-wider">Suggested contact</span>
+                <span className="text-sm font-mono text-slate">Suggested contact</span>
                 <span className="text-ink font-semibold mt-0.5 truncate">{plan.recommendedAuthority}</span>
-                <span className="text-[9.5px] text-slate mt-1">Draft channel: <span className="font-mono font-bold text-ink underline">{plan.contactChannel}</span></span>
+                <span className="text-sm text-slate mt-1">Draft channel: <span className="font-mono font-bold text-ink underline">{plan.contactChannel}</span></span>
               </div>
             </div>
 
-            <div className="bg-paper border border-hairline p-3 rounded-xl flex items-center justify-between text-xs">
+            <div className="bg-paper border border-hairline p-3 rounded-xl flex items-center justify-between text-sm">
               <div className="flex items-center gap-2">
                 <Clock className="w-4 h-4 text-slate shrink-0" />
-                <span className="text-slate font-medium text-[10.5px]">Suggested follow-up window:</span>
+                <span className="text-slate font-medium text-sm">Suggested follow-up window:</span>
               </div>
-              <span className="font-mono font-extrabold text-marigold text-[11.5px] bg-white border border-hairline px-2.5 py-0.5 rounded-full">
+              <span className="font-mono font-extrabold text-marigold text-sm bg-white border border-hairline px-2.5 py-1 rounded-full">
                 {plan.slaDays} Days
               </span>
             </div>
@@ -122,20 +128,22 @@ export default function ResolutionPlanWidget({ issue, onRefresh, lang = "en" }: 
           {/* Drafted Complaint Body */}
           <div className="flex flex-col gap-1.5">
             <div className="flex items-center justify-between">
-              <span className="text-[9pt] font-mono uppercase text-slate">Draft complaint text</span>
+              <span className="text-sm font-mono font-bold text-slate">Draft complaint text</span>
               <button
+                type="button"
                 onClick={copyToClipboard}
-                className="flex items-center gap-1 bg-paper hover:bg-white border border-hairline text-ink px-2.5 py-1 rounded-lg cursor-pointer text-[9.5px] transition-colors"
+                className="flex min-h-[44px] items-center gap-1 bg-paper hover:bg-white border border-hairline text-ink px-3 py-1 rounded-lg cursor-pointer text-sm font-bold transition-colors"
               >
                 {copied ? <Check className="w-3 h-3 text-verify" /> : <Copy className="w-3 h-3" />}
                 <span className="font-medium">{copied ? "Copied" : "Copy Draft"}</span>
               </button>
             </div>
+            {copyError && <p role="alert" className="text-sm font-semibold text-alert mt-1">{copyError}</p>}
             <div className="bg-ink p-3.5 rounded-xl border border-white/5 text-paper">
-              <span className="text-[8px] font-mono text-white/50 uppercase tracking-wider block mb-0.5">Subject Heading</span>
-              <p className="text-[11px] text-marigold font-semibold mb-2.5 leading-relaxed border-b border-white/10 pb-2">{plan.actionPacket.subject}</p>
-              <span className="text-[8px] font-mono text-white/50 uppercase tracking-wider block mb-1">Dossier body Text</span>
-              <div className="max-h-24 overflow-y-auto text-[10.5px] text-paper/85 leading-relaxed whitespace-pre-wrap font-mono select-all">
+              <span className="text-sm font-mono text-white/60 block mb-0.5">Subject heading</span>
+              <p className="text-sm text-marigold font-semibold mb-2.5 leading-relaxed border-b border-white/10 pb-2">{plan.actionPacket.subject}</p>
+              <span className="text-sm font-mono text-white/60 block mb-1">Dossier body text</span>
+              <div className="max-h-28 overflow-y-auto text-sm text-paper/85 leading-relaxed whitespace-pre-wrap font-mono select-all">
                 {displayedBody}
               </div>
             </div>
@@ -143,11 +151,11 @@ export default function ResolutionPlanWidget({ issue, onRefresh, lang = "en" }: 
 
           {/* Suggested next steps */}
           <div className="flex flex-col gap-1.5 mt-0.5">
-            <span className="text-[9pt] font-mono uppercase text-slate">Action Items List</span>
+            <span className="text-sm font-mono font-bold text-slate">Action items</span>
             <div className="flex flex-col gap-2">
               {plan.actionPacket.nextActions.map((act, i) => (
-                <div key={i} className="flex gap-2.5 items-start text-[11px] text-ink/80 leading-normal">
-                  <span className="w-4.5 h-4.5 bg-paper border border-hairline rounded-full flex items-center justify-center text-[9px] font-mono text-ink font-semibold shrink-0">
+                <div key={i} className="flex gap-2.5 items-start text-sm text-ink/80 leading-relaxed">
+                  <span className="flex h-6 w-6 shrink-0 items-center justify-center rounded-full border border-hairline bg-paper text-sm font-mono font-semibold text-ink">
                     0{i + 1}
                   </span>
                   <span className="mt-0.5">{act}</span>
@@ -159,7 +167,7 @@ export default function ResolutionPlanWidget({ issue, onRefresh, lang = "en" }: 
           {/* Research footnotes */}
           {plan.groundingSources && plan.groundingSources.length > 0 && (
             <div className="border-t border-hairline pt-3 flex flex-col gap-1.5">
-              <span className="text-[8px] font-mono uppercase tracking-wider text-slate">Grounding reference links</span>
+              <span className="text-sm font-mono font-bold text-slate">Grounding reference links</span>
               <div className="flex flex-wrap gap-1.5">
                 {plan.groundingSources.map((src, i) => {
                   const sourceUrl = typeof src === "string" ? src : src.url;
@@ -176,7 +184,7 @@ export default function ResolutionPlanWidget({ issue, onRefresh, lang = "en" }: 
                       target="_blank"
                       rel="noopener noreferrer"
                       title={sourceClaim || sourceTitle || domain}
-                      className="flex items-center gap-1 text-[9px] font-mono text-slate hover:text-ink underline transition-colors cursor-pointer"
+                      className="flex items-center gap-1 text-sm font-mono text-slate hover:text-ink underline transition-colors cursor-pointer"
                     >
                       <span>{sourceTitle || domain}</span>
                       <ExternalLink className="w-2.5 h-2.5 shrink-0" />

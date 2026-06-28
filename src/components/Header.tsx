@@ -1,8 +1,7 @@
 import React, { useEffect, useRef, useState } from "react";
-import { ArrowLeft, BarChart3, ChevronDown, LogIn, LogOut, ShieldCheck, UserCircle } from "lucide-react";
+import { ArrowLeft, BarChart3, ChevronDown, Languages, LogOut, ShieldCheck, UserCircle } from "lucide-react";
 import { ActiveView } from "../types";
 import { useFirebase } from "../context/FirebaseContext";
-import { useLanguage } from "../context/LanguageContext";
 
 interface HeaderProps {
   currentView: ActiveView;
@@ -14,7 +13,6 @@ interface HeaderProps {
 
 export default function Header({ currentView, onNavigate, persona, onTogglePersona, operatorAccess }: HeaderProps) {
   const { user, signOutUser, loading } = useFirebase();
-  const { language, setLanguage } = useLanguage();
   const [accountOpen, setAccountOpen] = useState(false);
   const [accountError, setAccountError] = useState<string | null>(null);
   const accountMenuRef = useRef<HTMLDivElement>(null);
@@ -22,8 +20,8 @@ export default function Header({ currentView, onNavigate, persona, onTogglePerso
   const canShowOperatorDesk = operatorAccess !== "none";
   const citizenSessionLabel = signedInWithGoogle ? "Google signed in" : user ? "Anonymous active" : "Starting session";
   const operatorAccessLabel = operatorAccess === "real" ? "real" : operatorAccess === "demo" ? "demo" : "none";
-  const googleSignInUnavailable =
-    "Google sign-in is intentionally unavailable in this public judge build until Firebase Authorized Domains are verified. Anonymous reporting still works.";
+  const anonymousSessionDescription =
+    "Anonymous reporting is active for the public judge build. Google sign-in is hidden until Firebase Authorized Domains are verified.";
 
   useEffect(() => {
     if (!accountOpen) return;
@@ -50,27 +48,20 @@ export default function Header({ currentView, onNavigate, persona, onTogglePerso
     try {
       if (signedInWithGoogle) {
         await signOutUser();
-      } else {
-        setAccountError(googleSignInUnavailable);
-        return;
-      }
+      } else return;
       setAccountOpen(false);
     } catch {
       setAccountOpen(true);
-      setAccountError(
-        signedInWithGoogle
-          ? "Sign out could not complete. Please check your connection and try again."
-          : googleSignInUnavailable
-      );
+      setAccountError("Sign out could not complete. Please check your connection and try again.");
     }
   };
 
   return (
     <header
-      className="sticky top-0 z-50 flex flex-wrap items-center justify-between gap-3 border-b border-white/10 bg-ink px-3 pb-3 font-sans shadow-[0_2px_15px_-3px_rgba(0,0,0,0.5)] sm:px-5"
+      className="sticky top-0 z-50 flex flex-nowrap items-center justify-between gap-2 border-b border-white/10 bg-ink px-3 pb-2 font-sans shadow-[0_2px_15px_-3px_rgba(0,0,0,0.5)] sm:gap-3 sm:px-5 sm:pb-3"
       style={{ paddingTop: "max(env(safe-area-inset-top), 12px)" }}
     >
-      <div className="flex min-w-0 items-center gap-2">
+      <div className="flex min-w-0 flex-1 items-center gap-2">
         {currentView !== "landing" && persona === "citizen" && (
           <button
             id="back-button"
@@ -91,11 +82,11 @@ export default function Header({ currentView, onNavigate, persona, onTogglePerso
             <div className="flex-1 bg-[#0FB5A6]" />
           </div>
 
-          <div>
-            <h1 className="flex items-center gap-0.5 text-xl font-black tracking-normal text-white">
+          <div className="min-w-0">
+            <h1 className="flex truncate text-lg font-black tracking-normal text-white sm:text-xl">
               Civic<span className="text-marigold">Lens</span>
             </h1>
-            <p className="text-sm font-medium leading-tight text-[#94a3b8]">
+            <p className="hidden truncate text-sm font-medium leading-tight text-[#94a3b8] sm:block">
               {persona === "citizen"
                 ? "CivicLens field reports"
                 : operatorAccess === "real"
@@ -106,32 +97,7 @@ export default function Header({ currentView, onNavigate, persona, onTogglePerso
         </div>
       </div>
 
-      <div className="flex flex-wrap items-center justify-end gap-2">
-        <div className="flex select-none rounded-lg border border-white/10 bg-white/5 p-0.5 text-sm font-bold">
-          <button
-            id="lang-en-btn"
-            onClick={() => setLanguage("en")}
-            className={`min-h-[44px] min-w-[44px] rounded-md px-2 py-1 transition-all ${
-              language === "en" ? "bg-marigold text-ink shadow-sm" : "text-[#94a3b8] hover:text-white"
-            }`}
-            aria-label="Switch language to English"
-            aria-pressed={language === "en"}
-          >
-            EN
-          </button>
-          <button
-            id="lang-hi-btn"
-            onClick={() => setLanguage("hi")}
-            className={`min-h-[44px] min-w-[44px] rounded-md px-2 py-1 transition-all ${
-              language === "hi" ? "bg-marigold text-ink shadow-sm" : "text-[#94a3b8] hover:text-white"
-            }`}
-            aria-label="Switch language to Hindi"
-            aria-pressed={language === "hi"}
-          >
-            HI
-          </button>
-        </div>
-
+      <div className="flex shrink-0 items-center justify-end gap-1.5 sm:gap-2">
         <div className="hidden select-none rounded-lg border border-white/10 bg-white/5 p-0.5 text-sm font-bold sm:flex">
           <button
             id="persona-citizen-pill"
@@ -172,7 +138,7 @@ export default function Header({ currentView, onNavigate, persona, onTogglePerso
             aria-label="Open impact dashboard"
           >
             <BarChart3 className="h-3.5 w-3.5" />
-            <span className="text-sm font-bold">Stats</span>
+            <span className="hidden text-sm font-bold sm:inline">Stats</span>
           </button>
         )}
 
@@ -195,7 +161,7 @@ export default function Header({ currentView, onNavigate, persona, onTogglePerso
               aria-controls="account-menu"
             >
               <UserCircle className="h-5 w-5 text-marigold" />
-              <span className="hidden text-sm font-bold sm:inline">{signedInWithGoogle ? "Account" : "Sign in"}</span>
+              <span className="hidden text-sm font-bold sm:inline">Session</span>
               <ChevronDown className={`h-3.5 w-3.5 transition-transform ${accountOpen ? "rotate-180" : ""}`} />
             </button>
 
@@ -224,36 +190,42 @@ export default function Header({ currentView, onNavigate, persona, onTogglePerso
                   </div>
                 </div>
 
+                <div className="mt-2 flex items-start gap-2 rounded-xl border border-hairline p-3">
+                  <Languages className="mt-0.5 h-5 w-5 shrink-0 text-[#0F766E]" />
+                  <div>
+                    <p className="text-sm font-black text-ink">Language</p>
+                    <p className="mt-0.5 text-sm leading-relaxed text-[#334155]">
+                      English active. Hindi coming soon.
+                    </p>
+                  </div>
+                </div>
+
                 <div className="mt-2 rounded-xl border border-hairline p-3">
-                  <p className="text-sm font-black text-ink">Sign in with Google</p>
+                  <p className="text-sm font-black text-ink">{signedInWithGoogle ? "Google session" : "Public access"}</p>
                   <p className="mt-0.5 text-sm leading-relaxed text-[#334155]">
                     {signedInWithGoogle
                       ? "You can sign out of the Google session. Anonymous reporting remains available after sign-out."
-                      : googleSignInUnavailable}
+                      : anonymousSessionDescription}
                   </p>
-                  {(accountError || !signedInWithGoogle) && (
+                  {accountError && (
                     <p
                       id="account-auth-error"
                       role="alert"
                       className="mt-2 rounded-lg border border-alert/20 bg-alert/10 p-2 text-sm font-semibold leading-relaxed text-alert"
                     >
-                      {accountError || googleSignInUnavailable}
+                      {accountError}
                     </p>
                   )}
-                  <button
-                    type="button"
-                    disabled={!signedInWithGoogle}
-                    aria-disabled={!signedInWithGoogle}
-                    onClick={handleAuthAction}
-                    className={`mt-3 inline-flex min-h-[44px] w-full items-center justify-center gap-2 rounded-xl px-4 text-base font-bold ${
-                      signedInWithGoogle
-                        ? "bg-ink text-white hover:bg-[#1f314d]"
-                        : "cursor-not-allowed border border-hairline bg-paper text-slate"
-                    }`}
-                  >
-                    {signedInWithGoogle ? <LogOut className="h-4 w-4 text-marigold" /> : <LogIn className="h-4 w-4 text-marigold" />}
-                    {signedInWithGoogle ? "Sign out" : "Google sign-in unavailable"}
-                  </button>
+                  {signedInWithGoogle && (
+                    <button
+                      type="button"
+                      onClick={handleAuthAction}
+                      className="mt-3 inline-flex min-h-[44px] w-full items-center justify-center gap-2 rounded-xl bg-ink px-4 text-base font-bold text-white hover:bg-[#1f314d]"
+                    >
+                      <LogOut className="h-4 w-4 text-marigold" />
+                      Sign out
+                    </button>
+                  )}
                 </div>
               </div>
             )}

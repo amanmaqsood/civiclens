@@ -11,6 +11,7 @@ interface AutoEscalationPanelProps {
 export default function AutoEscalationPanel({ issue, onUpdated }: AutoEscalationPanelProps) {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [copyError, setCopyError] = useState<string | null>(null);
   const [copiedEsc, setCopiedEsc] = useState(false);
   const [copiedRti, setCopiedRti] = useState(false);
 
@@ -36,10 +37,15 @@ export default function AutoEscalationPanel({ issue, onUpdated }: AutoEscalation
     }
   };
 
-  const copyText = (text: string, setCopied: (v: boolean) => void) => {
-    navigator.clipboard.writeText(text);
-    setCopied(true);
-    setTimeout(() => setCopied(false), 2000);
+  const copyText = async (text: string, setCopied: (v: boolean) => void) => {
+    setCopyError(null);
+    try {
+      await navigator.clipboard.writeText(text);
+      setCopied(true);
+      setTimeout(() => setCopied(false), 2000);
+    } catch {
+      setCopyError("Copy failed. Select the draft text manually if clipboard permission is blocked.");
+    }
   };
 
   return (
@@ -48,44 +54,50 @@ export default function AutoEscalationPanel({ issue, onUpdated }: AutoEscalation
       className="bg-white border border-hairline rounded-2xl p-5 shadow-[0_4px_16px_-4px_rgba(14,26,43,0.05)] flex flex-col gap-4 font-sans text-ink"
     >
       <div className="flex items-center justify-between border-b border-hairline pb-3">
-        <h3 className="text-xs font-display font-bold uppercase tracking-wider flex items-center gap-1.5 text-alert select-none">
+        <h3 className="flex items-center gap-1.5 text-base font-display font-bold text-alert select-none">
           <ShieldAlert className="w-4 h-4 text-alert" />
           Escalation & RTI Drafts
         </h3>
         {escalation && (
-          <span className="text-[9px] font-mono bg-alert/10 text-alert font-bold px-2 py-0.5 rounded border border-alert/25 uppercase tracking-wide">
+          <span className="rounded border border-alert/25 bg-alert/10 px-2 py-1 text-sm font-bold text-alert">
             Escalated
           </span>
         )}
       </div>
 
       {error && (
-        <p className="text-[10px] font-mono text-alert bg-alert/5 border border-alert/20 p-2.5 rounded-xl">
+        <p role="alert" className="text-sm font-semibold text-alert bg-alert/5 border border-alert/20 p-2.5 rounded-xl">
           {error}
+        </p>
+      )}
+      {copyError && (
+        <p role="alert" className="text-sm font-semibold text-alert bg-alert/5 border border-alert/20 p-2.5 rounded-xl">
+          {copyError}
         </p>
       )}
 
       {escalation ? (
         <div className="flex flex-col gap-3.5">
-          <div className="bg-paper border border-hairline p-3 rounded-xl text-[10px] text-slate font-medium leading-relaxed">
+          <div className="bg-paper border border-hairline p-3 rounded-xl text-sm text-slate font-medium leading-relaxed">
             Escalation letter and RTI request drafted for manual review. Nothing was submitted to a government system. Drafts were prepared in CivicLens on <span className="text-ink font-semibold">{new Date(escalation.escalatedAt).toLocaleDateString()}</span>.
           </div>
 
           {/* Escalation Letter */}
           <div className="flex flex-col gap-1.5">
             <div className="flex items-center justify-between">
-              <span className="text-[9px] font-mono font-bold text-slate uppercase tracking-wide">
+              <span className="text-sm font-mono font-bold text-slate">
                 (A) Higher Grievance Appeal Letter
               </span>
               <button
+                type="button"
                 onClick={() => copyText(escalation.escalationLetter, setCopiedEsc)}
-                className="text-[9px] font-mono text-slate hover:text-ink flex items-center gap-1 cursor-pointer"
+                className="flex min-h-[44px] items-center gap-1 rounded-lg px-2 text-sm font-bold text-slate hover:bg-white hover:text-ink"
               >
                 {copiedEsc ? <Check className="w-3.5 h-3.5 text-verify" /> : <Copy className="w-3.5 h-3.5" />}
                 <span>{copiedEsc ? "Copied" : "Copy letter"}</span>
               </button>
             </div>
-            <pre className="text-[10px] bg-paper p-3 rounded-xl max-h-36 overflow-y-auto font-mono text-ink/80 whitespace-pre-wrap border border-hairline leading-relaxed font-medium">
+            <pre className="text-sm bg-paper p-3 rounded-xl max-h-36 overflow-y-auto font-mono text-ink/80 whitespace-pre-wrap border border-hairline leading-relaxed font-medium">
               {escalation.escalationLetter}
             </pre>
           </div>
@@ -93,34 +105,35 @@ export default function AutoEscalationPanel({ issue, onUpdated }: AutoEscalation
           {/* RTI Request */}
           <div className="flex flex-col gap-1.5">
             <div className="flex items-center justify-between">
-              <span className="text-[9px] font-mono font-bold text-marigold uppercase tracking-wide flex items-center gap-1">
+              <span className="flex items-center gap-1 text-sm font-mono font-bold text-marigold">
                 <Layers className="w-3.5 h-3.5 text-marigold" />
                 (B) Section 6(1) RTI Application
               </span>
               <button
+                type="button"
                 onClick={() => copyText(escalation.rtiRequest, setCopiedRti)}
-                className="text-[9px] font-mono text-slate hover:text-ink flex items-center gap-1 cursor-pointer"
+                className="flex min-h-[44px] items-center gap-1 rounded-lg px-2 text-sm font-bold text-slate hover:bg-white hover:text-ink"
               >
                 {copiedRti ? <Check className="w-3.5 h-3.5 text-verify" /> : <Copy className="w-3.5 h-3.5" />}
                 <span>{copiedRti ? "Copied" : "Copy RTI"}</span>
               </button>
             </div>
-            <pre className="text-[10px] bg-paper p-3 rounded-xl max-h-36 overflow-y-auto font-mono text-ink/80 whitespace-pre-wrap border border-hairline leading-relaxed font-medium">
+            <pre className="text-sm bg-paper p-3 rounded-xl max-h-36 overflow-y-auto font-mono text-ink/80 whitespace-pre-wrap border border-hairline leading-relaxed font-medium">
               {escalation.rtiRequest}
             </pre>
           </div>
         </div>
       ) : (
         <div className="flex flex-col gap-3">
-          <p className="text-[10.5px] text-slate leading-relaxed font-sans font-medium">
+          <p className="text-sm text-slate leading-relaxed font-sans font-medium">
             If the case appears delayed, CivicLens can draft escalation and RTI text for a human to verify, copy, and file outside the app.
           </p>
 
           <button
+            type="button"
             onClick={handleEscalate}
             disabled={loading || issue.status === "resolved"}
-            className="w-full bg-alert hover:bg-alert/90 text-white text-xs font-bold py-2.5 rounded-xl cursor-pointer flex items-center justify-center gap-2 border border-white/5 active:scale-[0.99] transition-all"
-            style={{ minHeight: "38px" }}
+            className="w-full min-h-[44px] bg-alert hover:bg-alert/90 text-white text-base font-bold py-2.5 rounded-xl cursor-pointer flex items-center justify-center gap-2 border border-white/5 active:scale-[0.99] transition-all disabled:opacity-60"
           >
             {loading ? (
               <>
@@ -134,7 +147,7 @@ export default function AutoEscalationPanel({ issue, onUpdated }: AutoEscalation
               </>
             )}
           </button>
-          <span className="text-[8.5px] text-center text-slate font-semibold block uppercase tracking-wider font-mono">
+          <span className="block text-center text-sm font-semibold text-slate">
             Draft only - no external filing occurs
           </span>
         </div>

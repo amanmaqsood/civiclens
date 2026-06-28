@@ -18,11 +18,17 @@ export default function SuccessPage({ report, onNavigate, isMerged }: SuccessPag
   }, [report?.ticketId]);
 
   const [copied, setCopied] = React.useState(false);
+  const [copyError, setCopyError] = React.useState<string | null>(null);
 
-  const handleCopyTicket = () => {
-    navigator.clipboard.writeText(ticketId);
-    setCopied(true);
-    setTimeout(() => setCopied(false), 2000);
+  const handleCopyTicket = async () => {
+    setCopyError(null);
+    try {
+      await navigator.clipboard.writeText(ticketId);
+      setCopied(true);
+      setTimeout(() => setCopied(false), 2000);
+    } catch {
+      setCopyError("Copy failed. Select the ticket ID manually if clipboard permission is blocked.");
+    }
   };
 
   return (
@@ -60,6 +66,11 @@ export default function SuccessPage({ report, onNavigate, isMerged }: SuccessPag
             <span>{copied ? "Copied" : "Copy"}</span>
           </button>
         </div>
+        {copyError && (
+          <p role="alert" className="border-b border-hairline bg-alert/10 px-4 py-2 text-sm font-semibold text-alert">
+            {copyError}
+          </p>
+        )}
 
         <div className="flex flex-col gap-3 p-4">
           <div className="grid grid-cols-2 gap-3 text-sm">

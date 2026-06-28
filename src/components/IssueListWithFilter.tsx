@@ -4,7 +4,7 @@ import { motion } from "motion/react";
 import { IssueReport } from "../types";
 import { humanizeCategory } from "../utils/humanize";
 import { useLanguage } from "../context/LanguageContext";
-import { ISSUE_STATUS_KEYS, IssueStatusKey, issueStatusLabel } from "../constants/status";
+import { ISSUE_STATUS_KEYS, IssueStatusKey, issueStatusLabel, issueStatusToneClass } from "../constants/status";
 
 interface IssueListWithFilterProps {
   issues: IssueReport[];
@@ -43,19 +43,6 @@ export default function IssueListWithFilter({
       return matchesStatus && matchesSearch;
     });
   }, [issues, activeFilter, searchTerm]);
-
-  const getStatusClasses = (status: string) => {
-    switch (status) {
-      case "verified":
-        return "bg-marigold/10 border-marigold/25 text-[#7A4300]";
-      case "in_progress":
-        return "bg-[#3B82F6]/10 border-[#3B82F6]/25 text-[#1D4ED8]";
-      case "resolved":
-        return "bg-verify/10 border-verify/25 text-[#047857]";
-      default:
-        return "bg-slate/10 border-slate/25 text-[#334155]";
-    }
-  };
 
   return (
     <div id="issue-list-with-filter" className="flex flex-col gap-4 font-sans">
@@ -154,7 +141,7 @@ export default function IssueListWithFilter({
                       DEMO
                     </span>
                   )}
-                  <span className={`rounded-lg border px-2 py-1 text-sm font-semibold ${getStatusClasses(issue.status)}`}>
+                  <span className={`rounded-lg border px-2 py-1 text-sm font-semibold ${issueStatusToneClass(issue.status)}`}>
                     {issueStatusLabel(issue.status)}
                   </span>
                 </div>
@@ -220,8 +207,8 @@ export default function IssueListWithFilter({
                             language === "hi"
                               ? "Support"
                               : issue.citizenUpvotes === 1
-                                ? "Upvote"
-                                : "Upvotes"
+                                ? "Support"
+                                : "Supports"
                           }`}
                     </span>
                   </button>

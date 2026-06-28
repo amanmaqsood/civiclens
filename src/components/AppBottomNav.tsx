@@ -18,6 +18,15 @@ export default function AppBottomNav({
   onTogglePersona,
 }: AppBottomNavProps) {
   const canUseDesk = operatorAccess !== "none";
+  const handleDeskToggle = () => {
+    if (persona === "operator") {
+      onTogglePersona("citizen");
+      onNavigate("landing");
+      return;
+    }
+    onNavigate("landing");
+    onTogglePersona("operator");
+  };
 
   const itemClass = (active: boolean) =>
     `min-h-[52px] flex flex-1 flex-col items-center justify-center gap-1 rounded-xl px-2 text-sm font-semibold transition-colors ${
@@ -72,7 +81,7 @@ export default function AppBottomNav({
           <button
             type="button"
             id="mobile-operator-nav"
-            onClick={() => onTogglePersona(persona === "operator" ? "citizen" : "operator")}
+            onClick={handleDeskToggle}
             aria-current={persona === "operator" ? "page" : undefined}
             className={itemClass(persona === "operator")}
           >

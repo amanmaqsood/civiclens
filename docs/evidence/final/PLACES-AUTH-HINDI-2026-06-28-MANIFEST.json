@@ -1,0 +1,47 @@
+{
+  "stamp": "PLACES-AUTH-HINDI-2026-06-28",
+  "baseUrl": "https://civiclens-py7ixxgroq-as.a.run.app",
+  "screenshots": [
+    "PLACES-AUTH-HINDI-2026-06-28-mobile-header-subtitle.png",
+    "PLACES-AUTH-HINDI-2026-06-28-sticky-header-after-scroll.png",
+    "PLACES-AUTH-HINDI-2026-06-28-profile-menu-google-signin.png",
+    "PLACES-AUTH-HINDI-2026-06-28-hindi-report-flow.png",
+    "PLACES-AUTH-HINDI-2026-06-28-camera-gallery-choices.png",
+    "PLACES-AUTH-HINDI-2026-06-28-gemini-triage-or-clarification.png",
+    "PLACES-AUTH-HINDI-2026-06-28-waffle-low-confidence.png",
+    "PLACES-AUTH-HINDI-2026-06-28-desktop-layout.png",
+    "PLACES-AUTH-HINDI-2026-06-28-google-signin-after-click.png",
+    "PLACES-AUTH-HINDI-2026-06-28-places-autocomplete-live-predictions.png",
+    "PLACES-AUTH-HINDI-2026-06-28-saved-issue-detail-explicit.png",
+    "PLACES-AUTH-HINDI-2026-06-28-agent-trace-section-scrolled.png",
+    "PLACES-AUTH-HINDI-2026-06-28-operator-agent-workspace.png",
+    "PLACES-AUTH-HINDI-2026-06-28-operator-agent-tool-steps.png"
+  ],
+  "checks": {
+    "mobileStickyHeaderTop": 0,
+    "placesElementVisible": true,
+    "placesHelperVisible": true,
+    "placesTyped": true,
+    "googleSignInPopupOpened": true,
+    "googleSignInPopupHost": ":",
+    "googleSignInInlineError": "Google sign-in could not start. Confirm Firebase Google provider and authorized domains, then try again.",
+    "placesLivePredictionsVisible": true,
+    "googleSignInConfigBlocked": true,
+    "googleSignInManualStepsRequired": true,
+    "savedIssueDetailVisible": true,
+    "operatorAgentWorkflowVisible": true,
+    "waffleLowConfidenceClarificationVisible": true,
+    "geminiLowConfidenceClarificationVisible": true
+  },
+  "consoleErrors": [],
+  "pageErrors": [],
+  "consoleErrorCount": 0,
+  "pageErrorCount": 0,
+  "notes": [
+    "Places autocomplete loaded live on the deployed Cloud Run app and rendered Google Maps predictions while typing.",
+    "Google sign-in button is visible and opens the auth flow, but Firebase returns an authorized-domain/provider-start error in the public deployment.",
+    "Manual Firebase Console action is required before claiming Google sign-in works end to end.",
+    "The civic image used in the first broad smoke was misclassified as low-confidence because the downloaded Unsplash image was not a pothole; the waffle negative guard also showed low-confidence clarification.",
+    "Unhelpful framing screenshots were omitted from the committed evidence set; manifest keeps only useful public app captures."
+  ]
+}

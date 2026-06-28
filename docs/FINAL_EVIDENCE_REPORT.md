@@ -660,8 +660,28 @@ Validation:
 
 Deployment status:
 
-- The current public Cloud Run revision remains `civiclens-00046-7fn` until a final image is built and deployed from this source.
-- Public deployed verification, evidence screenshots, public Google Doc resync if the draft changes materially after deployment, commit/push, and final rubric scoring remain open.
+- Built image `asia-southeast1-docker.pkg.dev/gen-lang-client-0871796745/civiclens/civiclens:68e9787-configured` with Cloud Build `6d984296-2b0a-4bfe-b2a6-29fd7b2a2e8d`.
+- Image digest: `sha256:647d98896fb6cbbe26b5dbe96f2e2306044a3d969a673ee0998b7b5c38c3a16b`.
+- Deployed Cloud Run revision `civiclens-00047-5kr`, serving 100 percent traffic at `https://civiclens-py7ixxgroq-as.a.run.app`.
+- Public `/health`: HTTP 200 with `status: ok`.
+- Public `/readyz`: HTTP 200 with `ready: true`, `adminDb: true`, `geminiConfigured: true`, and `configValid: true`; the expected App Check enforcement-disabled warning remains.
+- Maps browser key restrictions now preserve the two Cloud Run origins and localhost referrers and include API targets `maps-backend.googleapis.com` and `places.googleapis.com`.
+- Public screenshot/evidence manifest: `docs/evidence/final/PLACES-AUTH-HINDI-2026-06-28-MANIFEST.json`.
+
+Public deployed smoke:
+
+- Mobile sticky header remained pinned with top offset `0`.
+- Google Places autocomplete loaded on the deployed app and rendered live Google Maps predictions for `Indiranagar Metro Station Bengaluru`.
+- Hindi report-flow localization rendered and language preference persisted through route changes in local E2E; public screenshot evidence captured the Hindi report flow.
+- Camera/gallery report controls remained separated and visible.
+- Waffle/non-civic evidence produced a low-confidence clarification prompt before saving.
+- Saved issue detail and demo operator workspace were reachable without console or page errors.
+- Google sign-in UI is visible and starts the auth path, but Firebase currently returns: `Google sign-in could not start. Confirm Firebase Google provider and authorized domains, then try again.`
+
+Current blocker:
+
+- End-to-end Google sign-in is not complete. Firebase Authorized Domains/Google provider configuration must be fixed before claiming sign-in works. Manual steps: Firebase Console -> Authentication -> Sign-in method -> enable/configure Google provider; Authentication -> Settings -> Authorized domains -> add `civiclens-py7ixxgroq-as.a.run.app`, `civiclens-802067002365.asia-southeast1.run.app`, and `localhost`; then retest the account-menu sign-in flow on the public Cloud Run URL.
+- Public Google Doc resync for this final draft is not complete. Chrome is running and the Codex Chrome Extension/native host checks pass, but the browser automation pipe is closed; opening a fresh Chrome window/profile requires user approval before retrying.
 
 ## External Blockers
 

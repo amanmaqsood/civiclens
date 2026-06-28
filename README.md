@@ -89,10 +89,10 @@ The latest local validation results are recorded in `docs/FINAL_EVIDENCE_REPORT.
 Cloud Run deployment is documented in `docs/DEPLOYMENT_CLOUD_RUN.md` and was performed after explicit approval on 2026-06-27.
 
 - Public app URL: `https://civiclens-py7ixxgroq-as.a.run.app`
-- Current deployed revision: `civiclens-00046-7fn`
-- Latest deployed source commit: `862f9eb`
+- Current deployed revision: `civiclens-00047-5kr`
+- Latest deployed source commit: `68e9787`
 - Earlier final hardening commit: `aec9ebd`; earlier final judge QA commit: `bdfa464`; earlier production base commit before the UX refresh: `fcf8946`
 
 Maps browser-key restrictions were applied for the public Cloud Run origins and localhost during the final evidence checkpoint. App Check integration exists, but enforcement is disabled for this hackathon deployment to avoid blocking judge access.
 
-The current source adds the final judge-facing UX pass: Google Places autocomplete for manual location search with fallback suggestions, visible Google sign-in with popup/redirect handling, persistent Hindi localization for the core citizen flow, a compact sticky header subtitle, public issue-detail read-only agent evidence, and operator-owned agent/lifecycle controls with required rationale. Demo video publication, App Check enforcement, and final hackathon submission still require explicit approval.
+The current deployment adds Google Places autocomplete for manual location search, persistent Hindi localization for the core citizen flow, a compact sticky header subtitle, public issue-detail read-only agent evidence, and operator-owned agent/lifecycle controls with required rationale. The Google sign-in entry point is visible and starts the auth flow, but Firebase currently rejects the public Cloud Run domain/provider configuration; fix Firebase Authorized Domains/Google provider before claiming end-to-end Google sign-in. Demo video publication, App Check enforcement, and final hackathon submission still require explicit approval.

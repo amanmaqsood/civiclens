@@ -7,7 +7,7 @@ Current branch/commit:
 - Branch: `master`
 - Original prototype baseline commit: `ffd4ebc chore: capture original prototype baseline`
 - Original prototype rollback tag: `baseline/original-prototype`
-- Current rebuild state: milestones 0-9 have been completed locally, the approved Cloud Run deployment/public smoke checkpoint is complete, and the latest flow-boundary hardening build is deployed as revision `civiclens-00046-7fn` from source commit `862f9eb`. The Maps browser key has been restricted for the public Cloud Run origins and localhost. The public Google Doc has been refreshed from `docs/GOOGLE_DOC_DRAFT.md`; unauthenticated text export contains `civiclens-00046-7fn`, `862f9eb`, and `FLOW-BOUNDARY-2026-06-28-MANIFEST.json`. Demo video publication, remaining authenticated console screenshot packaging, App Check enforcement, and final BlockseBlock submission remain external approval-gated.
+- Current rebuild state: milestones 0-9 have been completed locally, and the latest Places/Auth/Hindi hardening build is deployed as revision `civiclens-00047-5kr` from source commit `68e9787`. The Maps browser key is restricted to the public Cloud Run origins and localhost and now allows both Maps JavaScript and Places API targets. Public smoke confirms live Places predictions, Hindi report-flow evidence, sticky header, and app health/readiness; Google sign-in remains blocked by Firebase Authorized Domains/provider configuration and must not be claimed complete yet. Demo video publication, remaining authenticated console screenshot packaging, App Check enforcement, public Google Doc resync for this final draft, and final BlockseBlock submission remain external approval-gated.
 
 Validation commands:
 - `npm install --package-lock-only`: passed; generated a real lockfile from the previously empty `package-lock.json`; initial audit reported 8 moderate vulnerabilities.
@@ -970,8 +970,8 @@ Decisions:
 - Did not submit to BlockseBlock, change billing, delete resources, rotate keys, print secret values, or enable App Check enforcement.
 - Left the public Google Doc open in the authenticated Chrome session as the handoff page.
 
-## Final Places/Auth/Hindi Local Hardening Checkpoint
-Status: local source/docs hardening in progress on 2026-06-28; not yet deployed in this checkpoint
+## Final Places/Auth/Hindi Hardening Checkpoint
+Status: deployed to Cloud Run as `civiclens-00047-5kr` on 2026-06-28; Google sign-in remains blocked by Firebase configuration
 
 Files changed:
 - `src/components/PlacesAutocompleteField.tsx` and `src/components/ReportPage.tsx`: added Google Places autocomplete as the primary manual location search path, India-biased when available, with curated fallback suggestions only for unavailable Places/key states.
@@ -998,8 +998,15 @@ Decisions:
 - Preserved server-side operator authorization even though Google sign-in is now visible.
 
 Remaining risks:
-- The public Cloud Run revision remains `civiclens-00046-7fn` until the final image is built and deployed.
-- Public verification, safe evidence screenshots, Google Doc resync if the draft changes materially after deployment, commit/push, and final scoring remain open.
+- Deployed image `asia-southeast1-docker.pkg.dev/gen-lang-client-0871796745/civiclens/civiclens:68e9787-configured` from source commit `68e9787`.
+- Cloud Build `6d984296-2b0a-4bfe-b2a6-29fd7b2a2e8d` succeeded; image digest `sha256:647d98896fb6cbbe26b5dbe96f2e2306044a3d969a673ee0998b7b5c38c3a16b`.
+- Public `/health`: HTTP 200 with `status: ok`.
+- Public `/readyz`: HTTP 200 with `ready: true`; expected App Check enforcement-disabled warning remains.
+- Maps browser key restrictions now preserve the two Cloud Run origins and localhost referrers and include `maps-backend.googleapis.com` plus `places.googleapis.com`.
+- Public evidence manifest `PLACES-AUTH-HINDI-2026-06-28-MANIFEST.json` captured mobile header/subtitle, sticky header, profile menu, Hindi report flow, camera/gallery controls, live Places predictions, Gemini low-confidence clarification, waffle negative guard, desktop layout, saved issue detail, and operator agent workspace evidence.
+- Public Google sign-in is still blocked by Firebase configuration. Manual step required: Firebase Console -> Authentication -> Sign-in method -> enable/configure Google provider; Authentication -> Settings -> Authorized domains -> add `civiclens-py7ixxgroq-as.a.run.app`, `civiclens-802067002365.asia-southeast1.run.app`, and `localhost`; then retest sign-in.
+- Public Google Doc resync remains open. Chrome is running and extension/native-host checks pass, but the browser automation pipe is closed; opening a fresh Chrome window/profile requires user approval before retrying.
+- Commit/push and final scoring remain open. Do not claim a 95+ final score while Google sign-in remains blocked.
 
 ## Next milestone
 External approval/credential step: optionally capture additional authenticated console screenshots or publish a demo video, then submit only after explicit user approval. Do not enable App Check enforcement until real public browser App Check tokens are verified.

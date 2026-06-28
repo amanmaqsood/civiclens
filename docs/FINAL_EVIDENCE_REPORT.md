@@ -543,6 +543,57 @@ Previously completed deployment validation also included:
 - Operator boundary smoke: anonymous citizen lifecycle transition denied with 403; demo operator denied with 403 on the non-demo smoke issue; demo operator successfully transitioned synthetic demo issue `JOaqBXiJNnyWgWqfqpwI` from `in_progress` to `submitted`.
 - Closure smoke: Gemini returned recommendation `resolve`, closure assessment persisted, and the demo issue remained `submitted` rather than auto-resolving.
 
+## Audited Flow Boundary Hardening Checkpoint
+
+This checkpoint was performed on 2026-06-28 from source commit `862f9eb fix: tighten audited operator flow boundaries`. It did not submit to BlockseBlock, change billing, rotate keys, delete resources, print secret values, or enable App Check enforcement.
+
+Deployment:
+
+- Cloud Build ID: `7bb54f88-b0e8-4d17-beb9-59846074a9cf`.
+- Image: `asia-southeast1-docker.pkg.dev/gen-lang-client-0871796745/civiclens/civiclens:862f9eb-configured`.
+- Image digest: `sha256:1999234ec3c2fbe3e396cfec127248d4ad6ce2435a1f690dbaa0c8c071cb8d2a`.
+- Cloud Run revision: `civiclens-00046-7fn`, serving 100 percent traffic.
+- Canonical URL: `https://civiclens-py7ixxgroq-as.a.run.app`.
+- Alternate URL: `https://civiclens-802067002365.asia-southeast1.run.app`.
+
+Health and readiness:
+
+- Canonical `/health`: HTTP 200 with `status: ok`, `service: civiclens`, and `mode: production` at `2026-06-28T01:01:33.818Z`.
+- Canonical `/readyz`: HTTP 200 with `ready: true`, `adminDb: true`, `geminiConfigured: true`, and `configValid: true`; the expected warning remains `CIVICLENS_REQUIRE_APP_CHECK is not true; backend App Check enforcement is disabled.`
+- Alternate `/health`: HTTP 200 with `status: ok`, `service: civiclens`, and `mode: production` at `2026-06-28T01:01:33.933Z`.
+- Alternate `/readyz`: HTTP 200 with `ready: true`, `adminDb: true`, `geminiConfigured: true`, and `configValid: true`; the same App Check warning remains.
+
+Source changes:
+
+- Public issue detail is read-only for privileged artifacts: it displays persisted server-agent evidence but no longer runs the agent, drafts escalation, or generates resolution plans.
+- Operator detail owns the server-agent action and persisted timeline controls.
+- Operator lifecycle transition confirmation requires typed rationale before `Confirm transition` enables.
+- Report-submission browser progress uses local-progress trace copy and is not described as persisted server evidence.
+- Hash/detail routes can fetch a valid issue by ID even when it is outside the currently loaded feed page.
+
+Validation:
+
+- `npm ci`: passed; install audit reported 3 moderate dev-dependency vulnerabilities, while production audit is clean.
+- `npm run lint`: passed.
+- `npm test`: passed (18 files passed, 2 skipped; 82 tests passed, 7 skipped).
+- `npm run build`: passed with the known Firebase chunk-size warning.
+- `npm audit --omit=dev`: passed with 0 vulnerabilities.
+- `npm run test:rules`: passed (3 tests).
+- `npm run test:concurrency`: passed (4 tests).
+- `npm run test:e2e`: passed (7 Playwright tests).
+
+Public smoke and evidence:
+
+- Manifest: `docs/evidence/final/FLOW-BOUNDARY-2026-06-28-MANIFEST.json`.
+- Captured screenshots: desktop home, report upload controls, public detail read-only agent evidence, public detail after refresh, demo operator agent control, operator rationale-required dialog, and mobile home.
+- Verified checks: map visible, truth boundary visible, report live-photo/gallery controls visible, public detail server evidence visible, public detail `Run server agent` hidden, public detail resolution-plan mutation widget hidden, detail agent section still visible after refresh, demo desk boundary visible, operator agent control visible, operator rationale dialog visible, `Confirm transition` disabled without rationale, mobile bottom nav visible, no mobile horizontal overflow, console error count `0`, and page error count `0`.
+
+Google Doc status:
+
+- `docs/GOOGLE_DOC_DRAFT.md` has been refreshed locally for `civiclens-00046-7fn`, commit `862f9eb`, and `FLOW-BOUNDARY-2026-06-28-MANIFEST.json`.
+- Public Google Doc text export remained accessible, but the export check still contained the older `civiclens-00044-d5l`, `bdfa464`, and `JUDGE-QA-2026-06-27-MANIFEST.json` markers and did not contain `civiclens-00046-7fn`, `862f9eb`, or `FLOW-BOUNDARY-2026-06-28-MANIFEST.json`.
+- Public Google Doc resync still requires an authenticated edit path. Do not claim the public Google Doc contains this `00046` checkpoint until the public export is refreshed and verified.
+
 ## Local Release Evidence
 
 - Truth boundary docs and copy are present.

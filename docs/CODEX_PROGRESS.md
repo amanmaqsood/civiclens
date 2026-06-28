@@ -7,7 +7,7 @@ Current branch/commit:
 - Branch: `master`
 - Original prototype baseline commit: `ffd4ebc chore: capture original prototype baseline`
 - Original prototype rollback tag: `baseline/original-prototype`
-- Current rebuild state: milestones 0-9 have been completed locally, the approved Cloud Run deployment/public smoke checkpoint is complete, and the final hardening build is deployed as revision `civiclens-00045-7sz` from source commit `aec9ebd`. The Maps browser key has been restricted for the public Cloud Run origins and localhost. The local Google Doc draft has been refreshed with the final `civiclens-00045-7sz` evidence; public Google Doc resync, demo video publication, remaining authenticated console screenshot packaging, App Check enforcement, and final BlockseBlock submission remain external approval-gated.
+- Current rebuild state: milestones 0-9 have been completed locally, the approved Cloud Run deployment/public smoke checkpoint is complete, and the latest flow-boundary hardening build is deployed as revision `civiclens-00046-7fn` from source commit `862f9eb`. The Maps browser key has been restricted for the public Cloud Run origins and localhost. The local Google Doc draft has been refreshed with `civiclens-00046-7fn` evidence; public Google Doc resync, demo video publication, remaining authenticated console screenshot packaging, App Check enforcement, and final BlockseBlock submission remain external approval-gated.
 
 Validation commands:
 - `npm install --package-lock-only`: passed; generated a real lockfile from the previously empty `package-lock.json`; initial audit reported 8 moderate vulnerabilities.
@@ -905,8 +905,49 @@ Decisions:
 - Kept the public UI truthful by hiding Google sign-in and showing Hindi as coming soon.
 
 Remaining risks:
-- Changes after commit `aec9ebd` are docs/evidence updates and still need a follow-up commit and push.
-- The local `docs/GOOGLE_DOC_DRAFT.md` is updated for `civiclens-00045-7sz`; public Google Doc resync still requires an authenticated edit path.
+- Superseded by the later audited flow-boundary checkpoint below.
+- The local `docs/GOOGLE_DOC_DRAFT.md` was updated for `civiclens-00045-7sz`; a later local draft update for `civiclens-00046-7fn` still requires public Google Doc resync through an authenticated edit path.
+- Optional demo video, additional authenticated console screenshots, App Check enforcement, and BlockseBlock submission remain approval-gated.
+
+## Audited Flow Boundary Hardening Checkpoint
+Status: deployed to Cloud Run as `civiclens-00046-7fn` on 2026-06-28; not submitted to BlockseBlock
+
+Files changed:
+- `audit.md`: added the static UI/flow audit findings and follow-up remediation notes for citizen/operator action boundaries, local-progress trace wording, deep-link detail loading, and required operator rationale.
+- `src/components/IssueDetailPage.tsx`: removed public mutation controls for server agent runs, escalation drafting, and resolution-plan generation; the page now displays persisted server-agent evidence only.
+- `src/components/OperatorDetailView.tsx`: added the persisted server-agent workflow controls to the operator workspace and requires typed rationale before lifecycle transition confirmation.
+- `src/components/AgentTraceTimeline.tsx` and `src/App.tsx`: added `local-progress` display mode so browser-side report preparation is not labeled as persisted server evidence.
+- `src/services/issues.ts` and `src/App.tsx`: added canonical fetch-by-ID detail loading for valid issue links outside the currently loaded feed page.
+- `src/services/api.ts`, `src/release-golden-path.test.ts`, `src/server/agent-workflow.test.ts`, and `src/ux-redesign.test.ts`: updated API options and regression coverage for the new public/operator boundary.
+- `docs/evidence/final/FLOW-BOUNDARY-2026-06-28-*`: added safe public app screenshots and `FLOW-BOUNDARY-2026-06-28-MANIFEST.json`.
+
+Validation commands:
+- `npm ci`: passed; install audit reported 3 moderate dev-dependency vulnerabilities, while production audit is clean.
+- `npm run lint`: passed.
+- `npm test`: passed (18 files passed, 2 skipped; 82 tests passed, 7 skipped).
+- `npm run build`: passed with the known Firebase chunk-size warning.
+- `npm audit --omit=dev`: passed with 0 vulnerabilities.
+- `npm run test:rules`: passed (3 tests). Expected emulator denial warnings appeared during negative security cases.
+- `npm run test:concurrency`: passed (4 tests).
+- `npm run test:e2e`: passed (7 Playwright tests).
+- Public `/health`: HTTP 200 on both Cloud Run hostnames.
+- Public `/readyz`: HTTP 200 on both Cloud Run hostnames with `ready: true`; expected App Check enforcement-disabled warning remains.
+
+Production actions:
+- Built image `asia-southeast1-docker.pkg.dev/gen-lang-client-0871796745/civiclens/civiclens:862f9eb-configured` with Cloud Build `7bb54f88-b0e8-4d17-beb9-59846074a9cf`.
+- Deployed image digest `sha256:1999234ec3c2fbe3e396cfec127248d4ad6ce2435a1f690dbaa0c8c071cb8d2a`.
+- Deployed Cloud Run revision `civiclens-00046-7fn`, serving 100 percent traffic at `https://civiclens-py7ixxgroq-as.a.run.app`.
+
+Public smoke:
+- `FLOW-BOUNDARY-2026-06-28-MANIFEST.json` recorded desktop home visible, truth boundary visible, map visible, report live-photo/gallery controls visible, public detail server evidence visible, public detail `Run server agent` hidden, public detail resolution-plan mutation widget hidden, detail trace still visible after refresh, demo desk boundary visible, operator agent control visible, operator rationale dialog visible with confirm disabled until rationale, mobile bottom nav visible, no mobile horizontal overflow, console error count `0`, and page error count `0`.
+
+Decisions:
+- Did not enable App Check enforcement, rotate keys, change billing, delete resources, print secret values, or submit to BlockseBlock.
+- Preserved the existing Cloud Run runtime configuration and deployed only a new container image.
+- Kept privileged draft/agent/lifecycle actions in the operator workspace while preserving read-only persisted evidence on public issue detail.
+
+Remaining risks:
+- The local `docs/GOOGLE_DOC_DRAFT.md` is updated for `civiclens-00046-7fn`; public Google Doc export is still accessible but remains at the older `civiclens-00044-d5l` / `bdfa464` checkpoint, so resync still requires an authenticated edit path.
 - Optional demo video, additional authenticated console screenshots, App Check enforcement, and BlockseBlock submission remain approval-gated.
 
 ## Next milestone

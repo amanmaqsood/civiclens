@@ -1,0 +1,71 @@
+{
+  "baseUrl": "https://civiclens-py7ixxgroq-as.a.run.app",
+  "revision": "civiclens-00046-7fn",
+  "sourceCommit": "862f9eb",
+  "capturedAt": "2026-06-28T01:10:56.209Z",
+  "browserArgs": [
+    "--disable-quic"
+  ],
+  "screenshots": [
+    {
+      "name": "desktop-home",
+      "file": "FLOW-BOUNDARY-2026-06-28-desktop-home.png",
+      "url": "https://civiclens-py7ixxgroq-as.a.run.app/"
+    },
+    {
+      "name": "report-start-upload-controls",
+      "file": "FLOW-BOUNDARY-2026-06-28-report-start-upload-controls.png",
+      "url": "https://civiclens-py7ixxgroq-as.a.run.app/#report"
+    },
+    {
+      "name": "public-detail-read-only-agent-evidence",
+      "file": "FLOW-BOUNDARY-2026-06-28-public-detail-read-only-agent-evidence.png",
+      "url": "https://civiclens-py7ixxgroq-as.a.run.app/#issue/DvYfWzbbwVBfpNTxq5O6"
+    },
+    {
+      "name": "public-detail-after-refresh",
+      "file": "FLOW-BOUNDARY-2026-06-28-public-detail-after-refresh.png",
+      "url": "https://civiclens-py7ixxgroq-as.a.run.app/#issue/DvYfWzbbwVBfpNTxq5O6"
+    },
+    {
+      "name": "demo-operator-agent-control",
+      "file": "FLOW-BOUNDARY-2026-06-28-demo-operator-agent-control.png",
+      "url": "https://civiclens-py7ixxgroq-as.a.run.app/"
+    },
+    {
+      "name": "operator-rationale-required-dialog",
+      "file": "FLOW-BOUNDARY-2026-06-28-operator-rationale-required-dialog.png",
+      "url": "https://civiclens-py7ixxgroq-as.a.run.app/"
+    },
+    {
+      "name": "mobile-home",
+      "file": "FLOW-BOUNDARY-2026-06-28-mobile-home.png",
+      "url": "https://civiclens-py7ixxgroq-as.a.run.app/"
+    }
+  ],
+  "checks": {
+    "desktopHomeVisible": true,
+    "syntheticBoundaryVisible": true,
+    "mapVisible": true,
+    "reportLivePhotoVisible": true,
+    "reportGalleryVisible": true,
+    "detailButtonVisible": true,
+    "publicDetailShowsServerEvidence": true,
+    "publicDetailRunAgentHidden": true,
+    "publicDetailResolutionPlanWidgetHidden": true,
+    "detailStillLoadsAfterRefresh": true,
+    "demoDeskButtonVisible": true,
+    "demoDeskBoundaryVisible": true,
+    "demoCaseVisible": true,
+    "operatorAgentControlVisible": true,
+    "operatorTransitionButtonVisible": true,
+    "operatorRationaleBoundaryCopyPresent": true,
+    "operatorConfirmDisabledWithoutRationale": true,
+    "mobileBottomNavVisible": true,
+    "mobileNoHorizontalOverflow": true,
+    "consoleErrorCount": 0,
+    "pageErrorCount": 0
+  },
+  "consoleErrors": [],
+  "pageErrors": []
+}

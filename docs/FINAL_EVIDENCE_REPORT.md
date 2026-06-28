@@ -700,6 +700,7 @@ Google Doc:
 - `docs/GOOGLE_DOC_DRAFT.md` was updated with the current Firebase Auth truth boundary and remains copy-ready for Google Docs.
 - Public Google Doc export remains reachable with HTTP 200, but still contains older sign-in wording from the previous public sync; it does not yet contain the new Firebase provider/domain-fix wording.
 - Docs API read/update using the current `gcloud` auth path returned 403 or could not obtain a usable Docs/Drive write scope.
+- `gcloud auth application-default login --scopes=https://www.googleapis.com/auth/cloud-platform,https://www.googleapis.com/auth/drive` opened/started an OAuth consent flow but timed out without producing Application Default Credentials; a follow-up `gcloud auth application-default print-access-token` reported no default credentials. The stalled auth helper process started by this attempt was stopped.
 - Chrome extension/native-host checks passed after opening a fresh Chrome window, but browser and OS paste probes did not modify the public document. No probe marker text appeared in public export.
 - Remaining next step: open the Google Doc with an editor account/profile or provide an auth path with Docs/Drive write scope, then replace the public document with `docs/GOOGLE_DOC_DRAFT.md` and verify the public export again.
 

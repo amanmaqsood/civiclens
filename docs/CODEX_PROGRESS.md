@@ -1024,6 +1024,7 @@ Commands and checks:
 - Public sign-in smoke: Firebase/Google auth flow opens without inline app error after the domain/provider fix; no private Google-account credential flow completed by the agent.
 - Public Google Doc export: HTTP 200, but still shows older pre-auth-fix wording. Probe marker checks were absent from export, confirming failed paste attempts did not corrupt the document.
 - Docs API path: current `gcloud` auth returned 403 or could not obtain a usable Docs/Drive write scope.
+- Drive-scoped ADC attempt: `gcloud auth application-default login --scopes=https://www.googleapis.com/auth/cloud-platform,https://www.googleapis.com/auth/drive` timed out waiting for browser consent and produced no Application Default Credentials; the helper process started by this attempt was stopped.
 - Public `/health`: HTTP 200 with `status: ok`.
 - Public `/readyz`: HTTP 200 with `ready: true`, `adminDb: true`, `geminiConfigured: true`, and `configValid: true`; expected App Check enforcement-disabled warning remains.
 - `npm run lint`: passed.

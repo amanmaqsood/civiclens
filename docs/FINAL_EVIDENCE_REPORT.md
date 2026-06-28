@@ -676,12 +676,42 @@ Public deployed smoke:
 - Camera/gallery report controls remained separated and visible.
 - Waffle/non-civic evidence produced a low-confidence clarification prompt before saving.
 - Saved issue detail and demo operator workspace were reachable without console or page errors.
-- Google sign-in UI is visible and starts the auth path, but Firebase currently returns: `Google sign-in could not start. Confirm Firebase Google provider and authorized domains, then try again.`
+- Initial public smoke showed the Google sign-in UI was visible but blocked by Firebase authorized-domain/provider configuration. A later Firebase Auth configuration fix enabled Google provider and authorized the canonical Cloud Run URL, alternate Cloud Run URL, and localhost.
 
 Current blocker:
 
-- End-to-end Google sign-in is not complete. Firebase Authorized Domains/Google provider configuration must be fixed before claiming sign-in works. Manual steps: Firebase Console -> Authentication -> Sign-in method -> enable/configure Google provider; Authentication -> Settings -> Authorized domains -> add `civiclens-py7ixxgroq-as.a.run.app`, `civiclens-802067002365.asia-southeast1.run.app`, and `localhost`; then retest the account-menu sign-in flow on the public Cloud Run URL.
-- Public Google Doc resync for this final draft is not complete. Chrome is running and the Codex Chrome Extension/native host checks pass, but the browser automation pipe is closed; opening a fresh Chrome window/profile requires user approval before retrying.
+- Private Google-account credential completion was not performed by the agent, so this report only claims that the public auth flow starts without the previous inline app/Firebase configuration error.
+- Public Google Doc resync for this final draft is not complete. The local draft has been updated, but the public Google Doc export still shows older `civiclens-00046-7fn`/pre-auth-fix wording. Docs API access returned 403, and Chrome paste probes did not modify the document. The next step is to retry with a Google account/profile that has edit access to the public document or a Docs/Drive-scoped token.
+
+## Firebase Auth Domain Fix and Google Doc Resync Attempt
+
+This checkpoint was performed on 2026-06-28 after the final Places/Auth/Hindi deployment. It did not submit to BlockseBlock, change billing, delete resources, rotate keys, print secret values, enable App Check enforcement, or complete a private Google-account credential login.
+
+Firebase Auth:
+
+- Firebase Auth Google provider is enabled.
+- Authorized domains now include `civiclens-py7ixxgroq-as.a.run.app`, `civiclens-802067002365.asia-southeast1.run.app`, and `localhost`.
+- Public sign-in smoke on the canonical Cloud Run URL opens the Firebase/Google auth flow without the prior inline app error.
+- Evidence screenshot added: `docs/evidence/final/PLACES-AUTH-HINDI-2026-06-28-google-signin-starts-after-domain-fix.png`.
+- Evidence manifest updated: `docs/evidence/final/PLACES-AUTH-HINDI-2026-06-28-MANIFEST.json` now records `googleProviderEnabled: true`, `firebaseAuthorizedDomainsFixed: true`, `googleSignInPopupOpenedAfterDomainFix: true`, and an empty post-fix inline sign-in error.
+
+Google Doc:
+
+- `docs/GOOGLE_DOC_DRAFT.md` was updated with the current Firebase Auth truth boundary and remains copy-ready for Google Docs.
+- Public Google Doc export remains reachable with HTTP 200, but still contains older sign-in wording from the previous public sync; it does not yet contain the new Firebase provider/domain-fix wording.
+- Docs API read/update using the current `gcloud` auth path returned 403 or could not obtain a usable Docs/Drive write scope.
+- Chrome extension/native-host checks passed after opening a fresh Chrome window, but browser and OS paste probes did not modify the public document. No probe marker text appeared in public export.
+- Remaining next step: open the Google Doc with an editor account/profile or provide an auth path with Docs/Drive write scope, then replace the public document with `docs/GOOGLE_DOC_DRAFT.md` and verify the public export again.
+
+Post-update validation:
+
+- Public `/health`: HTTP 200 with `status: ok`, `service: civiclens`, and `mode: production`.
+- Public `/readyz`: HTTP 200 with `ready: true`, `adminDb: true`, `geminiConfigured: true`, and `configValid: true`; the expected App Check enforcement-disabled warning remains.
+- Public Google Doc export: HTTP 200; 25 required submission sections detected; still contains older pre-auth-fix sign-in wording and does not contain the latest Firebase provider/domain-fix wording, proving resync is still pending.
+- `npm run lint`: passed.
+- `npm test`: passed (18 files passed, 2 skipped; 82 tests passed, 7 skipped).
+- `npm run build`: passed with the known Firebase chunk-size warning.
+- `npm audit --omit=dev`: passed with 0 vulnerabilities.
 
 ## External Blockers
 
@@ -691,7 +721,7 @@ Current blocker:
 - Public app URL: `https://civiclens-py7ixxgroq-as.a.run.app`.
 - Public Google Doc URL: `https://docs.google.com/document/d/19nFBVMLHUOqlKipMi7tsML25BW2h_Q2s82cQukuzlMk/edit?usp=sharing`.
 - Demo video URL: not created in this checkpoint.
-- Public screenshot package: captured in `docs/evidence/final/` with a manifest. Authenticated GCP/Firebase/AI Studio screenshots remain uncaptured because Chrome extension communication failed and opening a fresh Chrome window/profile still requires user approval.
+- Public screenshot package: captured in `docs/evidence/final/` with a manifest. Authenticated GCP/Firebase/AI Studio screenshots remain uncaptured. Public Google Doc resync for the latest draft separately requires a Google account/profile with document edit access or a Docs/Drive-scoped auth token.
 
 ## Remaining Local Gaps
 

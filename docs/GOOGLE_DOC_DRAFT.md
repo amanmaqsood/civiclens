@@ -66,7 +66,7 @@ The system is intentionally human-governed. Gemini recommends and drafts; determ
 - Responsive citizen and operator layouts for desktop and mobile.
 - Google Places autocomplete for manual location search when GPS is blocked or a citizen prefers typing a place.
 - Separate live-photo and gallery-upload controls for report evidence and closure evidence.
-- Google sign-in is visible for verified identity while anonymous citizen reporting remains available; the public Cloud Run deployment currently needs Firebase Authorized Domains/provider configuration before end-to-end Google sign-in can be claimed.
+- Google sign-in is visible for verified identity while anonymous citizen reporting remains available; Firebase Google provider is enabled, the Cloud Run domains are authorized, and public smoke verification confirms the Google auth flow opens without an inline app error. No private Google-account credential flow was completed by the agent.
 - Persistent Hindi localization for the core public flow, including homepage, header/nav, account menu, report flow, duplicate comparison, issue detail labels, agent labels, demo labels, and common states.
 - Metrics separated between real records and synthetic demo data, with "Not enough data" shown where denominators are insufficient.
 
@@ -90,7 +90,7 @@ Agent output is used as recommendation material only. Human approval is required
 
 - Google AI Studio: used as the development and provenance environment for the prototype and Gemini integration.
 - Gemini via `@google/genai`: powers multimodal report triage, structured output, duplicate comparison support, translation, draft resolution planning, escalation/RTI draft text, closure image assessment, and the server-side tool workflow.
-- Firebase Auth: anonymous citizen sessions plus visible Google sign-in entry point. Real operator identity is supported only through server-verified Firebase identity/custom claims or allowlisted verified email. Public Google sign-in is blocked by current Firebase domain/provider configuration until the Cloud Run domains are authorized in Firebase.
+- Firebase Auth: anonymous citizen sessions plus visible Google sign-in entry point. Real operator identity is supported only through server-verified Firebase identity/custom claims or allowlisted verified email. Firebase Google provider is enabled, and the canonical Cloud Run URL, alternate Cloud Run URL, and localhost are authorized domains for the judge build.
 - Firestore: issues, evidence, approvals, support/verification actions, lifecycle fields, audit-style activity, `agentRuns`, and `agentSteps`.
 - Firebase Storage: report, evidence, and closure image uploads governed by Storage Rules.
 - Firebase Admin SDK: server-owned writes, transactions, role checks, and privileged lifecycle updates.
@@ -122,7 +122,7 @@ CivicLens focuses on civic coordination rather than a generic chatbot. The diffe
 
 The app uses a responsive shell rather than a fake device frame. Citizens can scan the map/feed/report flow on mobile or desktop, while operators get a denser case workspace with queue, selected issue details, evidence, agent trace, and approval panels. The rebuilt UI includes labeled controls, keyboard/focus support, larger touch targets, loading/empty/error states, and accessibility-oriented E2E checks.
 
-The final hardening passes added a no-wrap compact mobile header with a visible CivicLens subtitle, Google Places autocomplete for manual location search, visible Google sign-in UI with popup/redirect handling, persistent Hindi localization across the core public flow, and operator-owned agent/lifecycle actions while keeping public issue detail read-only for persisted evidence. Google sign-in still requires Firebase Authorized Domains/provider configuration before it can be claimed as end-to-end working.
+The final hardening passes added a no-wrap compact mobile header with a visible CivicLens subtitle, Google Places autocomplete for manual location search, visible Google sign-in UI with popup/redirect handling, persistent Hindi localization across the core public flow, and operator-owned agent/lifecycle actions while keeping public issue detail read-only for persisted evidence. Public smoke verification confirms Google sign-in now starts the Firebase/Google auth flow without an inline app error after the Firebase domain/provider fix; private Google-account credential completion was not performed by the agent.
 
 ## Impact Dashboard and Metrics
 
@@ -143,7 +143,7 @@ Latest recorded validation covers:
 - Live API smoke for Gemini triage, issue save, persisted agent steps, demo-operator boundary, anonymous denial, and closure recommendation without auto-resolution.
 - Public judge QA smoke verified a fresh anonymous visitor can submit Gemini triage without a 401 race, and a synthetic waffle/non-civic image is routed to a low-confidence clarification screen before saving.
 - Final hardening validation passed `npm ci`, lint, unit tests, production build, production audit, Firestore/Storage Rules emulator tests, concurrency tests, and Playwright/axe E2E. Earlier public deployed smoke on `civiclens-00045-7sz` verified map visibility, sticky header, desktop/tablet/mobile no-overflow layouts, fixed mobile bottom nav, profile menu language status, camera/gallery choices, manual location suggestions, saved issue detail, persisted agent trace, and zero browser console/page errors.
-- The final Places/Auth/Hindi gate verified Google Places autocomplete with mocked local predictions and live deployed Google Maps predictions, selected-place state updates, camera/gallery controls, visible Google sign-in entry points, Hindi persistence across refresh, sticky header behavior, and Playwright/axe responsive checks. Public deployed verification found Firebase still blocks end-to-end Google sign-in until Authorized Domains/provider configuration is fixed.
+- The final Places/Auth/Hindi gate verified Google Places autocomplete with mocked local predictions and live deployed Google Maps predictions, selected-place state updates, camera/gallery controls, visible Google sign-in entry points, Hindi persistence across refresh, sticky header behavior, and Playwright/axe responsive checks. Public deployed verification then confirmed the Firebase Google provider is enabled, Cloud Run domains are authorized, and the Google auth flow starts without inline app error; no private Google-account credential flow was completed by the agent.
 - The audited flow-boundary checkpoint on `civiclens-00046-7fn` repeated the full local gate and public smoke for the changed surfaces: public issue detail shows persisted server evidence but hides agent/run and resolution-plan mutation controls, the demo operator workspace owns the server-agent action, lifecycle confirmation requires typed rationale, mobile layout has no horizontal overflow, and browser console/page error counts were zero.
 
 See `docs/FINAL_EVIDENCE_REPORT.md` for exact command outputs, warnings, commit references, and remaining gaps.
@@ -173,7 +173,7 @@ Captured public screenshot targets:
 - Google Places autocomplete predictions and selected location.
 - Profile menu with Google sign-in and language controls.
 - Hindi localized report flow.
-- Google sign-in blocked-state evidence requiring Firebase Authorized Domains/provider action.
+- Google sign-in Firebase/Google auth-flow start after the authorized-domain fix.
 - Synthetic/demo label visible.
 - Map visible.
 - Gemini triage result.
@@ -227,7 +227,7 @@ Do not claim authenticated console screenshot capture until those files exist an
 - CivicLens is not a government portal and does not submit complaints to government systems.
 - Draft routing/action packets, escalation letters, RTI text, and closure assessments require human review before any use outside the app.
 - App Check integration exists, but enforcement is disabled for this hackathon deployment to avoid blocking judge access.
-- Google sign-in depends on Firebase Google provider and Authorized Domains being configured for the Cloud Run hosts. The public deployment currently shows the sign-in entry point but Firebase blocks completion until that configuration is fixed; anonymous reporting remains enabled.
+- Firebase Google provider and Authorized Domains are configured for the Cloud Run hosts. Public smoke verification confirms the sign-in flow opens without an inline app error, but no private Google-account credential flow was completed by the agent; anonymous reporting remains enabled.
 - Hindi localization covers the core public flow in this prototype. Some operator-only administrative copy remains English-first.
 - Metrics are scoped to persisted app records and are not citywide impact claims.
 - Demo records are synthetic and labelled as such.

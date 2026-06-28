@@ -15,7 +15,8 @@
     "PLACES-AUTH-HINDI-2026-06-28-saved-issue-detail-explicit.png",
     "PLACES-AUTH-HINDI-2026-06-28-agent-trace-section-scrolled.png",
     "PLACES-AUTH-HINDI-2026-06-28-operator-agent-workspace.png",
-    "PLACES-AUTH-HINDI-2026-06-28-operator-agent-tool-steps.png"
+    "PLACES-AUTH-HINDI-2026-06-28-operator-agent-tool-steps.png",
+    "PLACES-AUTH-HINDI-2026-06-28-google-signin-starts-after-domain-fix.png"
   ],
   "checks": {
     "mobileStickyHeaderTop": 0,
@@ -26,12 +27,16 @@
     "googleSignInPopupHost": ":",
     "googleSignInInlineError": "Google sign-in could not start. Confirm Firebase Google provider and authorized domains, then try again.",
     "placesLivePredictionsVisible": true,
-    "googleSignInConfigBlocked": true,
-    "googleSignInManualStepsRequired": true,
+    "googleSignInConfigBlocked": false,
+    "googleSignInManualStepsRequired": false,
     "savedIssueDetailVisible": true,
     "operatorAgentWorkflowVisible": true,
     "waffleLowConfidenceClarificationVisible": true,
-    "geminiLowConfidenceClarificationVisible": true
+    "geminiLowConfidenceClarificationVisible": true,
+    "googleProviderEnabled": true,
+    "firebaseAuthorizedDomainsFixed": true,
+    "googleSignInPopupOpenedAfterDomainFix": true,
+    "googleSignInInlineErrorAfterDomainFix": ""
   },
   "consoleErrors": [],
   "pageErrors": [],
@@ -39,9 +44,9 @@
   "pageErrorCount": 0,
   "notes": [
     "Places autocomplete loaded live on the deployed Cloud Run app and rendered Google Maps predictions while typing.",
-    "Google sign-in button is visible and opens the auth flow, but Firebase returns an authorized-domain/provider-start error in the public deployment.",
-    "Manual Firebase Console action is required before claiming Google sign-in works end to end.",
     "The civic image used in the first broad smoke was misclassified as low-confidence because the downloaded Unsplash image was not a pothole; the waffle negative guard also showed low-confidence clarification.",
-    "Unhelpful framing screenshots were omitted from the committed evidence set; manifest keeps only useful public app captures."
+    "Unhelpful framing screenshots were omitted from the committed evidence set; manifest keeps only useful public app captures.",
+    "Firebase Auth Google provider is enabled and authorized domains now include the canonical Cloud Run URL, alternate Cloud Run URL, and localhost.",
+    "Public sign-in smoke opens the Firebase/Google auth flow without inline app error; no private Google-account credential flow was completed by the agent."
   ]
 }

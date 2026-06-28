@@ -1,6 +1,6 @@
 # CivicLens Security Boundary Notes
 
-This document records the local rebuild security posture. It is intentionally conservative: CivicLens is a prototype and does not claim protections, deployments, or government integrations that were not actually verified.
+This document records the current security posture. It is intentionally conservative: CivicLens is an independent civic pilot and does not claim protections, deployments, or government integrations that were not actually verified.
 
 ## Current Boundary
 
@@ -77,12 +77,12 @@ Source-level release tests cover:
 Executed local release gates also include:
 
 - Firebase Emulator Suite Firestore/Storage Rules tests for representative allow/deny cases.
-- Playwright/axe browser checks for responsive landing and synthetic demo operator flows at mobile, tablet, and desktop sizes.
+- Automated browser and accessibility checks for responsive landing and synthetic demo operator flows at mobile, tablet, and desktop sizes.
 
 Latest command results are recorded in `docs/FINAL_EVIDENCE_REPORT.md`.
 
 ## Remaining Security Gaps
 
 - The concurrency emulator gate covers representative support, verification, duplicate evidence, and status-transition races, not every API mutation race path.
-- Browser E2E currently uses seeded synthetic emulator data; live Gemini/Maps golden-path evidence requires production secrets and deployment approval.
-- Production App Check token wiring and Cloud Run readiness have not been smoke-tested because deployment credentials and explicit approval are not available in this local rebuild. Keep `CIVICLENS_REQUIRE_APP_CHECK=false` until the deployed frontend is configured with `VITE_FIREBASE_APP_CHECK_SITE_KEY` and verified to send `X-Firebase-AppCheck`.
+- Browser E2E coverage uses seeded synthetic emulator data for deterministic local checks; live Cloud Run smoke evidence is recorded separately for the deployed service.
+- Production App Check token enforcement has not been enabled for the hackathon deployment. Keep `CIVICLENS_REQUIRE_APP_CHECK=false` until the deployed frontend is configured with `VITE_FIREBASE_APP_CHECK_SITE_KEY` and verified to send `X-Firebase-AppCheck` without blocking judge access.

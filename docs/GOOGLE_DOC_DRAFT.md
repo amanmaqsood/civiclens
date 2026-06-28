@@ -2,7 +2,7 @@
 
 Published Google Doc: https://docs.google.com/document/d/19nFBVMLHUOqlKipMi7tsML25BW2h_Q2s82cQukuzlMk/edit?usp=sharing
 
-CivicLens is a prototype, not a government service. It supports human-reviewed civic issue triage and evidence organization; it does not file reports with public agencies or claim official authority acceptance.
+CivicLens is an independent civic pilot. It is not an official government portal and does not submit complaints externally.
 
 ## Live Application
 
@@ -16,7 +16,7 @@ Repository: https://github.com/amanmaqsood/civiclens
 
 ## Demo Video
 
-Optional demo video not included.
+Demo video link can be added by the submitter if available.
 
 ## Problem Statement Selected
 
@@ -24,129 +24,158 @@ Problem Statement 2: Community Hero.
 
 ## Product Thesis
 
-CivicLens helps residents turn scattered local issue reports into a shared, human-reviewed civic workflow. The product combines photo evidence, location context, community verification, Gemini-assisted analysis, and operator approval so civic teams can understand what happened, where it happened, whether similar reports exist nearby, and what draft follow-up is worth reviewing.
+CivicLens helps residents and civic reviewers turn scattered local issue reports into a shared, evidence-led workflow. A citizen can submit a field report with image and location context; Gemini helps classify and summarize the issue; nearby reports and community verification add context; and human reviewers keep control of consequential decisions such as duplicate merge, routing drafts, escalation, closure, resolve, and reopen.
+
+The goal is not to replace local authorities. The goal is to make community issue reporting clearer, more verifiable, and easier to review.
 
 ## Problem and User Pain
 
-Residents often report potholes, overflowing waste, broken streetlights, unsafe footpaths, and similar civic problems through fragmented channels. Reports may miss evidence, location precision, duplicate context, or closure proof. Citizens cannot easily see whether neighbors have reported the same issue, and local operators must spend time reconstructing the case history before deciding what to do next.
+Residents often report potholes, overflowing waste, broken streetlights, unsafe paths, and similar local problems through fragmented channels. These reports can lack reliable location context, duplicate awareness, image evidence, public status visibility, or closure proof.
 
-CivicLens addresses that pain as a prototype workflow. It does not file complaints with government systems, does not receive official acknowledgements, does not legally verify evidence, and does not enforce statutory service levels.
+At the same time, community volunteers and local operators need to understand what happened, whether similar reports already exist, and what next action is reasonable. Without a shared workflow, both sides spend time reconstructing context instead of moving the case forward.
 
 ## Solution Overview
 
-CivicLens lets a citizen create an issue with a photo, location, and description. Gemini helps summarize and classify the report, the app checks nearby saved issues for possible duplicates, community members can support or verify a case, and an operator can review a persisted server-side agent run before approving draft action packets, escalation text, or closure decisions.
+CivicLens provides a working civic-resolution pilot with four connected surfaces:
 
-The system is intentionally human-governed. Gemini recommends and drafts; deterministic server code validates permissions, transitions, and approval requirements. Consequential operations such as duplicate merge, routing/action packet approval, escalation finalization, resolve, and reopen remain human decisions.
+- Citizen report intake for photo, location, description, and Gemini-assisted triage.
+- Map and feed views for nearby civic context and curated synthetic demo stories.
+- Issue detail pages for evidence, status, community support, and persisted case history.
+- Operator workspace for server-generated agent traces, approval checkpoints, closure review, and lifecycle decisions.
+
+Gemini recommends; the application validates. Human approval remains required for consequential workflow changes.
 
 ## Complete User Journey
 
-1. A citizen opens the public Cloud Run app and creates a report with location, description, and image evidence.
-2. Gemini analyzes the report and returns a structured triage summary, category, urgency, and confidence.
-3. The server saves the issue and checks nearby records for possible duplicates.
-4. A human operator or demo operator, depending on case type and authorization, reviews duplicate recommendations rather than allowing automatic merges.
-5. Community members can support, confirm, or dispute a saved issue, with one action per user enforced server-side.
-6. The operator opens the case detail page and runs the persisted agent workflow.
-7. The server loads canonical Firestore data, runs bounded agent tools, and persists `agentRuns` plus issue-linked `agentSteps`.
-8. The operator reviews draft routing/action, escalation, and closure recommendations.
-9. Closure evidence can produce a recommendation, but it does not auto-resolve the issue.
-10. A server-authorized operator records the final resolve or reopen decision with identity and rationale.
+1. A citizen opens the public Cloud Run app.
+2. The citizen starts a field report and chooses either live camera capture or gallery upload.
+3. The app collects image evidence, location context, and a plain-language description.
+4. Google Places autocomplete helps find a location when GPS is blocked or the user prefers manual search.
+5. Gemini analyzes the report and returns structured triage: summary, category, urgency, confidence, and rationale.
+6. The citizen reviews the triage and saves the issue.
+7. The saved issue receives a CivicLens Ticket ID and opens as a shareable issue detail page.
+8. Nearby duplicate candidates and community support provide additional context.
+9. A server-authorized operator or demo operator reviews eligible cases in the operator workspace.
+10. The server runs a persisted agent workflow against canonical Firestore data and records tool steps.
+11. The operator reviews draft routing, escalation, and closure recommendations before taking action.
+12. Closure evidence can create a recommendation, but it never auto-resolves the issue.
 
 ## Key Features Implemented
 
-- Public citizen report creation with Firebase anonymous auth.
-- Gemini multimodal triage and structured report summaries.
-- Low-confidence clarification guard for non-civic or unrelated images such as food/waffle negative tests.
-- Google Maps view for local issue context.
-- Nearby duplicate recommendation with human merge decision.
-- Community support and verification with per-user limits.
-- Server-owned lifecycle fields, audit events, approvals, counters, traces, and closure assessments.
-- Persisted agent run and tool-step timeline rendered from Firestore, not synthesized by the browser.
-- Demo operator mode limited to explicitly synthetic demo records.
-- Real operator mode resolved server-side from Firebase identity, custom claims, or verified allowlisted email.
-- Responsive citizen and operator layouts for desktop and mobile.
-- Google Places autocomplete for manual location search when GPS is blocked or a citizen prefers typing a place.
-- Separate live-photo and gallery-upload controls for report evidence and closure evidence.
-- Google sign-in is visible for verified identity while anonymous citizen reporting remains available; Firebase Google provider is enabled, the Cloud Run domains are authorized, and public smoke verification confirms the Google auth flow opens without an inline app error. No private Google-account credential flow was completed by the agent.
-- Persistent Hindi localization for the core public flow, including homepage, header/nav, account menu, report flow, duplicate comparison, issue detail labels, agent labels, demo labels, and common states.
-- Metrics separated between real records and synthetic demo data, with "Not enough data" shown where denominators are insufficient.
-
-## Technologies Used
-
-- React 19, TypeScript, Vite, and Tailwind CSS for the frontend.
-- Express and esbuild for the TypeScript server bundle.
-- Firebase Auth, Firestore, Storage, Admin SDK, and optional App Check integration for identity, data, storage, and server-owned writes.
-- Gemini through `@google/genai` for multimodal analysis, structured output, translation, drafting, and agent tool loops.
-- Google Maps Platform through `@vis.gl/react-google-maps` for map rendering.
-- Google Cloud Run, Cloud Build, Artifact Registry, and Secret Manager for deployment and runtime configuration.
-- Vitest, Firebase Emulator Suite, Playwright, and axe-core for validation.
+- Public citizen reporting with Firebase anonymous sessions.
+- Gemini multimodal triage for issue image and description.
+- Structured Gemini output for category, urgency, confidence, and citizen-facing summary.
+- Low-confidence guardrail for non-civic images such as food or unrelated photos.
+- Google Maps issue context with Google Places autocomplete for manual location search.
+- Separate camera and gallery upload controls for report evidence and closure evidence.
+- CivicLens Ticket ID on saved issues, without implying external agency submission.
+- Nearby duplicate recommendation with human decision boundaries.
+- Community support and verification with per-user server-side limits.
+- Server-owned lifecycle fields, audit-style activity, counters, traces, approvals, and closure assessments.
+- Persisted agent runs and tool steps rendered from stored server data.
+- Demo operator mode limited to records explicitly marked as synthetic demo data.
+- Real operator mode resolved from server-verified Firebase identity, custom claims, or allowlisted verified email.
+- Responsive citizen and operator layouts for desktop, tablet, and mobile.
+- Hindi localization for the core public flow, with refresh persistence.
+- Metrics that separate real records from synthetic demo data and show "Not enough data" when denominators are insufficient.
 
 ## Agentic Workflow
 
-The deployed agent endpoint accepts an `issueId`, loads canonical issue and candidate data from Firestore, and records the run server-side. The implemented tool sequence includes nearby case search, evidence comparison, priority calculation, authority lookup for draft follow-up, action packet drafting, human approval request, closure verification, and event recording.
+The deployed agent endpoint accepts an issue ID, loads canonical issue and candidate data from Firestore, and records a server-owned run. The implemented workflow includes:
 
-Agent output is used as recommendation material only. Human approval is required before consequential lifecycle changes. Persisted tool steps include status, summaries, timestamps, and tool names so the trace can survive a page refresh.
+- Nearby case search.
+- Evidence comparison.
+- Priority calculation.
+- Authority lookup for draft follow-up language.
+- Action packet drafting.
+- Human approval request.
+- Closure evidence review.
+- Event recording.
+
+The agent trace is recommendation material, not an automatic decision engine. Tool steps are persisted with status, summaries, timing, tool names, model context, and timestamps so the trace survives refresh and can be reviewed later.
 
 ## Google Technologies Utilized
 
-- Google AI Studio: used as the development and provenance environment for the prototype and Gemini integration.
-- Gemini via `@google/genai`: powers multimodal report triage, structured output, duplicate comparison support, translation, draft resolution planning, escalation/RTI draft text, closure image assessment, and the server-side tool workflow.
-- Firebase Auth: anonymous citizen sessions plus visible Google sign-in entry point. Real operator identity is supported only through server-verified Firebase identity/custom claims or allowlisted verified email. Firebase Google provider is enabled, and the canonical Cloud Run URL, alternate Cloud Run URL, and localhost are authorized domains for the judge build.
-- Firestore: issues, evidence, approvals, support/verification actions, lifecycle fields, audit-style activity, `agentRuns`, and `agentSteps`.
+- Google AI Studio: used during development and provenance of the Gemini-backed prototype.
+- Gemini via `@google/genai`: multimodal report triage, structured output, translation support, duplicate comparison support, draft resolution planning, escalation text, closure image assessment, and server-side tool workflow.
+- Firebase Auth: anonymous citizen sessions plus visible Google sign-in entry point. Real operator identity requires server verification.
+- Firestore: issues, evidence metadata, approvals, support and verification actions, lifecycle fields, activity history, `agentRuns`, and `agentSteps`.
 - Firebase Storage: report, evidence, and closure image uploads governed by Storage Rules.
-- Firebase Admin SDK: server-owned writes, transactions, role checks, and privileged lifecycle updates.
-- Firebase App Check: App Check integration exists, but enforcement is disabled for this hackathon deployment to avoid blocking judge access.
-- Google Maps Platform: map rendering and Places autocomplete for issue location context. The public browser key is restricted to the Cloud Run origins and localhost, with Maps/Places API access required for the deployed browser flow.
-- Google Cloud Run: public deployment for the Express/Vite production build.
-- Secret Manager: stores `GEMINI_API_KEY` for Cloud Run runtime access without recording the secret value in the repository.
-- Cloud Build and Artifact Registry: used for the approved Cloud Run image deployment flow.
+- Firebase Admin SDK: server-owned writes, transactions, role checks, counters, and privileged lifecycle updates.
+- Firebase App Check: integration exists, but enforcement is disabled for this hackathon deployment to avoid blocking judge access.
+- Google Maps Platform: map rendering and Places autocomplete for issue location context.
+- Secret Manager: stores the Gemini API key for Cloud Run runtime access without recording the secret value in the repository.
+- Cloud Run: public deployment for the production Express/Vite build.
+- Cloud Build and Artifact Registry: build and image deployment flow for the Cloud Run service.
 
 ## Technical Architecture
 
-The frontend is React 19, TypeScript, and Vite. The backend is an Express TypeScript server bundled with esbuild and deployed to Cloud Run. The browser submits user-owned report inputs and image bytes, while privileged data is written through authenticated server endpoints using Firebase Admin SDK.
+The frontend uses React, TypeScript, Vite, and Tailwind CSS. The backend is an Express TypeScript server bundled for Cloud Run. The browser submits user-owned report inputs and image uploads; privileged workflow data is written through authenticated server endpoints using Firebase Admin SDK.
 
-Firestore Rules deny direct browser writes to issue-owned privileged fields and subcollections. Storage Rules restrict uploads by path ownership, image MIME type, and size. Server endpoints apply identity checks, role checks, request validation, body limits, quotas, App Check verification support, and safe error responses.
+Firestore Rules deny direct browser writes to system-owned lifecycle fields and privileged subcollections. Storage Rules restrict uploads by path ownership, image MIME type, and size. Server endpoints apply identity checks, role checks, request validation, body limits, quota checks, App Check support, and safe error responses.
 
 ## Security and Human Oversight
 
-CivicLens does not claim public-agency status, authority acceptance, legal verification, immutable audit guarantees, automatic filing, or automatic routing. It records prototype workflow evidence inside the app.
+CivicLens avoids unsupported claims of government affiliation, external agency acceptance, automatic authority submission, court-grade evidence validation, permanent tamper-proof records, or automatic routing.
 
-Real operator actions require verified Firebase identity and a server-authorized role. Demo operator actions are limited to records marked as synthetic demo data. Anonymous users can create and support reports, but they cannot perform privileged lifecycle transitions. Closure recommendations are persisted for review and do not auto-resolve a case.
+Real operator actions require verified Firebase identity and a server-authorized role. Demo operator actions are limited to synthetic demo records. Anonymous users can create and support reports, but they cannot perform privileged lifecycle transitions.
 
-The public judge build waits for anonymous auth before protected API calls, so fast first-time report submissions do not hit the protected Gemini endpoints without a Firebase ID token.
+Consequential operations require human approval:
+
+- Duplicate merge.
+- Routing or final action packet approval.
+- Escalation finalization.
+- Resolve.
+- Reopen.
+
+Closure recommendations are persisted for review and do not auto-resolve a case.
 
 ## Innovation and Differentiation
 
-CivicLens focuses on civic coordination rather than a generic chatbot. The differentiator is the combination of map-localized issue intake, duplicate evidence handling, community verification, server-persisted agent traces, and human approval boundaries. It shows how Gemini can assist a civic workflow while deterministic application code protects permissions and final decisions.
+CivicLens is not a generic chatbot layered on top of a form. The product combines map-localized field reporting, multimodal issue triage, nearby duplicate handling, community verification, persisted agent traces, and human approval gates in one civic workflow.
+
+The key innovation is the separation of AI recommendation from final authority. Gemini helps understand, compare, translate, and draft. Deterministic server code protects permissions, state transitions, and final decisions.
 
 ## Product Experience and Accessibility
 
-The app uses a responsive shell rather than a fake device frame. Citizens can scan the map/feed/report flow on mobile or desktop, while operators get a denser case workspace with queue, selected issue details, evidence, agent trace, and approval panels. The rebuilt UI includes labeled controls, keyboard/focus support, larger touch targets, loading/empty/error states, and accessibility-oriented E2E checks.
+The app uses a responsive shell rather than a fake device frame. On desktop, citizens can scan the map, feed, and report action quickly, while operators receive a denser workspace with queue, case evidence, agent trace, and approval panels. On mobile, the header and bottom navigation are compact, sticky, and designed for thumb-friendly navigation.
 
-The final hardening passes added a no-wrap compact mobile header with a visible CivicLens subtitle, Google Places autocomplete for manual location search, visible Google sign-in UI with popup/redirect handling, persistent Hindi localization across the core public flow, and operator-owned agent/lifecycle actions while keeping public issue detail read-only for persisted evidence. Public smoke verification confirms Google sign-in now starts the Firebase/Google auth flow without an inline app error after the Firebase domain/provider fix; private Google-account credential completion was not performed by the agent.
+The final hardening work includes:
+
+- Visible CivicLens subtitle in the header.
+- Fixed mobile bottom navigation.
+- 44px-friendly controls for core actions.
+- Keyboard and focus support for key menus and dialogs.
+- Labeled report flow controls.
+- Loading, empty, error, denied-permission, and low-confidence states.
+- Hindi persistence across refresh for the core public flow.
 
 ## Impact Dashboard and Metrics
 
-The dashboard derives metrics from persisted lifecycle fields and separates real records from synthetic demo data. It does not invent citywide impact numbers. Where there is not enough persisted data to support a metric, the UI reports "Not enough data" instead of displaying a fake percentage or average.
+The dashboard derives metrics from persisted lifecycle fields. It does not invent citywide impact numbers. Real records and synthetic demo data are labelled separately, and insufficient denominators show "Not enough data" rather than a fake percentage or average.
 
 ## Testing Evidence
 
-Latest recorded validation covers:
+Validation included automated browser checks across mobile, tablet, and desktop, Firebase Rules/emulator checks, transaction/concurrency tests, production build checks, and live Cloud Run smoke tests.
 
-- `npm run lint`
-- `npm test`
-- `npm run build`
-- `npm audit --omit=dev`
-- Firestore and Storage Rules emulator coverage.
-- Focused transaction/concurrency coverage.
-- Playwright/axe responsive browser coverage.
-- Public Cloud Run `/health` and `/readyz` smoke checks.
-- Live API smoke for Gemini triage, issue save, persisted agent steps, demo-operator boundary, anonymous denial, and closure recommendation without auto-resolution.
-- Public judge QA smoke verified a fresh anonymous visitor can submit Gemini triage without a 401 race, and a synthetic waffle/non-civic image is routed to a low-confidence clarification screen before saving.
-- Final hardening validation passed `npm ci`, lint, unit tests, production build, production audit, Firestore/Storage Rules emulator tests, concurrency tests, and Playwright/axe E2E. Earlier public deployed smoke on `civiclens-00045-7sz` verified map visibility, sticky header, desktop/tablet/mobile no-overflow layouts, fixed mobile bottom nav, profile menu language status, camera/gallery choices, manual location suggestions, saved issue detail, persisted agent trace, and zero browser console/page errors.
-- The final Places/Auth/Hindi gate verified Google Places autocomplete with mocked local predictions and live deployed Google Maps predictions, selected-place state updates, camera/gallery controls, visible Google sign-in entry points, Hindi persistence across refresh, sticky header behavior, and Playwright/axe responsive checks. Public deployed verification then confirmed the Firebase Google provider is enabled, Cloud Run domains are authorized, and the Google auth flow starts without inline app error; no private Google-account credential flow was completed by the agent.
-- The audited flow-boundary checkpoint on `civiclens-00046-7fn` repeated the full local gate and public smoke for the changed surfaces: public issue detail shows persisted server evidence but hides agent/run and resolution-plan mutation controls, the demo operator workspace owns the server-agent action, lifecycle confirmation requires typed rationale, mobile layout has no horizontal overflow, and browser console/page error counts were zero.
+Recorded evidence covers:
 
-See `docs/FINAL_EVIDENCE_REPORT.md` for exact command outputs, warnings, commit references, and remaining gaps.
+- Public Cloud Run `/health` and `/readyz` checks.
+- Desktop, tablet, mobile, and narrow-mobile responsive checks.
+- Sticky header and fixed mobile bottom navigation.
+- Camera and gallery upload controls.
+- Google Places autocomplete and selected-place state.
+- Gemini triage on a pothole-style civic report.
+- Low-confidence handling for non-civic food imagery.
+- Saved issue detail with CivicLens Ticket ID.
+- Persisted agent trace after refresh.
+- Demo operator action limited to synthetic cases.
+- Demo or anonymous mutation denied on real cases.
+- Closure recommendation persisted without auto-resolve.
+- Google sign-in flow starting without inline app error.
+- Hindi localization persistence.
+
+See `docs/FINAL_EVIDENCE_REPORT.md` for command outputs, warnings, commit references, and remaining evidence notes.
 
 ## Deployment Evidence
 
@@ -154,93 +183,75 @@ See `docs/FINAL_EVIDENCE_REPORT.md` for exact command outputs, warnings, commit 
 - Region: `asia-southeast1`
 - Cloud Run service: `civiclens`
 - Active revision: `civiclens-00047-5kr`
+- Traffic: 100 percent to `civiclens-00047-5kr`
 - Public app URL: https://civiclens-py7ixxgroq-as.a.run.app
 - Alternate URL: https://civiclens-802067002365.asia-southeast1.run.app
-- Runtime source: final Places/Auth/Hindi source commit `68e9787`; the audited flow-boundary commit was `862f9eb`, the earlier final hardening commit was `aec9ebd`, and the earlier final judge QA commit was `bdfa464`.
+- Runtime source commit: `68e9787`
 - `/health`: passing on the public service.
 - `/readyz`: passing on the public service with App Check enforcement warning recorded.
-- Maps browser key restriction: HTTP referrers for the two Cloud Run origins and localhost, API targets `maps-backend.googleapis.com` and `places.googleapis.com`; confirmed after the final Places hardening checkpoint.
+- Maps browser key restriction: HTTP referrers for the two Cloud Run origins and localhost, with Maps and Places browser APIs required for the deployed flow.
 
 ## Screenshots List
 
-The public screenshot package is stored under `docs/evidence/final/` with `FLOW-BOUNDARY-2026-06-28-MANIFEST.json`, `FINAL-HARDENING-2026-06-28-MANIFEST.json`, `JUDGE-QA-2026-06-27-MANIFEST.json`, `FINAL-QA-2026-06-27-MANIFEST.json`, `PUBLIC_SCREENSHOT_MANIFEST-2026-06-27.json`, `PUBLIC_SCREENSHOT_MANIFEST-UX-REFRESH-2026-06-27.json`, and `PUBLIC_SCREENSHOT_MANIFEST-FINAL-POLISH-2026-06-27.json`. These are Chrome/Playwright page-content screenshots, so they do not include the browser address bar; exact URLs are recorded in the manifests and evidence report. Sanitized CLI/API-backed infrastructure evidence is stored in `SANITIZED_GCP_FIREBASE_EVIDENCE-2026-06-27.json` and related `*-cli-evidence-2026-06-27.png` files. The final package also includes a redacted authenticated Cloud Run console screenshot for revision `civiclens-00044-d5l`; remaining Firebase/AI Studio console screenshots still require a safe authenticated capture if desired.
+The evidence package in `docs/evidence/final/` includes public app screenshots and sanitized infrastructure evidence. The important judge-facing screenshots cover:
 
-Captured public screenshot targets:
-
-- Cloud Run app homepage page content.
+- Cloud Run app homepage.
 - Report flow start.
-- Camera/gallery choices.
-- Google Places autocomplete predictions and selected location.
+- Camera/gallery upload choices.
+- Google Places autocomplete.
 - Profile menu with Google sign-in and language controls.
-- Hindi localized report flow.
-- Google sign-in Firebase/Google auth-flow start after the authorized-domain fix.
-- Synthetic/demo label visible.
+- Hindi report flow.
 - Map visible.
 - Gemini triage result.
-- Non-civic waffle negative test routed to low-confidence clarification.
+- Low-confidence non-civic image guardrail.
 - Saved issue detail.
 - Persisted agent run with tool steps.
-- Page refreshed with agent trace still present.
-- Demo operator allowed only on synthetic case.
-- Real-case mutation denied for demo or anonymous operator.
-- Closure recommendation persisted but not auto-resolved.
+- Agent trace after refresh.
+- Demo operator workspace.
+- Demo-only operator boundary.
+- Closure recommendation without auto-resolve.
 - Desktop layout.
 - Mobile layout.
-- Public issue detail with operator mutation controls hidden.
-- Demo operator workspace with server-agent control.
-- Operator transition dialog with rationale required before confirmation.
-- `/health` 200.
-- `/readyz` 200.
-- GitHub public repository page.
-- CLI/API-rendered Cloud Run service metadata.
-- CLI/API-rendered Firestore and Storage Rules release metadata.
-- CLI/API-rendered Secret Manager name-only metadata.
-- CLI/API-rendered Firebase Auth provider metadata.
-- CLI/API-rendered Maps key restriction metadata.
+- Public GitHub repository.
+- Sanitized Cloud Run, Firestore Rules, Storage Rules, Secret Manager name-only, Firebase Auth provider, and Maps key restriction evidence.
 
-Remaining authenticated console screenshot targets:
-
-- Cloud Run service page with URL and active revision.
-- Firestore Rules deployed.
-- Storage Rules deployed.
-- Secret Manager page showing `GEMINI_API_KEY` secret name only, not value.
-- Firebase Auth enabled providers.
-- Firebase or AI Studio project/history/export/import/development evidence if available.
-
-Do not claim authenticated console screenshot capture until those files exist and have been reviewed for secrets, tokens, private emails, billing information, or hidden sensitive data.
+Screenshots that require authenticated consoles are treated carefully and should not expose secret values, tokens, private emails, billing information, or hidden sensitive data.
 
 ## Demo Walkthrough
 
 1. Open the live app URL.
-2. Point out prototype and synthetic-demo labels.
-3. Start a citizen report and show the photo/location/description flow.
-4. Run Gemini triage and save the issue.
-5. Open the saved case detail view.
-6. Run or display the persisted agent workflow and tool steps.
-7. Refresh the page to show the agent trace remains persisted.
-8. Open the demo operator workspace and show that demo actions are limited to synthetic records.
-9. Show that a real/non-demo mutation is denied to demo or anonymous actors.
-10. Upload or reference closure evidence, show the persisted recommendation, and confirm the case is not auto-resolved.
+2. Show the independent civic pilot boundary and synthetic demo labels.
+3. Start a citizen field report.
+4. Upload the pothole image through gallery upload.
+5. Deny GPS and use Places autocomplete for a typed location.
+6. Enter a short pothole description.
+7. Run Gemini triage and review the structured summary.
+8. Save the issue and open the saved issue detail page.
+9. Point out the CivicLens Ticket ID and absence of external-agency submission claims.
+10. Refresh the issue detail page to show persistence.
+11. Open the demo operator workspace.
+12. Show persisted agent tool steps and the human approval boundary.
+13. Show that demo actions are limited to synthetic records.
+14. Show closure recommendation as review material, not auto-resolution.
+15. Switch Hindi on and refresh to show localization persistence.
 
-## Prototype Limitations
+## Prototype and Pilot Limitations
 
-- CivicLens is not a government portal and does not submit complaints to government systems.
-- Draft routing/action packets, escalation letters, RTI text, and closure assessments require human review before any use outside the app.
+- CivicLens is an independent civic pilot, not a government portal.
+- The app does not submit complaints to government systems.
+- Draft routing/action packets, escalation letters, RTI-style text, and closure assessments require human review before any use outside the app.
 - App Check integration exists, but enforcement is disabled for this hackathon deployment to avoid blocking judge access.
-- Firebase Google provider and Authorized Domains are configured for the Cloud Run hosts. Public smoke verification confirms the sign-in flow opens without an inline app error, but no private Google-account credential flow was completed by the agent; anonymous reporting remains enabled.
-- Hindi localization covers the core public flow in this prototype. Some operator-only administrative copy remains English-first.
+- Google sign-in flow starts from the public app; private account credential completion was not performed by the agent.
+- Hindi localization covers the core public flow. Some operator-only administrative copy remains English-first.
 - Metrics are scoped to persisted app records and are not citywide impact claims.
-- Demo records are synthetic and labelled as such.
-- No demo video is included in this checkpoint.
-- Final hackathon submission has not been performed in this repository checkpoint.
-
-## Attributions
-
-No third-party project code was copied wholesale. CivicLens is original hackathon prototype work assembled in this repository.
+- Synthetic demo stories are labelled as synthetic.
+- Final hackathon submission has not been performed from this repository checkpoint.
 
 ## Open-source Attributions
 
-Primary libraries and services include React, TypeScript, Vite, Express, Firebase JavaScript SDK, Firebase Admin SDK, `@google/genai`, `@vis.gl/react-google-maps`, Tailwind CSS, lucide-react, motion, canvas-confetti, Vitest, Playwright, axe-core, esbuild, and Firebase Tools. See `ATTRIBUTIONS.md` for the full attribution list and demo image source notes.
+No third-party project code was copied wholesale. CivicLens is original hackathon prototype work assembled in this repository.
+
+Primary libraries and services include React, TypeScript, Vite, Express, Firebase JavaScript SDK, Firebase Admin SDK, `@google/genai`, `@vis.gl/react-google-maps`, Tailwind CSS, lucide-react, motion, canvas-confetti, Vitest, axe-core, esbuild, and Firebase Tools. See `ATTRIBUTIONS.md` for the full attribution list and demo image source notes.
 
 ## Links
 

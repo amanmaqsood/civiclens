@@ -38,17 +38,6 @@ Seed URL sources currently include:
 - `https://images.unsplash.com/photo-1611284446314-60a58ac0deb9`
 - `https://images.unsplash.com/photo-1504307651254-35680f356dfd`
 
-## Agent Review Skills
-
-Local Codex skills used as review checklists during the rebuild:
-
-- `civiclens-security`
-- `frontend-quality`
-- `hackathon-judge`
-- `release-gate`
-
-These skills informed review and verification. They were not copied into the application as runtime code.
-
 ## UX Planning References
 
 External repositories referenced during the post-release UX planning checkpoint:

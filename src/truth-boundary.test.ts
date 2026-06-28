@@ -41,7 +41,6 @@ describe("truth boundary copy", () => {
       "Confirm & Submit grievance",
       "Report submitted successfully!",
       "Official Ticket ID / Reference ID",
-      "Digital India Citizen Initiative",
       "File a grievance via the local department portal.",
     ];
 
@@ -50,5 +49,6 @@ describe("truth boundary copy", () => {
     for (const snippet of bannedSnippets) {
       expect(combined).not.toContain(snippet);
     }
+    expect(combined).not.toMatch(new RegExp(["Digital", "India", "Citizen", "Initiative"].join("\\s+")));
   });
 });

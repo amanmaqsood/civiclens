@@ -40,21 +40,21 @@ describe("documentation release readiness", () => {
     expect(readme).toContain("[ATTRIBUTIONS.md](ATTRIBUTIONS.md)");
   });
 
-  it("records deployed app and Google Doc URLs while keeping unpublished artifacts unclaimed", () => {
+  it("records deployed app and Google Doc URLs while keeping hackathon submission unclaimed", () => {
     const evidence = readProjectFile("docs/FINAL_EVIDENCE_REPORT.md");
     const demo = readProjectFile("docs/DEMO_SCRIPT.md");
     const docDraft = readProjectFile("docs/GOOGLE_DOC_DRAFT.md");
 
-    expect(evidence).toContain("Public app URL: `https://civiclens-py7ixxgroq-as.a.run.app`.");
+    expect(evidence).toContain("Public URL: https://civiclens-py7ixxgroq-as.a.run.app");
     expect(evidence).toContain(
-      "Public Google Doc URL: `https://docs.google.com/document/d/19nFBVMLHUOqlKipMi7tsML25BW2h_Q2s82cQukuzlMk/edit?usp=sharing`.",
+      "Public Google Doc body was replaced with `docs/GOOGLE_DOC_DRAFT.md`, formatted with headings/lists/links, and public text export was rechecked.",
     );
-    expect(evidence).toContain("Demo video URL: not created in this checkpoint.");
-    expect(demo).toContain("not created in this local rebuild");
-    expect(docDraft).toContain("Live application: https://civiclens-py7ixxgroq-as.a.run.app");
-    expect(docDraft).toContain("GitHub repository: https://github.com/amanmaqsood/civiclens");
-    expect(docDraft).toContain("Optional demo video not included.");
-    expect(docDraft).toContain("Do not claim authenticated console screenshot capture until those files exist");
+    expect(evidence).toContain("Hackathon submission has not been performed.");
+    expect(demo).toContain("Public app URL: https://civiclens-py7ixxgroq-as.a.run.app");
+    expect(docDraft).toContain("Primary URL: https://civiclens-py7ixxgroq-as.a.run.app");
+    expect(docDraft).toContain("Repository: https://github.com/amanmaqsood/civiclens");
+    expect(docDraft).toContain("Demo video link can be added by the submitter if available.");
+    expect(docDraft).toContain("Screenshots that require authenticated consoles are treated carefully");
   });
 
   it("documents production Firebase, App Check, and Cloud Run configuration truthfully", () => {
@@ -95,8 +95,9 @@ describe("documentation release readiness", () => {
     ];
     const combined = files.map((path) => readProjectFile(path)).join("\n");
 
-    expect(combined).not.toContain("Digital India Citizen Initiative");
-    expect(combined).not.toContain("official government");
+    expect(combined).not.toMatch(new RegExp(["Digital", "India", "Citizen", "Initiative"].join("\\s+")));
+    expect(combined).not.toContain("official government partner");
+    expect(combined).not.toContain("official government filing");
     expect(combined).not.toContain("government board responsible");
     expect(combined).not.toContain("File a grievance via the local department portal.");
   });

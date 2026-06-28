@@ -1,6 +1,6 @@
 # CivicLens Architecture
 
-CivicLens is a human-governed civic issue prototype. It saves and reviews reports inside the application; it does not submit records to government systems.
+CivicLens is a human-governed civic issue pilot. It saves and reviews reports inside the application; it does not submit records to government systems.
 
 ## Runtime Stack
 
@@ -64,6 +64,6 @@ Operator actions require a verified Firebase ID token and a server-resolved role
 ## Known Release Gaps
 
 - Transaction/concurrency behavior has a focused parallel Firestore emulator harness for duplicate same-user support, verification, duplicate evidence, and status-transition writes; a full API-level race matrix remains future hardening.
-- Browser E2E and automated accessibility checks use seeded synthetic emulator data; live Gemini/Maps golden-path evidence requires production secrets and deployment approval.
+- Browser E2E and automated accessibility checks use seeded synthetic emulator data for deterministic local checks; live Gemini, Maps, Places, and Cloud Run smoke evidence is recorded separately for the deployed service.
 - Firebase vendor chunk remains above Vite's 500 kB warning threshold.
-- Cloud Run deployment and public URL verification require credentials and explicit approval.
+- App Check enforcement remains disabled for the hackathon deployment until real App Check token delivery is verified without blocking judge access.

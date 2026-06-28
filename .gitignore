@@ -4,6 +4,9 @@ dist/
 coverage/
 playwright-report/
 test-results/
+qa-results/
+_private/
+images (1).jpg
 .DS_Store
 *.log
 .env*

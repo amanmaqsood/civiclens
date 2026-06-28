@@ -1,9 +1,11 @@
 import React, { useState, useEffect } from "react";
-import { IssueReport, IssueActivity, ClosureAssessment } from "../types";
+import { IssueReport, IssueActivity } from "../types";
 import { approveRoutingPlan, fetchIssueActivities, finalizeEscalation, updateIssueStatus } from "../services/issues";
-import { ArrowLeft, Clock, ShieldCheck, CheckSquare, RefreshCw, Lock } from "lucide-react";
+import { fetchLatestAgentRun, runAgentForIssue } from "../services/api";
+import { ArrowLeft, Clock, CheckSquare, RefreshCw, Lock, Sparkles } from "lucide-react";
 import ClosureVerificationPanel from "./ClosureVerificationPanel";
 import AutoEscalationPanel from "./AutoEscalationPanel";
+import AgentTraceTimeline from "./AgentTraceTimeline";
 import confetti from "canvas-confetti";
 import { IssueStatusKey, issueStatusLabel } from "../constants/status";
 
@@ -23,6 +25,11 @@ export default function OperatorDetailView({ issue, onBack, onRefresh, demoOpera
   const [manualOverride, setManualOverride] = useState(false);
   const [approvalRationale, setApprovalRationale] = useState("");
   const [actionError, setActionError] = useState<string | null>(null);
+  const [agentRunning, setAgentRunning] = useState(false);
+  const [agentError, setAgentError] = useState<string | null>(null);
+  const [liveAgentSteps, setLiveAgentSteps] = useState<any[]>([]);
+  const [persistedAgentSteps, setPersistedAgentSteps] = useState<any[]>([]);
+  const [activeAgentRun, setActiveAgentRun] = useState<any | null>(null);
 
   const loadActivities = async () => {
     setLoadingAct(true);
@@ -40,11 +47,60 @@ export default function OperatorDetailView({ issue, onBack, onRefresh, demoOpera
     loadActivities();
   }, [issue.id]);
 
+  useEffect(() => {
+    let active = true;
+    async function loadLatestRun() {
+      try {
+        const result = await fetchLatestAgentRun(issue.id);
+        if (active) {
+          setPersistedAgentSteps(result.steps || []);
+          setActiveAgentRun(result.run || null);
+        }
+      } catch {
+        if (active) {
+          setPersistedAgentSteps([]);
+          setActiveAgentRun(null);
+        }
+      }
+    }
+    loadLatestRun();
+    return () => {
+      active = false;
+    };
+  }, [issue.id]);
+
+  const handleRunAgent = async () => {
+    setAgentRunning(true);
+    setAgentError(null);
+    setLiveAgentSteps([]);
+    try {
+      const agentResult = await runAgentForIssue(issue.id, { demoOperator });
+      let currentTrace: any[] = [];
+      for (const step of agentResult.steps || []) {
+        currentTrace = [...currentTrace, step];
+        setLiveAgentSteps(currentTrace);
+        await new Promise(resolve => setTimeout(resolve, 350));
+      }
+      setActiveAgentRun(agentResult.run || null);
+      setPersistedAgentSteps(agentResult.steps || []);
+      await loadActivities();
+      onRefresh();
+    } catch (e: any) {
+      setAgentError(e?.message || "Failed to run the server agent workflow.");
+    } finally {
+      setAgentRunning(false);
+    }
+  };
+
   const handleAdvanceStatus = async (nextStatus: IssueStatusKey) => {
+    const rationale = approvalRationale.trim();
+    if (!rationale) {
+      setActionError("Enter a written operator rationale before confirming this status transition.");
+      return;
+    }
     setActionPending(true);
     setActionError(null);
     try {
-      const rationale = approvalRationale.trim() || `Operator reviewed the case and approved transition to ${issueStatusLabel(nextStatus)}.`;
       await updateIssueStatus(issue.id, nextStatus, { demoOperator, rationale });
       setConfirmingStatus(null);
       setApprovalRationale("");
@@ -136,6 +192,51 @@ export default function OperatorDetailView({ issue, onBack, onRefresh, demoOpera
 
           <ClosureVerificationPanel issue={issue} onVerified={() => { loadActivities(); onRefresh(); }} />
 
+          <div className="flex flex-col gap-3">
+            <div className="bg-white border rounded-2xl p-4 shadow-3xs flex flex-col gap-3">
+              <div className="flex items-start justify-between gap-3 border-b pb-2">
+                <div>
+                  <h3 className="text-base font-extrabold text-slate-800 flex items-center gap-1.5">
+                    <Sparkles className="w-4 h-4 text-indigo-500" />
+                    Persisted agent workflow
+                  </h3>
+                  <p className="mt-1 text-sm font-semibold leading-relaxed text-slate-500">
+                    Runs the server-side Gemini tool loop for this operator case. Drafts stay inside CivicLens until a human acts outside the app.
+                  </p>
+                </div>
+                {persistedAgentSteps.length > 0 && (
+                  <span className="shrink-0 rounded-lg border border-emerald-200 bg-emerald-50 px-2 py-1 text-sm font-bold text-emerald-700">
+                    Persisted
+                  </span>
+                )}
+              </div>
+
+              {agentError && (
+                <div role="alert" className="rounded-xl border border-alert/20 bg-alert/10 p-3 text-sm font-bold text-alert">
+                  {agentError}
+                </div>
+              )}
+
+              <button
+                type="button"
+                onClick={handleRunAgent}
+                disabled={agentRunning || actionPending}
+                className="min-h-[44px] rounded-xl bg-slate-900 px-4 py-2.5 text-base font-bold text-white shadow-xs disabled:opacity-60"
+              >
+                {agentRunning ? "Running server agent..." : persistedAgentSteps.length > 0 ? "Re-run server agent" : "Run server agent"}
+              </button>
+
+              {agentRunning && (
+                <div className="flex items-center justify-center gap-2 rounded-xl border bg-slate-50 py-2 text-sm font-bold text-slate-600">
+                  <RefreshCw className="w-4 h-4 animate-spin text-indigo-500" />
+                  Executing persisted tool workflow...
+                </div>
+              )}
+            </div>
+
+            <AgentTraceTimeline trace={agentRunning ? liveAgentSteps : persistedAgentSteps} run={activeAgentRun} />
+          </div>
+
           <div className="bg-white border rounded-2xl p-4 shadow-3xs flex flex-col gap-3">
         <h3 className="text-base font-extrabold text-slate-800 flex items-center gap-1.5 border-b pb-2">
           <CheckSquare className="w-4 h-4 text-indigo-500" />
@@ -189,7 +290,7 @@ export default function OperatorDetailView({ issue, onBack, onRefresh, demoOpera
                       onChange={(e) => setManualOverride(e.target.checked)}
                       className="rounded border-slate-300 text-[#4F46E5] focus:ring-[#4F46E5] w-5 h-5"
                     />
-                    <span>Manual prototype override (requires rationale in final rebuild)</span>
+                    <span>Manual prototype override (requires written operator rationale)</span>
                   </label>
                 )}
               </div>
@@ -275,10 +376,15 @@ export default function OperatorDetailView({ issue, onBack, onRefresh, demoOpera
               className="w-full min-h-24 border rounded-xl p-3 text-base text-left"
               placeholder="Operator rationale"
               aria-label="Operator rationale for status transition"
+              aria-describedby="operator-rationale-help"
+              required
             />
+            <p id="operator-rationale-help" className="text-sm font-semibold leading-relaxed text-slate-500">
+              Written rationale is required for every lifecycle transition.
+            </p>
             <div className="flex gap-2 justify-center">
-              <button type="button" onClick={() => { setConfirmingStatus(null); setApprovalRationale(""); }} className="min-h-[44px] bg-slate-100 text-slate-700 text-base font-bold py-2 px-4 rounded-lg cursor-pointer border">No</button>
-              <button type="button" onClick={() => handleAdvanceStatus(confirmingStatus)} disabled={actionPending} className="min-h-[44px] bg-[#4F46E5] text-white text-base font-bold py-2 px-4 rounded-lg cursor-pointer disabled:opacity-60">Yes</button>
+              <button type="button" onClick={() => { setConfirmingStatus(null); setApprovalRationale(""); }} className="min-h-[44px] bg-slate-100 text-slate-700 text-base font-bold py-2 px-4 rounded-lg cursor-pointer border">Cancel</button>
+              <button type="button" onClick={() => handleAdvanceStatus(confirmingStatus)} disabled={actionPending || approvalRationale.trim().length === 0} className="min-h-[44px] bg-[#4F46E5] text-white text-base font-bold py-2 px-4 rounded-lg cursor-pointer disabled:opacity-60">Confirm transition</button>
             </div>
           </div>
         </div>

@@ -30,11 +30,14 @@ describe("persisted server agent workflow", () => {
     expect(server).not.toContain("const { issue, candidates } = req.body");
   });
 
-  it("uses the server agent API from the issue detail page without sending candidates", () => {
+  it("uses the server agent API from the operator detail page without sending candidates", () => {
     const detail = readProjectFile("src/components/IssueDetailPage.tsx");
+    const operator = readProjectFile("src/components/OperatorDetailView.tsx");
 
-    expect(detail).toContain("runAgentForIssue(issue.id)");
     expect(detail).toContain("fetchLatestAgentRun(issue.id)");
+    expect(detail).not.toContain("runAgentForIssue(issue.id)");
+    expect(operator).toContain("runAgentForIssue(issue.id, { demoOperator })");
+    expect(operator).toContain("fetchLatestAgentRun(issue.id)");
     expect(detail).not.toContain("findDuplicateCandidates(issue)");
     expect(detail).not.toContain("updateIssueAgentTraceAndPlan(");
   });

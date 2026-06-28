@@ -12,6 +12,7 @@ interface AgentTraceTimelineProps {
     completedAt?: string;
     stepCount?: number;
   } | null;
+  mode?: "persisted" | "local-progress";
 }
 
 const expectedOrder = [
@@ -60,29 +61,37 @@ function StatusIcon({ status }: { status?: string }) {
   return <CheckCircle2 className="h-5 w-5 text-verify" />;
 }
 
-export default function AgentTraceTimeline({ trace = [], run = null }: AgentTraceTimelineProps) {
+export default function AgentTraceTimeline({ trace = [], run = null, mode = "persisted" }: AgentTraceTimelineProps) {
   const hasTrace = trace.length > 0;
+  const isLocalProgress = mode === "local-progress";
   const completedSteps = trace.length;
   const expectedStepCount = Math.max(8, run?.stepCount || expectedOrder.length);
   const startedAt = run?.startedAt || trace[0]?.ts;
   const completedAt = run?.completedAt || trace[trace.length - 1]?.ts;
+  const ariaLabel = isLocalProgress ? "Local report preparation progress" : "Server agent trace";
 
   if (!hasTrace) {
     return (
       <section
         id="agent-trace-section"
         className="rounded-3xl border border-hairline bg-white p-5 shadow-sm"
-        aria-label="Server agent trace"
+        aria-label={ariaLabel}
       >
         <div className="flex items-start gap-3">
           <div className="flex h-11 w-11 shrink-0 items-center justify-center rounded-2xl bg-ink text-marigold">
             <Sparkles className="h-5 w-5" />
           </div>
           <div>
-            <p className="text-sm font-mono text-[#334155]">Server-generated agent trace</p>
-            <h3 className="mt-1 text-2xl font-black text-ink">No persisted run yet</h3>
+            <p className="text-sm font-mono text-[#334155]">
+              {isLocalProgress ? "Local report progress" : "Server-generated agent trace"}
+            </p>
+            <h3 className="mt-1 text-2xl font-black text-ink">
+              {isLocalProgress ? "Preparing report" : "No persisted run yet"}
+            </h3>
             <p className="mt-2 max-w-2xl text-base leading-relaxed text-[#334155]">
-              Run the server-side Gemini agent to create a persisted tool timeline. Empty state means no run has been loaded for this case.
+              {isLocalProgress
+                ? "Progress appears here while the browser prepares the draft report. Persisted server agent evidence appears only after a saved case has stored tool steps."
+                : "Persisted server tool records appear here after the server-side agent has run for this case."}
             </p>
           </div>
         </div>
@@ -94,7 +103,7 @@ export default function AgentTraceTimeline({ trace = [], run = null }: AgentTrac
     <section
       id="agent-trace-section"
       className="rounded-3xl border border-hairline bg-white p-5 shadow-sm"
-      aria-label="Server agent trace"
+      aria-label={ariaLabel}
     >
       <div className="flex flex-col gap-5">
         <div className="flex flex-col justify-between gap-4 border-b border-hairline pb-4 lg:flex-row lg:items-start">
@@ -103,10 +112,16 @@ export default function AgentTraceTimeline({ trace = [], run = null }: AgentTrac
               <Sparkles className="h-5 w-5" />
             </div>
             <div>
-              <p className="text-sm font-mono text-[#334155]">Persisted server run</p>
-              <h3 className="mt-1 text-2xl font-black text-ink">Agent tool timeline</h3>
+              <p className="text-sm font-mono text-[#334155]">
+                {isLocalProgress ? "Local report progress" : "Persisted server run"}
+              </p>
+              <h3 className="mt-1 text-2xl font-black text-ink">
+                {isLocalProgress ? "Draft preparation timeline" : "Agent tool timeline"}
+              </h3>
               <p className="mt-2 max-w-2xl text-base leading-relaxed text-[#334155]">
-                Gemini selected tools, CivicLens executed them on the server, and these steps were loaded from persisted run data.
+                {isLocalProgress
+                  ? "These steps show in-browser report preparation and nearby-case checks before the draft is saved. They are not presented as persisted agent evidence."
+                  : "Gemini selected tools, CivicLens executed them on the server, and these steps were loaded from persisted run data."}
               </p>
             </div>
           </div>

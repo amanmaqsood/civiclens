@@ -6,10 +6,8 @@ import { useLanguage } from "../context/LanguageContext";
 import PriorityBreakdownWidget from "./PriorityBreakdownWidget";
 import VerificationPanel from "./VerificationPanel";
 import AgentTraceTimeline from "./AgentTraceTimeline";
-import ResolutionPlanWidget from "./ResolutionPlanWidget";
-import AutoEscalationPanel from "./AutoEscalationPanel";
 import { humanizeCategory, humanizeUrgency } from "../utils/humanize";
-import { fetchLatestAgentRun, runAgentForIssue } from "../services/api";
+import { fetchLatestAgentRun } from "../services/api";
 import { ISSUE_STATUS_KEYS, issueStatusLabel } from "../constants/status";
 
 interface IssueDetailPageProps {
@@ -82,37 +80,8 @@ export default function IssueDetailPage({
   
   const { language: lang, t } = useLanguage();
 
-  const [triageRunning, setTriageRunning] = useState(false);
-  const [triageError, setTriageError] = useState<string | null>(null);
-  const [liveTraceSteps, setLiveTraceSteps] = useState<any[]>([]);
   const [persistedAgentSteps, setPersistedAgentSteps] = useState<any[]>([]);
   const [activeAgentRun, setActiveAgentRun] = useState<any | null>(null);
-
-  const handleRunTriage = async () => {
-    setTriageRunning(true);
-    setTriageError(null);
-    setLiveTraceSteps([]);
-
-    try {
-      const agentResult = await runAgentForIssue(issue.id);
-      let currentTrace: any[] = [];
-      for (const step of agentResult.steps || []) {
-        currentTrace = [...currentTrace, step];
-        setLiveTraceSteps(currentTrace);
-        await new Promise(resolve => setTimeout(resolve, 800));
-      }
-
-      setActiveAgentRun(agentResult.run || null);
-      setPersistedAgentSteps(agentResult.steps || []);
-      onRefresh();
-
-    } catch (err: any) {
-      console.error("AI Triage error:", err);
-      setTriageError(err.message || "An unexpected error occurred during AI triage. Please try again.");
-    } finally {
-      setTriageRunning(false);
-    }
-  };
 
   useEffect(() => {
     let active = true;
@@ -248,12 +217,12 @@ export default function IssueDetailPage({
         </div>
       </div>
 
-      {/* AI Triage Agent Control Panel */}
+      {/* Read-only server agent evidence */}
       <div className="bg-white border border-hairline rounded-2xl p-4 flex flex-col gap-3 shadow-[0_4px_16px_-4px_rgba(14,26,43,0.05)]">
         <div className="flex items-center justify-between border-b border-hairline pb-2.5">
           <h3 className="text-xl font-display font-black text-ink flex items-center gap-2">
             <Sparkles className="w-4 h-4 text-marigold" />
-            AI Triage Agent
+            Server agent evidence
           </h3>
           {persistedAgentSteps.length > 0 && (
             <span className="text-sm font-mono bg-verify/10 text-verify px-2 py-1 rounded-lg border border-verify/20">
@@ -263,46 +232,12 @@ export default function IssueDetailPage({
         </div>
 
         <p className="text-base text-slate leading-relaxed">
-          Run the current server-side Gemini tool loop. It can calculate priority, compare nearby prototype cases, suggest a possible authority, and draft complaint text for human review. It does not file or route anything outside CivicLens.
+          This public detail page only displays persisted server-generated tool records. Agent runs, draft routing, escalation, and lifecycle decisions happen in the authorized operator workspace and do not file or route anything outside CivicLens.
         </p>
-
-        {/* Error message */}
-        {triageError && (
-          <div className="bg-alert/5 border border-alert/20 rounded-xl p-3 text-sm text-alert flex flex-col gap-2">
-            <span className="font-semibold">Triage Execution Failed:</span>
-            <span>{triageError}</span>
-            <button
-              onClick={handleRunTriage}
-              className="text-left underline font-bold cursor-pointer hover:opacity-85 text-alert"
-            >
-              Retry Triage Loop
-            </button>
-          </div>
-        )}
-
-        {/* Action Button */}
-        {!triageRunning && (
-          <button
-            onClick={handleRunTriage}
-            className="flex min-h-[52px] items-center justify-center gap-2 bg-ink text-paper hover:bg-ink/90 px-4 py-2.5 rounded-xl text-base font-bold transition-all cursor-pointer shadow-xs"
-          >
-            <Sparkles className="w-3.5 h-3.5 text-marigold animate-pulse" />
-            <span>
-              {persistedAgentSteps.length > 0 ? "Re-run server agent" : "Run server agent"}
-            </span>
-          </button>
-        )}
-
-        {triageRunning && (
-          <div className="flex items-center justify-center gap-2 py-2 bg-paper rounded-xl border border-hairline">
-            <RefreshCw className="w-4 h-4 animate-spin text-marigold" />
-            <span className="text-sm font-mono text-slate">Executing server agent...</span>
-          </div>
-        )}
       </div>
 
       {/* vertical timeline audit trace */}
-      <AgentTraceTimeline trace={triageRunning ? liveTraceSteps : persistedAgentSteps} run={activeAgentRun} />
+      <AgentTraceTimeline trace={persistedAgentSteps} run={activeAgentRun} />
 
       {/* Visual risk diagnosis */}
       <div className="bg-white border border-hairline rounded-2xl p-4 flex flex-col gap-3 shadow-[0_4px_16px_-4px_rgba(14,26,43,0.05)]">
@@ -445,14 +380,6 @@ export default function IssueDetailPage({
 
       {/* Verification controls */}
       <VerificationPanel issue={issue} onRefresh={onRefresh} />
-
-      {/* RTI ESCALATION PORTAL (if not resolved) */}
-      {issue.status !== "resolved" && (
-        <AutoEscalationPanel issue={issue} onUpdated={onRefresh} />
-      )}
-
-      {/* Draft resolution plan builder */}
-      <ResolutionPlanWidget issue={issue} onRefresh={onRefresh} lang={lang} />
 
       {/* Priority scale score breakdown */}
       <PriorityBreakdownWidget issue={issue} />

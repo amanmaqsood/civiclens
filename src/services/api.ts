@@ -52,14 +52,17 @@ export async function fetchApiSession(options: ApiFetchOptions = {}): Promise<Ap
   return result.actor || null;
 }
 
-export async function runAgentForIssue(issueId: string) {
+export async function runAgentForIssue(
+  issueId: string,
+  options: ApiFetchOptions = { demoOperator: true }
+) {
   const idempotencyKey = typeof crypto !== "undefined" && "randomUUID" in crypto
     ? crypto.randomUUID()
     : `${Date.now()}-${Math.random().toString(36).slice(2)}`;
   const response = await apiFetch("/api/agent/run", {
     method: "POST",
     body: JSON.stringify({ issueId, idempotencyKey }),
-  }, { demoOperator: true });
+  }, options);
   const result = await response.json().catch(() => ({}));
   if (!response.ok || !result.success) {
     throw new Error(result.error || "Failed to run the agent workflow.");

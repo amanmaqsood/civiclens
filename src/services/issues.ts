@@ -267,6 +267,18 @@ export async function fetchRecentIssues(): Promise<IssueReport[]> {
   return page.issues;
 }
 
+export async function fetchIssueById(issueId: string): Promise<IssueReport | null> {
+  try {
+    const issueRef = doc(db, COLLECTION_NAME, issueId);
+    const snap = await getDoc(issueRef);
+    if (!snap.exists()) return null;
+    return issueReportFromSnapshot(snap.id, snap.data());
+  } catch (err) {
+    handleFirestoreError(err, OperationType.GET, `${COLLECTION_NAME}/${issueId}`);
+    throw err;
+  }
+}
+
 // Create a new Issue Report through the server-owned data endpoint.
 export async function submitIssueReport(
   params: Omit<IssueReport, "id" | "ticketId" | "status" | "citizenUpvotes" | "userId" | "timestamp">

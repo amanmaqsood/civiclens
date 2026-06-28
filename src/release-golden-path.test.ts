@@ -24,21 +24,26 @@ describe("release golden path and accessibility coverage", () => {
     expect(app).toContain("saveNewStandaloneReport");
   });
 
-  it("renders persisted agent runs and lifecycle panels instead of browser-synthesized agent decisions", () => {
+  it("keeps persisted agent runs and lifecycle controls behind the operator boundary", () => {
     const detail = readProjectFile("src/components/IssueDetailPage.tsx");
     const api = readProjectFile("src/services/api.ts");
     const operator = readProjectFile("src/components/OperatorDetailView.tsx");
 
-    expect(detail).toContain("runAgentForIssue(issue.id)");
     expect(detail).toContain("fetchLatestAgentRun(issue.id)");
+    expect(detail).toContain("This public detail page only displays persisted server-generated tool records");
     expect(detail).toContain("VerificationPanel");
-    expect(detail).toContain("ResolutionPlanWidget");
-    expect(detail).toContain("AutoEscalationPanel");
+    expect(detail).not.toContain("runAgentForIssue(issue.id)");
+    expect(detail).not.toContain("ResolutionPlanWidget");
+    expect(detail).not.toContain("AutoEscalationPanel");
     expect(api).toContain("/api/agent/run");
     expect(api).toContain("/agent-runs/latest");
+    expect(operator).toContain("runAgentForIssue(issue.id, { demoOperator })");
+    expect(operator).toContain("Persisted agent workflow");
     expect(operator).toContain("ClosureVerificationPanel");
+    expect(operator).toContain("AutoEscalationPanel");
     expect(operator).toContain("Approve draft routing/action packet");
     expect(operator).toContain("Finalize escalation/RTI draft");
+    expect(operator).toContain("Written rationale is required");
   });
 
   it("keeps core keyboard/accessibility landmarks and target-size markers", () => {

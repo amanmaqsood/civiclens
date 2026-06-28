@@ -11,6 +11,7 @@ import IssueDetailPage from "./components/IssueDetailPage";
 import { useFirebase } from "./context/FirebaseContext";
 import { 
   fetchIssuesPage, 
+  fetchIssueById,
   submitIssueReport, 
   upvoteIssue,
   findDuplicateCandidates,
@@ -88,6 +89,9 @@ export default function App() {
   const [upvoteLoadingId, setUpvoteLoadingId] = useState<string | null>(null);
   const [errorNotice, setErrorNotice] = useState<string | null>(null);
   const [selectedIssueId, setSelectedIssueId] = useState<string | null>(initialRoute.issueId);
+  const [detailIssue, setDetailIssue] = useState<IssueReport | null>(null);
+  const [detailIssueLoading, setDetailIssueLoading] = useState(false);
+  const [detailIssueError, setDetailIssueError] = useState(false);
 
   // User Geolocation Shared State
   const [userLocation, setUserLocation] = useState<{ lat: number; lng: number } | null>(null);
@@ -201,8 +205,64 @@ export default function App() {
 
   const handleSelectIssue = (id: string) => {
     setSelectedIssueId(id);
+    setDetailIssue(null);
+    setDetailIssueError(false);
     updateBrowserHash("detail", id);
     setCurrentView("detail");
+  };
+
+  useEffect(() => {
+    if (currentView !== "detail" || !selectedIssueId || authLoading || !user) {
+      setDetailIssueLoading(false);
+      setDetailIssueError(false);
+      if (currentView !== "detail") setDetailIssue(null);
+      return;
+    }
+
+    if (issues.some((issue) => issue.id === selectedIssueId)) {
+      setDetailIssue(null);
+      setDetailIssueError(false);
+      setDetailIssueLoading(false);
+      return;
+    }
+
+    if (issuesLoading) return;
+
+    let active = true;
+    setDetailIssueLoading(true);
+    setDetailIssueError(false);
+
+    fetchIssueById(selectedIssueId)
+      .then((issue) => {
+        if (!active) return;
+        setDetailIssue(issue);
+        setDetailIssueError(!issue);
+      })
+      .catch(() => {
+        if (active) {
+          setDetailIssue(null);
+          setDetailIssueError(true);
+        }
+      })
+      .finally(() => {
+        if (active) setDetailIssueLoading(false);
+      });
+
+    return () => {
+      active = false;
+    };
+  }, [currentView, selectedIssueId, issuesLoading, authLoading, user?.uid]);
+
+  const refreshCurrentIssue = async () => {
+    await loadIssues();
+    if (!selectedIssueId) return;
+    try {
+      const issue = await fetchIssueById(selectedIssueId);
+      setDetailIssue(issue);
+      setDetailIssueError(!issue);
+    } catch {
+      setDetailIssueError(true);
+    }
   };
 
   const saveNewStandaloneReport = async (reportData: Partial<IssueReport>) => {
@@ -575,11 +635,13 @@ export default function App() {
 
             {currentView === "detail" && selectedIssueId && (
               (() => {
-                const selectedIssue = issues.find((issue) => issue.id === selectedIssueId);
-                if (issuesLoading) {
+                const selectedIssue =
+                  issues.find((issue) => issue.id === selectedIssueId) ||
+                  (detailIssue?.id === selectedIssueId ? detailIssue : null);
+                if (issuesLoading || detailIssueLoading) {
                   return <RouteLoading label="Loading saved issue..." />;
                 }
-                if (!selectedIssue) {
+                if (!selectedIssue || detailIssueError) {
                   return (
                     <div className="p-4 text-center text-xs font-semibold text-slate-500">
                       Issue report not found. Please navigate back manually.
@@ -595,7 +657,7 @@ export default function App() {
                     onBack={() => handleNavigate("landing")}
                     onUpvote={handleUpvote}
                     upvoteLoadingId={upvoteLoadingId}
-                    onRefresh={loadIssues}
+                    onRefresh={() => { void refreshCurrentIssue(); }}
                   />
                 );
               })()
@@ -665,7 +727,7 @@ export default function App() {
                     </p>
                   </div>
                   <div className="max-h-[50vh] overflow-y-auto pr-1">
-                    <AgentTraceTimeline trace={liveTrace} />
+                    <AgentTraceTimeline trace={liveTrace} mode="local-progress" />
                   </div>
                 </div>
               </div>

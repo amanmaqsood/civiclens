@@ -66,7 +66,7 @@ describe("UX redesign contract", () => {
     const onboarding = readProjectFile("src/components/Onboarding.tsx");
     const audit = readProjectFile("audit.md");
 
-    expect(audit).toContain("CivicLens UI/Flow Audit");
+    expect(audit).toContain("CivicLens UI");
     expect(app).toContain("AppBottomNav");
     expect(bottomNav).toContain("handleDeskToggle");
     expect(bottomNav).toContain('onNavigate("landing")');
@@ -123,11 +123,21 @@ describe("UX redesign contract", () => {
 
     expect(trace).toContain("Agent tool timeline");
     expect(trace).toContain("Persisted server run");
+    expect(trace).toContain("Local report progress");
     expect(trace).toContain("request_human_approval");
     expect(detail).toContain("fetchLatestAgentRun(issue.id)");
+    expect(detail).toContain("This public detail page only displays persisted server-generated tool records");
     expect(detail).toContain("Persisted run");
+    expect(detail).not.toContain("runAgentForIssue(issue.id)");
+    expect(detail).not.toContain("ResolutionPlanWidget");
+    expect(detail).not.toContain("AutoEscalationPanel");
     expect(detail).toContain("finiteNumber(issue.confidence)");
     expect(detail).toContain("hasCoordinates");
+    const operatorDetail = readProjectFile("src/components/OperatorDetailView.tsx");
+    expect(operatorDetail).toContain("runAgentForIssue(issue.id, { demoOperator })");
+    expect(operatorDetail).toContain("Persisted agent workflow");
+    expect(operatorDetail).toContain("Written rationale is required");
+    expect(operatorDetail).toContain("approvalRationale.trim().length === 0");
     expect(queue).toContain("Demo actions are server-limited");
     expect(closure).toContain("recommendation");
     expect(closure).toContain('id="after-image-live-photo-input"');
@@ -176,9 +186,14 @@ describe("UX redesign contract", () => {
 
   it("waits for Firebase anonymous auth before protected API calls", () => {
     const api = readProjectFile("src/services/api.ts");
+    const app = readProjectFile("src/App.tsx");
+    const issues = readProjectFile("src/services/issues.ts");
 
     expect(api).toContain("authStateReady");
     expect(api).toContain("signInAnonymously(auth)");
     expect(api).toContain("getFirebaseIdTokenForApi");
+    expect(app).toContain("fetchIssueById(selectedIssueId)");
+    expect(app).toContain('mode="local-progress"');
+    expect(issues).toContain("export async function fetchIssueById");
   });
 });

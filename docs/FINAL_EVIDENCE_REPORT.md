@@ -175,6 +175,21 @@ Phase 5.1 + 5.5 dark mode and celebration-removal verification on 2026-06-30:
 - `npm run build`: passed; Vite transformed 2141 modules, emitted the dark-mode CSS bundle at 62.69 kB, and kept the largest JS chunk at `fb-firestore` 475.16 kB.
 - Hygiene scans found no prohibited attribution terms and no Google API-key prefix matches. `rg -n "confetti|canvas-confetti" src package.json package-lock.json` found only the UX contract assertion that `OperatorDetailView` does not contain `confetti`; `npm ls canvas-confetti @types/canvas-confetti` reported an empty dependency tree.
 
+Phase 6.1 behavioral API test verification on 2026-06-30:
+
+- Added `npm run test:behavioral-api`, which starts Firebase Auth/Firestore/Storage emulators, launches the local app server, and runs `src/server/behavioral-api.test.ts` against real HTTP endpoints.
+- The behavioral suite covers the API auth matrix: App Check denial, Firebase-auth denial behind local App Check bypass, secret-only scheduled-worker authorization, citizen job denial, and demo-operator denial on a real non-demo case.
+- `/api/jobs/run` now honors a configured `x-civiclens-job-secret` before App Check and actor attachment, so Cloud Scheduler-style calls can reach the worker route without a browser App Check token or Firebase ID token. The route marks the response with `X-CivicLens-AppCheck: job-secret`.
+- The behavioral suite also verifies SLA worker idempotency by advancing reminder -> escalation -> RTI PDF -> first appeal once, then proving a fifth run skips without duplicate issue events.
+- The semantic dedup test creates a real API issue, calls `/api/dedup/semantic`, verifies a nearby same-meaning report is returned above threshold within 50m, and verifies the same text far away is not returned as a duplicate.
+- `.\node_modules\.bin\tsc.cmd --noEmit`: passed with 0 errors.
+- `npm run test:behavioral-api`: passed; 1 file passed, 3 tests passed; runner reported `BEHAVIORAL_API_TESTS passed authz=ok workerIdempotency=ok semanticDedup=ok`.
+- `.\node_modules\.bin\vitest.cmd run`: passed; 21 files passed, 3 skipped; 93 tests passed, 10 skipped.
+- `npm run build`: passed; Vite transformed 2141 modules, emitted `dist/server.cjs` at 197.1 kB, and kept the largest JS chunk at `fb-firestore` 475.16 kB.
+- `npm run test:rules`: passed; 1 emulator rules file passed, 3 tests passed.
+- `npm run test:concurrency`: passed; 1 emulator concurrency file passed, 4 tests passed.
+- Hygiene scans found no prohibited attribution terms and no Google API-key prefix matches.
+
 Latest local validation after public documentation cleanup and current-tree internal artifact removal:
 
 - `npm ci`: passed; install audit reported 3 moderate dev-dependency issues while production audit remained clean.

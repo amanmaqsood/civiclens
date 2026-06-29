@@ -244,6 +244,11 @@ async function startServer() {
     return String(req.originalUrl || req.url || "").split("?")[0];
   }
 
+  function hasValidJobSecret(req: any): boolean {
+    const jobSecret = process.env.CIVICLENS_JOB_SECRET || "";
+    return apiPath(req) === "/api/jobs/run" && !!jobSecret && req.headers["x-civiclens-job-secret"] === jobSecret;
+  }
+
   app.use("/api/*", (req: any, res, next) => {
     const startedAt = Date.now();
     res.on("finish", () => {
@@ -262,6 +267,11 @@ async function startServer() {
   async function verifyApiAppCheck(req: any, res: any, next: any) {
     const routeKind = classifyProtectedRoute(req.method, apiPath(req));
     if (routeKind === "health") return next();
+
+    if (hasValidJobSecret(req)) {
+      res.setHeader("X-CivicLens-AppCheck", "job-secret");
+      return next();
+    }
 
     if (!requireAppCheck) {
       res.setHeader("X-CivicLens-AppCheck", "not-enforced");
@@ -289,6 +299,7 @@ async function startServer() {
   async function attachActor(req: any, res: any, next: any) {
     const routeKind = classifyProtectedRoute(req.method, apiPath(req));
     if (routeKind === "health") return next();
+    if (hasValidJobSecret(req)) return next();
 
     const authHeader = String(req.headers.authorization || "");
     const token = authHeader.startsWith("Bearer ") ? authHeader.slice(7) : "";

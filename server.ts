@@ -2475,6 +2475,64 @@ Return STRICT JSON: { "summary": "2-3 sentences", "predictedHotspots": [{"area":
     return { worker: "predict", generatedAt, aiFallback, hotspots: insight.predictedHotspots?.length || 0 };
   }
 
+  // Follow-up sentinel: an autonomous LLM control loop. For each open case it
+  // reads the chronological timeline + elapsed time and decides the single best
+  // next action (wait / escalate / request_evidence / ready_to_close), persists
+  // the decision + reasoning, and logs it. Deterministic fallback on AI failure.
+  async function runFollowUpSentinel(opts: { limit?: number }) {
+    const limit = Math.min(25, Math.max(1, opts.limit || 15));
+    const nowMs = Date.now();
+    const snap = await adminDb.collection("issues").where("status", "in", ["submitted", "verified", "in_progress"]).limit(limit).get();
+    const ACTIONS = ["wait", "escalate", "request_evidence", "ready_to_close"];
+    const details: any[] = [];
+    for (const doc of snap.docs) {
+      const issue: any = { id: doc.id, ...doc.data() };
+      const createdMs = Date.parse(issue.createdAt || issue.triagedAt || "");
+      const ageHours = Number.isFinite(createdMs) ? Math.round((nowMs - createdMs) / 3600000) : null;
+      let timeline: string[] = [];
+      try {
+        const actSnap = await doc.ref.collection("activity").get();
+        timeline = actSnap.docs.map((d: any) => d.data())
+          .sort((a: any, b: any) => String(a.timestamp).localeCompare(String(b.timestamp)))
+          .slice(-8).map((a: any) => `${a.timestamp}: [${a.actorType}] ${a.message}`);
+      } catch { /* timeline best-effort */ }
+      const ctx = {
+        status: issue.status, ageHours, category: issue.category, severity: issue.severity,
+        priorityScore: issue.priorityScore, confirmCount: issue.confirmCount, citizenUpvotes: issue.citizenUpvotes,
+        hasEscalation: !!issue.escalation, escalationLevel: issue.escalation?.escalationLevel || 0,
+        hasClosureAssessment: !!issue.closureAssessment, timeline,
+      };
+      let decision: any; let aiFallback = false;
+      try {
+        const prompt = `You are CivicLens's autonomous follow-up sentinel for ONE open civic case. Read the context + chronological timeline and choose the single best NEXT action ONLY from: "wait" (progressing/too recent), "escalate" (stalled past a reasonable window), "request_evidence" (needs citizen/officer proof), "ready_to_close" (evidence indicates resolved; a human should confirm). Ground the decision in the timeline and elapsed time; never invent facts.
+Context: ${JSON.stringify(ctx)}
+Return STRICT JSON: { "action": "wait|escalate|request_evidence|ready_to_close", "reasoning": "one sentence grounded in the timeline/age", "confidence": 0.0 to 1.0 }`;
+        const result = await generateContentWithRetry(ai, {
+          model: "gemini-2.5-flash", contents: prompt,
+          config: { responseMimeType: "application/json", responseSchema: { type: Type.OBJECT, properties: { action: { type: Type.STRING }, reasoning: { type: Type.STRING }, confidence: { type: Type.NUMBER } }, required: ["action", "reasoning"] } },
+        });
+        const txt = (result.response.text || "").trim().replace(/^```(?:json)?\s*/i, "").replace(/```\s*$/, "").trim();
+        const parsed = JSON.parse(txt);
+        const action = ACTIONS.includes(String(parsed.action)) ? parsed.action : "wait";
+        decision = { action, reasoning: String(parsed.reasoning || "").slice(0, 500), confidence: typeof parsed.confidence === "number" ? parsed.confidence : null };
+      } catch (err: any) {
+        console.warn("follow-up sentinel: Gemini unavailable, deterministic fallback:", err?.message || err);
+        aiFallback = true;
+        const action = (ageHours != null && ageHours > 168 && !issue.escalation) ? "escalate" : "wait";
+        decision = { action, reasoning: `Deterministic fallback: case open ${ageHours}h; escalation ${issue.escalation ? "present" : "absent"}.`, confidence: null };
+      }
+      const nowIso = new Date().toISOString();
+      await doc.ref.set({ followUp: { ...decision, decidedAt: nowIso, aiFallback, source: "followup-sentinel" } }, { merge: true });
+      await addServerActivity(doc.ref, {
+        actorType: "ai", eventType: "followup_decision",
+        message: `Follow-up sentinel decided: ${String(decision.action).toUpperCase()} - ${decision.reasoning}`,
+        timestamp: nowIso, byRole: "system",
+      });
+      details.push({ id: issue.id, action: decision.action, ageHours, aiFallback });
+    }
+    return { worker: "followup", scanned: snap.size, decisions: details };
+  }
+
   // Latest predictive insight (open analytics, publicly readable).
   app.get("/api/insights/predictive", async (_req: any, res) => {
     if (!adminDb) return sendApiError(res, 503, "Server data layer unavailable.");
@@ -2535,7 +2593,11 @@ Return STRICT JSON: { "summary": "2-3 sentences", "predictedHotspots": [{"area":
         const result = await runPredictiveInsightsWorker();
         return res.json({ success: true, ...result });
       }
-      return sendApiError(res, 400, `Unknown worker: "${worker}". Supported: sla, predict.`);
+      if (worker === "followup") {
+        const result = await runFollowUpSentinel({ limit: Number(req.body?.limit) });
+        return res.json({ success: true, ...result });
+      }
+      return sendApiError(res, 400, `Unknown worker: "${worker}". Supported: sla, predict, followup.`);
     } catch (error: any) {
       return sendApiError(res, 500, "Job runner failed.", error);
     }

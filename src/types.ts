@@ -105,6 +105,14 @@ export interface IssueReport {
     httpStatus?: number | null;
     dispatchedAt?: string;
   };
+  followUp?: {
+    action: string;
+    reasoning: string;
+    confidence?: number | null;
+    decidedAt?: string;
+    aiFallback?: boolean;
+    source?: string;
+  };
 }
 
 export interface IssueActivity {

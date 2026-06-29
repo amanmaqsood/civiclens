@@ -215,6 +215,8 @@ function issueReportFromSnapshot(id: string, data: any): IssueReport {
     resolutionPlan: data.resolutionPlan || undefined,
     closureAssessment: data.closureAssessment || undefined,
     escalation: data.escalation || undefined,
+    dispatch: data.dispatch || undefined,
+    followUp: data.followUp || undefined,
     isDemoData: data.isDemoData || false,
   };
 
@@ -400,6 +402,8 @@ export async function findDuplicateCandidates(
           resolutionPlan: data.resolutionPlan || undefined,
           closureAssessment: data.closureAssessment || undefined,
           escalation: data.escalation || undefined,
+          dispatch: data.dispatch || undefined,
+          followUp: data.followUp || undefined,
           isDemoData: data.isDemoData || false,
         },
         distance,

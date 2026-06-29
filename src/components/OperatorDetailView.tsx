@@ -203,6 +203,18 @@ export default function OperatorDetailView({ issue, onBack, onRefresh, demoOpera
             </div>
           )}
 
+          {issue.followUp?.action && (
+            <div className="rounded-xl border border-marigold/30 bg-marigold/10 p-3 flex items-start gap-2.5">
+              <Sparkles className="w-4 h-4 mt-0.5 shrink-0 text-marigold" aria-hidden="true" />
+              <div className="flex flex-col gap-0.5 min-w-0">
+                <span className="text-sm font-bold text-marigold-ink">
+                  AI follow-up recommendation: {String(issue.followUp.action).replace(/_/g, " ").toUpperCase()}
+                </span>
+                <span className="text-[13px] text-ink-2 leading-snug">{issue.followUp.reasoning}</span>
+              </div>
+            </div>
+          )}
+
           <ClosureVerificationPanel issue={issue} onVerified={() => { loadActivities(); onRefresh(); }} />
 
           <div className="flex flex-col gap-3">

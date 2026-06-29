@@ -704,6 +704,7 @@ async function startServer() {
       });
 
       if (createdNew) await awardPoints(actor.uid, actor.role, 10, "reportCount");
+      if (createdNew) { const ev = await embedText(issueEmbeddingText(saved)); if (ev) await issueRef.set({ embedding: ev }, { merge: true }); }
       return res.json({ success: true, data: publicIssueFromDoc(issueRef.id, saved) });
     } catch (error: any) {
       if (error?.message === "IDEMPOTENCY_CONFLICT") {
@@ -2593,6 +2594,77 @@ Return STRICT JSON: { "action": "wait|escalate|request_evidence|ready_to_close",
     }
   });
 
+  // ---- Phase 3: semantic duplicate detection (gemini-embedding-001 + cosine) --
+  async function embedText(text: string): Promise<number[] | null> {
+    try {
+      const r: any = await ai.models.embedContent({ model: "gemini-embedding-001", contents: text });
+      const vals = r?.embeddings?.[0]?.values || r?.embedding?.values || (Array.isArray(r?.embeddings) ? r.embeddings[0] : null);
+      return Array.isArray(vals) ? vals : null;
+    } catch (e: any) {
+      console.warn("embedText failed:", e?.message || e);
+      return null;
+    }
+  }
+  function cosineSim(a: number[], b: number[]): number {
+    if (!a || !b || a.length !== b.length) return 0;
+    let dot = 0, na = 0, nb = 0;
+    for (let i = 0; i < a.length; i++) { dot += a[i] * b[i]; na += a[i] * a[i]; nb += b[i] * b[i]; }
+    return na && nb ? dot / (Math.sqrt(na) * Math.sqrt(nb)) : 0;
+  }
+  function issueEmbeddingText(i: any): string {
+    return `${i.category || ""} ${i.title || ""} ${i.summary || i.description || ""}`.trim();
+  }
+  function havMeters(la1: number, lo1: number, la2: number, lo2: number): number {
+    const R = 6371000, toR = (d: number) => (d * Math.PI) / 180;
+    const dLa = toR(la2 - la1), dLo = toR(lo2 - lo1);
+    const a = Math.sin(dLa / 2) ** 2 + Math.cos(toR(la1)) * Math.cos(toR(la2)) * Math.sin(dLo / 2) ** 2;
+    return 2 * R * Math.asin(Math.sqrt(a));
+  }
+  // Backfill embeddings for issues missing them.
+  async function runEmbedBackfill(opts: { limit?: number }) {
+    const limit = Math.min(100, Math.max(1, opts.limit || 50));
+    const snap = await adminDb.collection("issues").limit(limit).get();
+    let embedded = 0, skipped = 0;
+    for (const doc of snap.docs) {
+      const i: any = doc.data();
+      if (Array.isArray(i.embedding) && i.embedding.length) { skipped++; continue; }
+      const v = await embedText(issueEmbeddingText(i));
+      if (v) { await doc.ref.set({ embedding: v }, { merge: true }); embedded++; }
+    }
+    return { worker: "embed", scanned: snap.size, embedded, skipped };
+  }
+
+  // Semantic duplicate detection over existing issues (RAG-style cosine + geo).
+  app.post("/api/dedup/semantic", async (req: any, res) => {
+    if (!adminDb) return sendApiError(res, 503, "Server data layer unavailable.");
+    const actor = req.actor as RequestActor | undefined;
+    if (!actor) return sendApiError(res, 401, "Firebase ID token is required.");
+    const text = cleanText(req.body?.text, "", 1000);
+    const lat = typeof req.body?.lat === "number" ? req.body.lat : null;
+    const lng = typeof req.body?.lng === "number" ? req.body.lng : null;
+    const threshold = typeof req.body?.threshold === "number" ? req.body.threshold : 0.82;
+    if (!text) return sendApiError(res, 400, "text is required.");
+    const qv = await embedText(text);
+    if (!qv) return sendApiError(res, 502, "Embedding service unavailable.");
+    try {
+      const snap = await adminDb.collection("issues").limit(300).get();
+      const matches: any[] = [];
+      snap.docs.forEach((doc: any) => {
+        const i = doc.data();
+        if (!Array.isArray(i.embedding)) return;
+        const similarity = Math.round(cosineSim(qv, i.embedding) * 1000) / 1000;
+        let distanceM: number | null = null;
+        if (lat != null && lng != null && typeof i.lat === "number" && typeof i.lng === "number") distanceM = Math.round(havMeters(lat, lng, i.lat, i.lng));
+        matches.push({ id: doc.id, title: i.title, category: i.category, similarity, distanceM });
+      });
+      matches.sort((a, b) => b.similarity - a.similarity);
+      const duplicates = matches.filter((m) => m.similarity >= threshold && (m.distanceM == null || m.distanceM <= 100));
+      return res.json({ query: text, threshold, topMatches: matches.slice(0, 5), duplicates });
+    } catch (error) {
+      return sendApiError(res, 500, "Semantic dedup failed.", error);
+    }
+  });
+
   // Latest predictive insight (open analytics, publicly readable).
   app.get("/api/insights/predictive", async (_req: any, res) => {
     if (!adminDb) return sendApiError(res, 503, "Server data layer unavailable.");
@@ -2657,7 +2729,11 @@ Return STRICT JSON: { "action": "wait|escalate|request_evidence|ready_to_close",
         const result = await runFollowUpSentinel({ limit: Number(req.body?.limit) });
         return res.json({ success: true, ...result });
       }
-      return sendApiError(res, 400, `Unknown worker: "${worker}". Supported: sla, predict, followup.`);
+      if (worker === "embed") {
+        const result = await runEmbedBackfill({ limit: Number(req.body?.limit) });
+        return res.json({ success: true, ...result });
+      }
+      return sendApiError(res, 400, `Unknown worker: "${worker}". Supported: sla, predict, followup, embed.`);
     } catch (error: any) {
       return sendApiError(res, 500, "Job runner failed.", error);
     }

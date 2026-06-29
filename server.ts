@@ -2300,6 +2300,78 @@ Return STRICT JSON: { "escalationLetter": "string", "rtiRequest": "string" }`;
     return { worker: "sla", scanned: snap.size, escalated, thresholdHours, details };
   }
 
+  // Deterministic aggregates over all issues (math in code, never invented by the LLM).
+  async function computeIssueAggregates() {
+    const snap = await adminDb.collection("issues").limit(1000).get();
+    const byStatus: Record<string, number> = {};
+    const byCategory: Record<string, number> = {};
+    const areaCategory: Record<string, number> = {};
+    let total = 0, open = 0, resolved = 0, prioritySum = 0, priorityN = 0;
+    for (const doc of snap.docs) {
+      const i: any = doc.data(); total++;
+      const status = String(i.status || "submitted");
+      byStatus[status] = (byStatus[status] || 0) + 1;
+      if (status === "resolved") resolved++; else open++;
+      const cat = String(i.category || "other").toLowerCase();
+      byCategory[cat] = (byCategory[cat] || 0) + 1;
+      if (typeof i.priorityScore === "number") { prioritySum += i.priorityScore; priorityN++; }
+      const parts = String(i.locationName || "").split(",").map((s) => s.trim()).filter(Boolean);
+      const area = parts.length >= 2 ? parts[parts.length - 2] : (parts[0] || "Unknown");
+      areaCategory[`${area} | ${cat}`] = (areaCategory[`${area} | ${cat}`] || 0) + 1;
+    }
+    const hotspots = Object.entries(areaCategory)
+      .map(([k, count]) => { const [area, category] = k.split(" | "); return { area, category, count }; })
+      .sort((a, b) => b.count - a.count).slice(0, 8);
+    return { total, open, resolved, avgPriority: priorityN ? Math.round((prioritySum / priorityN) * 10) / 10 : 0, byStatus, byCategory, hotspots };
+  }
+
+  // Predictive-insights worker: deterministic aggregation feeds a schema-constrained
+  // Gemini forecast; persists to analytics/predictive; honest fallback on failure.
+  async function runPredictiveInsightsWorker() {
+    const aggregates = await computeIssueAggregates();
+    let insight: any; let aiFallback = false;
+    try {
+      const prompt = `You are a civic operations analyst. From these REAL aggregated civic-issue statistics, produce a short forward-looking briefing. Use ONLY the data provided; never invent specific numbers.
+Data: ${JSON.stringify(aggregates)}
+Return STRICT JSON: { "summary": "2-3 sentences", "predictedHotspots": [{"area":"string","category":"string","riskLevel":"low|medium|high","rationale":"string"}], "priorityCategories": ["string"], "recommendedActions": ["string"] }`;
+      const result = await generateContentWithRetry(ai, {
+        model: "gemini-2.5-flash", contents: prompt,
+        config: { responseMimeType: "application/json", responseSchema: { type: Type.OBJECT, properties: {
+          summary: { type: Type.STRING },
+          predictedHotspots: { type: Type.ARRAY, items: { type: Type.OBJECT, properties: { area: { type: Type.STRING }, category: { type: Type.STRING }, riskLevel: { type: Type.STRING }, rationale: { type: Type.STRING } }, required: ["area", "category", "riskLevel"] } },
+          priorityCategories: { type: Type.ARRAY, items: { type: Type.STRING } },
+          recommendedActions: { type: Type.ARRAY, items: { type: Type.STRING } },
+        }, required: ["summary", "predictedHotspots", "priorityCategories", "recommendedActions"] } },
+      });
+      const txt = (result.response.text || "").trim().replace(/^```(?:json)?\s*/i, "").replace(/```\s*$/, "").trim();
+      insight = JSON.parse(txt);
+    } catch (err: any) {
+      console.warn("predictive worker: Gemini forecast unavailable, using deterministic fallback:", err?.message || err);
+      aiFallback = true;
+      const topCats = Object.entries(aggregates.byCategory).sort((a: any, b: any) => b[1] - a[1]).map(([c]) => c);
+      insight = {
+        summary: `Tracking ${aggregates.total} issues (${aggregates.open} open, ${aggregates.resolved} resolved). Highest activity in ${topCats.slice(0, 2).join(" and ") || "various categories"}. (AI forecast unavailable - deterministic summary.)`,
+        predictedHotspots: aggregates.hotspots.slice(0, 5).map((h) => ({ area: h.area, category: h.category, riskLevel: h.count >= 2 ? "high" : "medium", rationale: `${h.count} report(s) in ${h.area} for ${h.category}.` })),
+        priorityCategories: topCats.slice(0, 3),
+        recommendedActions: ["Prioritize categories with repeat reports", "Inspect recurring hotspots proactively"],
+      };
+    }
+    const generatedAt = new Date().toISOString();
+    await adminDb.collection("analytics").doc("predictive").set({ generatedAt, aggregates, insight, model: "gemini-2.5-flash", aiFallback }, { merge: true });
+    return { worker: "predict", generatedAt, aiFallback, hotspots: insight.predictedHotspots?.length || 0 };
+  }
+
+  // Latest predictive insight (open analytics, publicly readable).
+  app.get("/api/insights/predictive", async (_req: any, res) => {
+    if (!adminDb) return sendApiError(res, 503, "Server data layer unavailable.");
+    try {
+      const doc = await adminDb.collection("analytics").doc("predictive").get();
+      return res.json(doc.exists ? doc.data() : { insight: null });
+    } catch (error) {
+      return sendApiError(res, 500, "Failed to load predictive insight.", error);
+    }
+  });
+
   // Auth-gated job runner. In production a Cloud Scheduler -> Cloud Run job (or a
   // shared CIVICLENS_JOB_SECRET header) invokes this; operators may trigger it too.
   app.post("/api/jobs/run", async (req: any, res) => {
@@ -2315,7 +2387,11 @@ Return STRICT JSON: { "escalationLetter": "string", "rtiRequest": "string" }`;
         const result = await runSlaEscalationWorker({ thresholdHours: Number(req.body?.thresholdHours), limit: Number(req.body?.limit) });
         return res.json({ success: true, ...result });
       }
-      return sendApiError(res, 400, `Unknown worker: "${worker}". Supported: sla.`);
+      if (worker === "predict") {
+        const result = await runPredictiveInsightsWorker();
+        return res.json({ success: true, ...result });
+      }
+      return sendApiError(res, 400, `Unknown worker: "${worker}". Supported: sla, predict.`);
     } catch (error: any) {
       return sendApiError(res, 500, "Job runner failed.", error);
     }

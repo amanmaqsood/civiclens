@@ -484,15 +484,153 @@ async function startServer() {
     return { id, ...data };
   }
 
-  async function addServerActivity(issueRef: any, activity: {
+  type EventActorType = "citizen" | "operator" | "ai" | "worker" | "system";
+  type EventSource = "api" | "agent" | "worker" | "gemini" | "system";
+  type EventStatus = "attempted" | "succeeded" | "failed";
+  type EventSeverity = "debug" | "info" | "warn" | "error";
+  type ServerActivity = {
     actorType: "operator" | "citizen" | "ai";
     eventType: string;
     message: string;
     timestamp: string;
     byUid?: string;
     byRole?: string;
-  }) {
-    await issueRef.collection("activity").add(activity);
+  };
+  type CivicEventInput = {
+    issueId?: string;
+    issueRef?: any;
+    actorType: EventActorType;
+    eventType: string;
+    message: string;
+    timestamp?: string;
+    actor?: Partial<RequestActor> | null;
+    byUid?: string;
+    byRole?: string;
+    source: EventSource;
+    payload?: Record<string, unknown>;
+    requestId?: string;
+    severity?: EventSeverity;
+    status?: EventStatus;
+    idempotencyKey?: string;
+  };
+
+  function sanitizeEventPayload(payload: unknown): Record<string, unknown> {
+    if (!payload || typeof payload !== "object" || Array.isArray(payload)) return {};
+    try {
+      const serialized = JSON.stringify(payload);
+      if (serialized.length > 6000) {
+        return {
+          truncated: true,
+          jsonPreview: serialized.slice(0, 6000),
+        };
+      }
+      return JSON.parse(serialized);
+    } catch {
+      return { note: cleanText(String(payload), "unserializable payload", 500) };
+    }
+  }
+
+  function buildEventDocument(eventId: string, input: CivicEventInput) {
+    const actorUid = cleanText(input.byUid || input.actor?.uid, "", 128) || null;
+    const actorRole = cleanText(input.byRole || input.actor?.role, "", 64) || null;
+    const issueId = cleanText(input.issueId || input.issueRef?.id, "", 160) || null;
+    const eventType = cleanText(input.eventType, "event", 120) || "event";
+    const severity = input.severity || "info";
+    const status = input.status || "succeeded";
+    const timestamp = input.timestamp || new Date().toISOString();
+    return {
+      id: eventId,
+      eventType,
+      actorType: input.actorType,
+      source: input.source,
+      status,
+      severity,
+      message: cleanText(input.message, "CivicLens event recorded.", 1600),
+      timestamp,
+      createdAt: new Date().toISOString(),
+      issueId,
+      actor: {
+        uid: actorUid,
+        role: actorRole,
+        isDemoOperator: input.actor?.isDemoOperator === true,
+        isRealOperator: input.actor?.isRealOperator === true,
+      },
+      requestId: cleanText(input.requestId, "", 160) || null,
+      idempotencyKey: cleanText(input.idempotencyKey, "", 160) || null,
+      payload: sanitizeEventPayload(input.payload),
+    };
+  }
+
+  async function recordEvent(input: CivicEventInput) {
+    if (!adminDb) {
+      structuredLog("warn", "civic_event_skipped", {
+        eventType: input.eventType,
+        reason: "adminDb unavailable",
+      });
+      return null;
+    }
+    try {
+      const eventRef = adminDb.collection("events").doc();
+      const eventDoc = buildEventDocument(eventRef.id, input);
+      const batch = adminDb.batch();
+      batch.set(eventRef, eventDoc);
+      const issueRef = input.issueRef || (eventDoc.issueId ? adminDb.collection("issues").doc(eventDoc.issueId) : null);
+      if (issueRef) {
+        batch.set(issueRef.collection("events").doc(eventRef.id), eventDoc);
+      }
+      await batch.commit();
+      structuredLog(eventDoc.severity === "error" ? "error" : eventDoc.severity === "warn" ? "warn" : "info", "civic_event_recorded", {
+        eventId: eventDoc.id,
+        eventType: eventDoc.eventType,
+        issueId: eventDoc.issueId,
+        actorType: eventDoc.actorType,
+        source: eventDoc.source,
+        status: eventDoc.status,
+      });
+      return eventDoc;
+    } catch (error: any) {
+      structuredLog("error", "civic_event_failed", {
+        eventType: input.eventType,
+        issueId: input.issueId || input.issueRef?.id || null,
+        error: error?.message || String(error),
+      });
+      return null;
+    }
+  }
+
+  async function addServerActivity(issueRef: any, activity: ServerActivity) {
+    const activityRef = issueRef.collection("activity").doc();
+    if (!adminDb) {
+      await activityRef.set(activity);
+      return;
+    }
+    const source: EventSource = activity.byRole === "system" ? "worker" : activity.actorType === "ai" ? "agent" : "api";
+    const eventRef = adminDb.collection("events").doc();
+    const eventDoc = buildEventDocument(eventRef.id, {
+      issueRef,
+      actorType: activity.actorType,
+      eventType: activity.eventType,
+      message: activity.message,
+      timestamp: activity.timestamp,
+      byUid: activity.byUid,
+      byRole: activity.byRole,
+      source,
+      status: "succeeded",
+      payload: { activityId: activityRef.id },
+    });
+    const batch = adminDb.batch();
+    batch.set(activityRef, activity);
+    batch.set(eventRef, eventDoc);
+    batch.set(issueRef.collection("events").doc(eventRef.id), eventDoc);
+    await batch.commit();
+    structuredLog(eventDoc.severity === "error" ? "error" : eventDoc.severity === "warn" ? "warn" : "info", "civic_event_recorded", {
+      eventId: eventDoc.id,
+      eventType: eventDoc.eventType,
+      issueId: eventDoc.issueId,
+      actorType: eventDoc.actorType,
+      source: eventDoc.source,
+      status: eventDoc.status,
+    });
   }
 
   // ---- Phase 4: Gamification (civic reputation) -------------------------
@@ -566,6 +704,7 @@ async function startServer() {
       if (!requireOperatorForIssue(authIssueData, actor, res)) return;
 
       let responsePayload: any = null;
+      let previousStatus: IssueStatusKey | null = null;
       await adminDb.runTransaction(async (tx: any) => {
         const txSnap = await tx.get(ref);
         if (!txSnap.exists) throw new Error("NOT_FOUND");
@@ -575,6 +714,7 @@ async function startServer() {
         }
 
         const current = normalizeIssueStatus(issueData.status);
+        previousStatus = current;
         if (!(allowed[current] || []).includes(newStatus)) {
           const transitionError: any = new Error("INVALID_TRANSITION");
           transitionError.current = current;
@@ -619,6 +759,16 @@ async function startServer() {
         responsePayload = { success: true, status: newStatus, resolvedAt: updates.resolvedAt || null };
       });
 
+      await recordEvent({
+        issueRef: ref,
+        actorType: "operator",
+        eventType: "status_changed",
+        message: `Status advanced to ${issueStatusLabel(newStatus)} by server-authorized operator. Rationale: ${rationale}`,
+        timestamp: nowIso,
+        actor,
+        source: "api",
+        payload: { fromStatus: previousStatus, toStatus: newStatus, resolvedAt: responsePayload?.resolvedAt || null },
+      });
       res.json(responsePayload);
     } catch (e: any) {
       if (e?.message === "NOT_FOUND") return sendApiError(res, 404, "Issue not found.");
@@ -705,6 +855,23 @@ async function startServer() {
 
       if (createdNew) await awardPoints(actor.uid, actor.role, 10, "reportCount");
       if (createdNew) { const ev = await embedText(issueEmbeddingText(saved)); if (ev) await issueRef.set({ embedding: ev }, { merge: true }); }
+      if (createdNew) {
+        await recordEvent({
+          issueRef,
+          actorType: "citizen",
+          eventType: "created",
+          message: "Prototype report saved by server.",
+          timestamp: nowIso,
+          actor,
+          source: "api",
+          idempotencyKey,
+          payload: {
+            ticketId: saved?.ticketId || null,
+            category: saved?.category || null,
+            priorityScore: saved?.priorityScore || null,
+          },
+        });
+      }
       return res.json({ success: true, data: publicIssueFromDoc(issueRef.id, saved) });
     } catch (error: any) {
       if (error?.message === "IDEMPOTENCY_CONFLICT") {
@@ -725,12 +892,14 @@ async function startServer() {
     const evidenceRef = issueRef.collection("evidence").doc(evidenceId);
     const nowIso = new Date().toISOString();
 
+    let evidenceCreated = false;
     try {
       await adminDb.runTransaction(async (tx: any) => {
         const issueSnap = await tx.get(issueRef);
         if (!issueSnap.exists) throw new Error("NOT_FOUND");
         const existingEvidence = await tx.get(evidenceRef);
         if (existingEvidence.exists) return;
+        evidenceCreated = true;
 
         tx.set(evidenceRef, {
           imageUrl: cleanText(req.body?.imageUrl, "", 1200),
@@ -755,6 +924,19 @@ async function startServer() {
         });
       });
 
+      if (evidenceCreated) {
+        await recordEvent({
+          issueRef,
+          actorType: "citizen",
+          eventType: "evidence_submitted",
+          message: "Supporting evidence linked by server.",
+          timestamp: nowIso,
+          actor,
+          source: "api",
+          idempotencyKey: evidenceId,
+          payload: { evidenceId },
+        });
+      }
       return res.json({ success: true, evidenceId });
     } catch (error: any) {
       if (error?.message === "NOT_FOUND") return sendApiError(res, 404, "Issue not found.");
@@ -785,6 +967,14 @@ async function startServer() {
         });
       });
       await awardPoints(actor.uid, actor.role, 2, "supportCount");
+      await addServerActivity(issueRef, {
+        actorType: "citizen",
+        eventType: "support_recorded",
+        message: "Community support vote recorded by server.",
+        timestamp: nowIso,
+        byUid: actor.uid,
+        byRole: actor.role,
+      });
       return res.json({ success: true });
     } catch (error: any) {
       if (error?.message === "NOT_FOUND") return sendApiError(res, 404, "Issue not found.");
@@ -834,6 +1024,16 @@ async function startServer() {
         });
       });
       if (type === "confirm") await awardPoints(actor.uid, actor.role, 5, "verifyCount");
+      await recordEvent({
+        issueRef,
+        actorType: "citizen",
+        eventType: "verification",
+        message: `Community ${type} recorded by server.`,
+        timestamp: nowIso,
+        actor,
+        source: "api",
+        payload: { verificationType: type },
+      });
       return res.json({ success: true });
     } catch (error: any) {
       if (error?.message === "NOT_FOUND") return sendApiError(res, 404, "Issue not found.");
@@ -854,6 +1054,14 @@ async function startServer() {
         titleHi: cleanText(req.body?.titleHi, "", 240),
         summaryHi: cleanText(req.body?.summaryHi, "", 1600),
         updatedAt: new Date().toISOString(),
+      });
+      await addServerActivity(issueRef, {
+        actorType: actor.isRealOperator || actor.isDemoOperator ? "operator" : "citizen",
+        eventType: "translations_saved",
+        message: "Issue translations saved by server.",
+        timestamp: new Date().toISOString(),
+        byUid: actor.uid,
+        byRole: actor.role,
       });
       return res.json({ success: true });
     } catch (error) {
@@ -1404,6 +1612,7 @@ Output ONLY valid JSON and nothing else.`;
       const existing = await adminDb.collection("issues").where("isDemoData", "==", true).limit(1).get();
       if (!existing.empty) return res.json({ success: true, seeded: 0 });
       const batch = adminDb.batch();
+      const seededReports: Array<{ ref: any; report: any }> = [];
       const now = Date.now();
 
       for (const [index, template] of demoSeedTemplates.entries()) {
@@ -1446,6 +1655,7 @@ Output ONLY valid JSON and nothing else.`;
           }],
           priorityScore: serverPriorityScore(template),
         };
+        seededReports.push({ ref, report });
         batch.set(ref, report);
         batch.set(ref.collection("activity").doc(), {
           actorType: "operator",
@@ -1458,6 +1668,21 @@ Output ONLY valid JSON and nothing else.`;
       }
 
       await batch.commit();
+      await Promise.all(seededReports.map(({ ref, report }) => recordEvent({
+        issueRef: ref,
+        actorType: "operator",
+        eventType: "demo_seeded",
+        message: "Synthetic demo report seeded by server.",
+        timestamp: report.updatedAt,
+        actor,
+        source: "api",
+        payload: {
+          title: report.title,
+          category: report.category,
+          status: report.status,
+          priorityScore: report.priorityScore,
+        },
+      })));
       return res.json({ success: true, seeded: demoSeedTemplates.length });
     } catch (error) {
       return sendApiError(res, 500, "Failed to seed demo data.", error);
@@ -1476,6 +1701,14 @@ Output ONLY valid JSON and nothing else.`;
       const batch = adminDb.batch();
       snap.forEach((docSnap: any) => batch.delete(docSnap.ref));
       await batch.commit();
+      await recordEvent({
+        actorType: "operator",
+        eventType: "demo_cleared",
+        message: "Synthetic demo reports cleared by server.",
+        actor,
+        source: "api",
+        payload: { cleared: snap.size },
+      });
       return res.json({ success: true, cleared: snap.size });
     } catch (error) {
       return sendApiError(res, 500, "Failed to clear demo data.", error);
@@ -1486,6 +1719,7 @@ Output ONLY valid JSON and nothing else.`;
   // Server-side Gemini Multimodal Report Analysis Endpoint
   app.post("/api/analyze-report", async (req, res) => {
     const { image, description } = req.body;
+    const actor = (req as any).actor as RequestActor | undefined;
 
     if (!image) {
       return res.status(400).json({ success: false, error: "Image payload is required." });
@@ -1664,6 +1898,22 @@ Respond ONLY with the corrected, valid JSON object.`;
         : "Fallback to manual form";
 
       if (parseSuccess) {
+        await recordEvent({
+          actorType: "ai",
+          eventType: "ai_report_analysis",
+          message: "Gemini multimodal report analysis completed.",
+          actor,
+          source: "gemini",
+          status: "succeeded",
+          payload: {
+            durationMs,
+            confidence: parsedData.confidence,
+            category: parsedData.category,
+            isCivicIssue: parsedData.isCivicIssue,
+            retried: finalRetried,
+            fallbackUsed,
+          },
+        });
         return res.json({
           success: true,
           fallback: false,
@@ -1677,6 +1927,21 @@ Respond ONLY with the corrected, valid JSON object.`;
         });
       } else {
         // Fall back cleanly to manual form
+        await recordEvent({
+          actorType: "ai",
+          eventType: "ai_report_analysis",
+          message: "Gemini multimodal report analysis fell back to manual form after schema validation failed.",
+          actor,
+          source: "gemini",
+          status: "failed",
+          severity: "warn",
+          payload: {
+            durationMs,
+            confidence: 0,
+            retried: finalRetried,
+            fallbackUsed,
+          },
+        });
         return res.json({
           success: false,
           fallback: true,
@@ -1691,6 +1956,16 @@ Respond ONLY with the corrected, valid JSON object.`;
       }
     } catch (error: any) {
       console.error("Gemini analysis error:", error);
+      await recordEvent({
+        actorType: "ai",
+        eventType: "ai_report_analysis",
+        message: "Gemini multimodal report analysis failed.",
+        actor,
+        source: "gemini",
+        status: "failed",
+        severity: "error",
+        payload: { error: error?.message || String(error) },
+      });
       return sendApiError(res, 500, "An error occurred during Gemini multimodal analysis.");
     }
   });
@@ -1698,6 +1973,7 @@ Respond ONLY with the corrected, valid JSON object.`;
   // Server-side Gemini Duplicate Checking Endpoint
   app.post("/api/check-duplicate", async (req, res) => {
     const { newReport, candidates } = req.body;
+    const actor = (req as any).actor as RequestActor | undefined;
 
     if (!newReport || !candidates || !Array.isArray(candidates)) {
       return res.status(400).json({ success: false, error: "Missing newReport or candidates array." });
@@ -1770,6 +2046,22 @@ Output STRICT, VALID JSON conforming exactly to the response schema.`;
       const inputDigest = `Compare: ${newReport.category} vs ${candidates.length} candidates`;
       const outputSummary = `Rec: ${parsedData.recommendation} · similarity: ${(parsedData.similarity || 0).toFixed(2)}`;
 
+      await recordEvent({
+        actorType: "ai",
+        eventType: "ai_duplicate_check",
+        message: "Gemini duplicate comparison completed.",
+        actor,
+        source: "gemini",
+        status: "succeeded",
+        payload: {
+          durationMs,
+          recommendation: parsedData.recommendation,
+          bestCandidateId: parsedData.bestCandidateId || null,
+          similarity: parsedData.similarity,
+          candidateCount: candidates.length,
+          retried,
+        },
+      });
       return res.json({ 
         success: true, 
         data: parsedData,
@@ -1781,6 +2073,16 @@ Output STRICT, VALID JSON conforming exactly to the response schema.`;
       });
     } catch (error: any) {
       console.error("Duplicate detection error:", error);
+      await recordEvent({
+        actorType: "ai",
+        eventType: "ai_duplicate_check",
+        message: "Gemini duplicate comparison failed.",
+        actor,
+        source: "gemini",
+        status: "failed",
+        severity: "error",
+        payload: { error: error?.message || String(error) },
+      });
       return sendApiError(res, 500, "An error occurred during Gemini duplicate analysis.");
     }
   });
@@ -1788,6 +2090,7 @@ Output STRICT, VALID JSON conforming exactly to the response schema.`;
   // Server-side Gemini Resolution Plan Generator (with Google Search Grounding)
   app.post("/api/resolution-plan", async (req, res) => {
     const { category, title, summary, locationName, lat, lng, ticketId } = req.body;
+    const actor = (req as any).actor as RequestActor | undefined;
 
     if (!category || !title || !summary) {
       return res.status(400).json({ success: false, error: "Missing required category, title, or summary parameters." });
@@ -1881,6 +2184,23 @@ Output ONLY valid JSON and nothing else.`;
       const inputDigest = `${category}: "${title}"`;
       const outputSummary = `Suggested authority: ${parsedData.recommendedAuthority} · follow-up: ${parsedData.slaDays} days`;
 
+      await recordEvent({
+        actorType: "ai",
+        eventType: "ai_resolution_plan",
+        message: "Gemini grounded resolution plan completed.",
+        actor,
+        source: "gemini",
+        status: "succeeded",
+        payload: {
+          durationMs,
+          category,
+          ticketId: ticketId || null,
+          recommendedAuthority: parsedData.recommendedAuthority || null,
+          slaDays: parsedData.slaDays || null,
+          groundingSourceCount: uniqueSources.length,
+          retried,
+        },
+      });
       return res.json({ 
         success: true, 
         data: parsedData,
@@ -1892,6 +2212,20 @@ Output ONLY valid JSON and nothing else.`;
       });
     } catch (error: any) {
       console.error("Resolution plan generation error:", error);
+      await recordEvent({
+        actorType: "ai",
+        eventType: "ai_resolution_plan",
+        message: "Gemini grounded resolution plan failed.",
+        actor,
+        source: "gemini",
+        status: "failed",
+        severity: "error",
+        payload: {
+          category: category || null,
+          ticketId: ticketId || null,
+          error: error?.message || String(error),
+        },
+      });
       return sendApiError(res, 500, "An error occurred during Gemini resolution plan generation.");
     }
   });
@@ -2059,6 +2393,23 @@ Return a STRICT JSON response adhering precisely to this schema. Do not include 
         });
       }
 
+      await recordEvent({
+        issueRef,
+        issueId: issueId || undefined,
+        actorType: "ai",
+        eventType: "ai_closure_verification",
+        message: "Gemini closure verification completed.",
+        actor,
+        source: "gemini",
+        status: "succeeded",
+        payload: {
+          durationMs,
+          confidence: closureAssessment.confidence,
+          recommendation: closureAssessment.recommendation,
+          resolved: closureAssessment.resolved,
+          retried,
+        },
+      });
       return res.json({ 
         success: true, 
         data: closureAssessment,
@@ -2070,6 +2421,18 @@ Return a STRICT JSON response adhering precisely to this schema. Do not include 
       });
     } catch (error: any) {
       console.error("verify-resolution error:", error);
+      await recordEvent({
+        issueRef,
+        issueId: issueId || undefined,
+        actorType: "ai",
+        eventType: "ai_closure_verification",
+        message: "Gemini closure verification failed.",
+        actor,
+        source: "gemini",
+        status: "failed",
+        severity: "error",
+        payload: { error: error?.message || String(error) },
+      });
       return sendApiError(res, 500, "An error occurred during Gemini multimodal verification.");
     }
   });
@@ -2077,6 +2440,7 @@ Return a STRICT JSON response adhering precisely to this schema. Do not include 
   // Auto-Escalation + RTI generator endpoint
   app.post("/api/escalation", async (req, res) => {
     const { title, summary, locationName, category, recommendedAuthority, ticketId } = req.body;
+    const actor = (req as any).actor as RequestActor | undefined;
 
     try {
       const todayStr = new Date().toLocaleDateString("en-US", { year: "numeric", month: "long", day: "numeric" });
@@ -2139,6 +2503,21 @@ Return a STRICT JSON response adhering precisely to this schema:
       const inputDigest = `Escalate ticket ${ticketId || "N/A"}`;
       const outputSummary = `Drafted Escalation Letter + RTI Request`;
 
+      await recordEvent({
+        actorType: "ai",
+        eventType: "ai_escalation_draft",
+        message: "Gemini escalation and RTI draft completed.",
+        actor,
+        source: "gemini",
+        status: "succeeded",
+        payload: {
+          durationMs,
+          category: category || null,
+          ticketId: ticketId || null,
+          recommendedAuthority: recommendedAuthority || null,
+          retried,
+        },
+      });
       return res.json({ 
         success: true, 
         data: parsedResult,
@@ -2150,6 +2529,20 @@ Return a STRICT JSON response adhering precisely to this schema:
       });
     } catch (error: any) {
       console.error("escalation generation error:", error);
+      await recordEvent({
+        actorType: "ai",
+        eventType: "ai_escalation_draft",
+        message: "Gemini escalation and RTI draft failed.",
+        actor,
+        source: "gemini",
+        status: "failed",
+        severity: "error",
+        payload: {
+          category: category || null,
+          ticketId: ticketId || null,
+          error: error?.message || String(error),
+        },
+      });
       return sendApiError(res, 500, "An error occurred during Gemini escalation generation.");
     }
   });
@@ -2157,6 +2550,7 @@ Return a STRICT JSON response adhering precisely to this schema:
   // Server-side Gemini Translation Endpoint
   app.post("/api/translate", async (req, res) => {
     const { title, summary } = req.body;
+    const actor = (req as any).actor as RequestActor | undefined;
     if (!title || !summary) {
       return res.status(400).json({ success: false, error: "Missing title or summary to translate." });
     }
@@ -2195,9 +2589,28 @@ Output ONLY valid JSON and nothing else.`;
       cleanText = cleanText.replace(/^```(?:json)?\s*/i, "").replace(/```\s*$/, "").trim();
 
       const parsedData = JSON.parse(cleanText);
+      await recordEvent({
+        actorType: "ai",
+        eventType: "ai_translation",
+        message: "Gemini Hindi translation completed.",
+        actor,
+        source: "gemini",
+        status: "succeeded",
+        payload: { titleLength: String(title || "").length, summaryLength: String(summary || "").length },
+      });
       return res.json({ success: true, data: parsedData });
     } catch (error: any) {
       console.error("Translation error:", error);
+      await recordEvent({
+        actorType: "ai",
+        eventType: "ai_translation",
+        message: "Gemini Hindi translation failed; original text returned.",
+        actor,
+        source: "gemini",
+        status: "failed",
+        severity: "warn",
+        payload: { error: error?.message || String(error) },
+      });
       // Fallback: return the original English strings
       return res.json({
         success: false,
@@ -2412,6 +2825,14 @@ Return STRICT JSON: { "escalationLetter": "string", "rtiRequest": "string" }`;
       escalated++;
       details.push({ id: issue.id, action: "escalated", ageHours: Math.round(ageHours), level: escalation.escalationLevel, aiFallback: draft.aiFallback });
     }
+    await recordEvent({
+      actorType: "worker",
+      eventType: "worker_sla_completed",
+      message: "SLA escalation worker completed.",
+      source: "worker",
+      byRole: "system",
+      payload: { scanned: snap.size, escalated, thresholdHours, detailCount: details.length },
+    });
     return { worker: "sla", scanned: snap.size, escalated, thresholdHours, details };
   }
 
@@ -2473,6 +2894,21 @@ Return STRICT JSON: { "summary": "2-3 sentences", "predictedHotspots": [{"area":
     }
     const generatedAt = new Date().toISOString();
     await adminDb.collection("analytics").doc("predictive").set({ generatedAt, aggregates, insight, model: "gemini-2.5-flash", aiFallback }, { merge: true });
+    await recordEvent({
+      actorType: "worker",
+      eventType: "worker_predictive_completed",
+      message: "Predictive insights worker completed.",
+      timestamp: generatedAt,
+      source: "worker",
+      byRole: "system",
+      payload: {
+        aiFallback,
+        total: aggregates.total,
+        open: aggregates.open,
+        resolved: aggregates.resolved,
+        hotspots: insight.predictedHotspots?.length || 0,
+      },
+    });
     return { worker: "predict", generatedAt, aiFallback, hotspots: insight.predictedHotspots?.length || 0 };
   }
 
@@ -2531,6 +2967,14 @@ Return STRICT JSON: { "action": "wait|escalate|request_evidence|ready_to_close",
       });
       details.push({ id: issue.id, action: decision.action, ageHours, aiFallback });
     }
+    await recordEvent({
+      actorType: "worker",
+      eventType: "worker_followup_completed",
+      message: "Follow-up sentinel worker completed.",
+      source: "worker",
+      byRole: "system",
+      payload: { scanned: snap.size, decisionCount: details.length },
+    });
     return { worker: "followup", scanned: snap.size, decisions: details };
   }
 
@@ -2631,6 +3075,14 @@ Return STRICT JSON: { "action": "wait|escalate|request_evidence|ready_to_close",
       const v = await embedText(issueEmbeddingText(i));
       if (v) { await doc.ref.set({ embedding: v }, { merge: true }); embedded++; }
     }
+    await recordEvent({
+      actorType: "worker",
+      eventType: "worker_embed_completed",
+      message: "Embedding backfill worker completed.",
+      source: "worker",
+      byRole: "system",
+      payload: { scanned: snap.size, embedded, skipped },
+    });
     return { worker: "embed", scanned: snap.size, embedded, skipped };
   }
 
@@ -2716,25 +3168,71 @@ Return STRICT JSON: { "action": "wait|escalate|request_evidence|ready_to_close",
     const operatorOk = !!actor && (actor.isRealOperator || actor.isDemoOperator);
     if (!secretOk && !operatorOk) return sendApiError(res, 403, "Job runner requires an operator session or a valid job secret.");
     const worker = String(req.query.worker || req.body?.worker || "").toLowerCase();
+    const workerActorType: EventActorType = secretOk && !operatorOk ? "worker" : "operator";
+    await recordEvent({
+      actorType: workerActorType,
+      eventType: "worker_job_requested",
+      message: `Worker job requested: ${worker || "unknown"}.`,
+      actor,
+      byRole: secretOk && !operatorOk ? "system" : actor?.role,
+      source: "worker",
+      status: "attempted",
+      payload: { worker, secretAuthenticated: secretOk, operatorAuthenticated: operatorOk },
+    });
+    const sendWorkerResult = async (result: any) => {
+      await recordEvent({
+        actorType: "worker",
+        eventType: "worker_job_completed",
+        message: `Worker job completed: ${result.worker || worker}.`,
+        actor,
+        byRole: secretOk && !operatorOk ? "system" : actor?.role,
+        source: "worker",
+        status: "succeeded",
+        payload: result,
+      });
+      return res.json({ success: true, ...result });
+    };
     try {
       if (worker === "sla") {
         const result = await runSlaEscalationWorker({ thresholdHours: Number(req.body?.thresholdHours), limit: Number(req.body?.limit) });
-        return res.json({ success: true, ...result });
+        return sendWorkerResult(result);
       }
       if (worker === "predict") {
         const result = await runPredictiveInsightsWorker();
-        return res.json({ success: true, ...result });
+        return sendWorkerResult(result);
       }
       if (worker === "followup") {
         const result = await runFollowUpSentinel({ limit: Number(req.body?.limit) });
-        return res.json({ success: true, ...result });
+        return sendWorkerResult(result);
       }
       if (worker === "embed") {
         const result = await runEmbedBackfill({ limit: Number(req.body?.limit) });
-        return res.json({ success: true, ...result });
+        return sendWorkerResult(result);
       }
+      await recordEvent({
+        actorType: workerActorType,
+        eventType: "worker_job_failed",
+        message: `Unknown worker requested: ${worker || "unknown"}.`,
+        actor,
+        byRole: secretOk && !operatorOk ? "system" : actor?.role,
+        source: "worker",
+        status: "failed",
+        severity: "warn",
+        payload: { worker },
+      });
       return sendApiError(res, 400, `Unknown worker: "${worker}". Supported: sla, predict, followup, embed.`);
     } catch (error: any) {
+      await recordEvent({
+        actorType: workerActorType,
+        eventType: "worker_job_failed",
+        message: `Worker job failed: ${worker || "unknown"}.`,
+        actor,
+        byRole: secretOk && !operatorOk ? "system" : actor?.role,
+        source: "worker",
+        status: "failed",
+        severity: "error",
+        payload: { worker, error: error?.message || String(error) },
+      });
       return sendApiError(res, 500, "Job runner failed.", error);
     }
   });
@@ -2810,6 +3308,17 @@ Return STRICT JSON: { "action": "wait|escalate|request_evidence|ready_to_close",
       const existingRun = await runRef.get();
       if (existingRun.exists) {
         const stepsSnap = await runRef.collection("steps").orderBy("order", "asc").get();
+        await recordEvent({
+          issueRef,
+          actorType: "operator",
+          eventType: "agent_run_reused",
+          message: "Existing idempotent agent run returned.",
+          actor,
+          source: "api",
+          status: "succeeded",
+          idempotencyKey,
+          payload: { runId: runRef.id, stepCount: stepsSnap.size },
+        });
         return res.json({
           success: true,
           run: existingRun.data(),
@@ -3036,7 +3545,22 @@ Return STRICT JSON: { "action": "wait|escalate|request_evidence|ready_to_close",
           return { approvalRequired: true, action: args.action || "review", reason: args.reason || "Human review required" };
         }
         if (name === "record_event") {
-          return { recorded: true, eventType: "agent_triage_completed" };
+          const eventDoc = await recordEvent({
+            issueRef,
+            actorType: "ai",
+            eventType: "agent_triage_completed",
+            message: cleanText(args.rationale, "Agent triage completed.", 1000),
+            actor,
+            source: "agent",
+            status: "succeeded",
+            idempotencyKey,
+            payload: {
+              runId: runRef.id,
+              routeTo: cleanText(args.routeTo, "", 160) || null,
+              priorityScore: typeof args.priorityScore === "number" ? cleanNumber(args.priorityScore, 0, 0, 100) : null,
+            },
+          });
+          return { recorded: !!eventDoc, eventType: "agent_triage_completed", eventId: eventDoc?.id || null };
         }
         return { error: `Unknown tool: ${name}` };
       }
@@ -3204,6 +3728,24 @@ Issue: ${JSON.stringify(issue)}` }]}];
       };
 
       await persistAgentRun(issueRef, runRef, run, steps, resolutionPlan, final);
+      await recordEvent({
+        issueRef,
+        actorType: "ai",
+        eventType: "agent_run_completed",
+        message: "Server-side triage agent run completed and persisted.",
+        actor,
+        source: "agent",
+        status: "succeeded",
+        idempotencyKey,
+        payload: {
+          runId: runRef.id,
+          stepCount: steps.length,
+          duplicateCandidateId,
+          duplicateSimilarity,
+          priorityScore: typeof final?.priorityScore === "number" ? cleanNumber(final.priorityScore, 0, 0, 100) : null,
+          finalRouteTo: cleanText(final?.routeTo, "", 160) || null,
+        },
+      });
 
       return res.json({
         success: true,
@@ -3217,6 +3759,18 @@ Issue: ${JSON.stringify(issue)}` }]}];
       });
     } catch (error: any) {
       console.error("Agent run error:", error);
+      await recordEvent({
+        issueRef,
+        actorType: "ai",
+        eventType: "agent_run_failed",
+        message: "Server-side triage agent run failed.",
+        actor,
+        source: "agent",
+        status: "failed",
+        severity: "error",
+        idempotencyKey,
+        payload: { error: error?.message || String(error) },
+      });
       return sendApiError(res, 500, "An unexpected error occurred during the agent triage run.");
     }
   });

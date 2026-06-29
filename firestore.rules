@@ -41,6 +41,11 @@ service cloud.firestore {
         allow create, update, delete: if false;
       }
 
+      match /events/{eventId} {
+        allow get, list: if isSignedIn();
+        allow create, update, delete: if false;
+      }
+
       match /approvals/{approvalId} {
         allow get, list: if isSignedIn();
         allow create, update, delete: if false;
@@ -50,6 +55,10 @@ service cloud.firestore {
         allow get, list: if isSignedIn();
         allow create, update, delete: if false;
       }
+    }
+
+    match /events/{eventId} {
+      allow read, write: if false;
     }
 
     match /{document=**} {

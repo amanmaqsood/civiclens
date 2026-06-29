@@ -117,6 +117,19 @@ Phase 0.2 Firebase browser-key hygiene verification on 2026-06-30:
 - `npm run build`: passed; Vite transformed 2141 modules and emitted no chunk over 500 kB. Largest JS chunk was `fb-firestore` at 475.16 kB.
 - Local env boot proof on `http://127.0.0.1:3000`: `/readyz` returned `ready:true`, `checks.adminDb:true`, `checks.geminiConfigured:true`, and `checks.configValid:true`; `/` returned `HTTP/1.1 200 OK` and served the Vite module client.
 
+Phase 0.4 event-spine verification on 2026-06-30:
+
+- Server actions now write append-only event documents to top-level `events` and mirror issue-scoped events to `issues/{issueId}/events`, while preserving existing `activity` documents for the UI timeline.
+- `addServerActivity` atomically records both `activity` and `events`; direct routes now record report creation, status transitions, evidence, support, verification, translations, demo seed/clear, Gemini analysis/translation/escalation/closure checks, agent runs, and worker jobs.
+- Firestore Rules allow signed-in reads of issue-scoped event ledgers, deny all client writes, and keep top-level `events` server-owned.
+- `.\node_modules\.bin\tsc.cmd --noEmit`: passed with 0 errors.
+- `.\node_modules\.bin\vitest.cmd run src/server/events-spine.test.ts`: passed; 1 file passed, 3 tests passed.
+- `.\node_modules\.bin\vitest.cmd run`: passed; 19 files passed, 2 skipped; 86 tests passed, 7 skipped.
+- `npm run build`: passed; Vite transformed 2141 modules and emitted no chunk over 500 kB. Largest JS chunk was `fb-firestore` at 475.16 kB.
+- `npm run test:rules`: passed; 1 emulator rules file passed, 3 tests passed.
+- Live emulator proof: `firebase emulators:exec --project demo-civiclens --only auth,firestore,storage "powershell -NoProfile -ExecutionPolicy Bypass -File scripts\verify-event-spine-live.ps1"` passed and reported `EVENT_SPINE_LIVE seed=7 topEvents=7 firstEvent=demo_seeded issueEvents=1`.
+- Hygiene scans after the change found no prohibited attribution terms and no Google API-key prefix matches.
+
 Latest local validation after public documentation cleanup and current-tree internal artifact removal:
 
 - `npm ci`: passed; install audit reported 3 moderate dev-dependency issues while production audit remained clean.

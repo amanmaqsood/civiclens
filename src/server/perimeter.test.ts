@@ -4,7 +4,9 @@ import {
   consumeQuota,
   findOversizedStringField,
   isLocalAppCheckBypassAllowed,
+  parsePositiveInt,
   parseCsvEnv,
+  quotaWindowStart,
   resolveActorFromDecoded,
 } from "./perimeter";
 
@@ -72,7 +74,7 @@ describe("server perimeter helpers", () => {
     expect(isLocalAppCheckBypassAllowed(localRequest, { nodeEnv: "development", bypassEnabled: false })).toBe(false);
   });
 
-  it("enforces in-memory quotas by key and reset window", () => {
+  it("enforces fixed-window quotas by key and reset window", () => {
     const buckets = new Map();
     const config = { limit: 2, windowMs: 1000 };
 
@@ -80,6 +82,13 @@ describe("server perimeter helpers", () => {
     expect(consumeQuota(buckets, "gemini:user-1", config, 200).allowed).toBe(true);
     expect(consumeQuota(buckets, "gemini:user-1", config, 300).allowed).toBe(false);
     expect(consumeQuota(buckets, "gemini:user-1", config, 1200).allowed).toBe(true);
+  });
+
+  it("normalizes quota environment numbers and fixed window starts", () => {
+    expect(parsePositiveInt("3", 10)).toBe(3);
+    expect(parsePositiveInt("-1", 10)).toBe(10);
+    expect(parsePositiveInt("not-a-number", 10)).toBe(10);
+    expect(quotaWindowStart(12_345, 1_000)).toBe(12_000);
   });
 
   it("finds oversized nested body fields", () => {

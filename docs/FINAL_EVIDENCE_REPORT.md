@@ -275,6 +275,21 @@ Phase 6.1 behavioral API test verification on 2026-06-30:
 - `npm run test:concurrency`: passed; 1 emulator concurrency file passed, 4 tests passed.
 - Hygiene scans found no prohibited attribution terms and no Google API-key prefix matches.
 
+Phase 6.2 distributed quota verification on 2026-06-30:
+
+- API quotas now use Firestore-backed fixed-window buckets by default, with hashed quota keys, transactionally incremented counters, shared Cloud Run instance behavior, and explicit `X-RateLimit-Backend` response headers.
+- Quota limits/windows are configurable through `CIVICLENS_SESSION_QUOTA_*`, `CIVICLENS_GEMINI_QUOTA_*`, and `CIVICLENS_MUTATION_QUOTA_*`; `CIVICLENS_QUOTA_COLLECTION` controls the Firestore bucket collection.
+- Production fails closed with HTTP 503 if Firestore quota enforcement is unavailable. Development can fall back to process-local memory, and `CIVICLENS_QUOTA_BACKEND=memory` is documented as local-only.
+- `.\node_modules\.bin\tsc.cmd --noEmit`: passed with 0 errors.
+- `.\node_modules\.bin\vitest.cmd run src\server\perimeter.test.ts src\server\release-security.test.ts src\docs-readiness.test.ts`: passed; 3 files passed, 22 tests passed.
+- Firestore emulator proof: `firebase emulators:exec --project demo-civiclens --only auth,firestore "powershell -NoProfile -ExecutionPolicy Bypass -File scripts\verify-distributed-quota-live.ps1"` passed and reported `DISTRIBUTED_QUOTA_LIVE statuses=200,200,429 backend=firestore count=3 bucketDocs=1 remaining=0`.
+- `.\node_modules\.bin\vitest.cmd run`: passed; 27 files passed, 3 skipped; 112 tests passed, 10 skipped.
+- `npm run build`: passed; Vite transformed 2340 modules, emitted `dist/server.cjs` at 233.5 kB, and kept the largest JS chunk at `fb-firestore` 475.16 kB with no chunk over 500 kB.
+- `npm run test:rules`: passed; 1 emulator rules file passed, 3 tests passed.
+- `npm run test:concurrency`: passed; 1 emulator concurrency file passed, 4 tests passed.
+- `npm run test:e2e`: passed; 7 Chromium Playwright tests passed against local Firebase Auth, Firestore, and Storage emulators.
+- Hygiene scans found no prohibited attribution terms and no Google API-key prefix matches. `git diff --check` returned only line-ending normalization warnings, and generated distributed-quota verifier logs were removed before commit.
+
 Latest local validation after public documentation cleanup and current-tree internal artifact removal:
 
 - `npm ci`: passed; install audit reported 3 moderate dev-dependency issues while production audit remained clean.

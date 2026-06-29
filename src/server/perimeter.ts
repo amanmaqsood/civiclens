@@ -40,6 +40,15 @@ export interface QuotaResult {
   resetTime: number;
 }
 
+export function parsePositiveInt(value: unknown, fallback: number): number {
+  const parsed = Number(value);
+  return Number.isFinite(parsed) && parsed > 0 ? Math.floor(parsed) : fallback;
+}
+
+export function quotaWindowStart(now: number, windowMs: number): number {
+  return Math.floor(now / windowMs) * windowMs;
+}
+
 export function parseCsvEnv(value?: string): string[] {
   return (value || "")
     .split(",")
@@ -105,8 +114,10 @@ export function consumeQuota(
   now = Date.now()
 ): QuotaResult {
   const existing = buckets.get(key);
-  const bucket = !existing || now > existing.resetTime
-    ? { count: 0, resetTime: now + config.windowMs }
+  const windowStart = quotaWindowStart(now, config.windowMs);
+  const resetTime = windowStart + config.windowMs;
+  const bucket = !existing || existing.resetTime !== resetTime
+    ? { count: 0, resetTime }
     : existing;
 
   bucket.count += 1;

@@ -1,5 +1,6 @@
 import express from "express";
 import path from "path";
+import { createHash } from "node:crypto";
 import { createServer as createViteServer } from "vite";
 import { GoogleGenAI, Type } from "@google/genai";
 import { initializeApp as initAdminApp, getApps as getAdminApps } from "firebase-admin/app";
@@ -12,8 +13,12 @@ import {
   findOversizedStringField,
   isDemoOperatorRequested,
   isLocalAppCheckBypassAllowed,
+  parsePositiveInt,
   parseCsvEnv,
+  quotaWindowStart,
   resolveActorFromDecoded,
+  type QuotaConfig,
+  type QuotaResult,
   type RequestActor,
 } from "./src/server/perimeter";
 import { isDefaultFirestoreDatabase, resolveFirebaseAdminConfig } from "./src/server/admin-config";
@@ -332,12 +337,99 @@ async function startServer() {
     return false;
   }
 
-  const quotaBuckets = new Map<string, { count: number; resetTime: number }>();
+  const quotaFallbackBuckets = new Map<string, { count: number; resetTime: number }>();
   const quotaConfig = {
-    session: { limit: 60, windowMs: 60_000 },
-    gemini: { limit: 20, windowMs: 60_000 },
-    mutation: { limit: 30, windowMs: 60_000 },
+    session: {
+      limit: parsePositiveInt(process.env.CIVICLENS_SESSION_QUOTA_LIMIT, 60),
+      windowMs: parsePositiveInt(process.env.CIVICLENS_SESSION_QUOTA_WINDOW_MS, 60_000),
+    },
+    gemini: {
+      limit: parsePositiveInt(process.env.CIVICLENS_GEMINI_QUOTA_LIMIT, 20),
+      windowMs: parsePositiveInt(process.env.CIVICLENS_GEMINI_QUOTA_WINDOW_MS, 60_000),
+    },
+    mutation: {
+      limit: parsePositiveInt(process.env.CIVICLENS_MUTATION_QUOTA_LIMIT, 30),
+      windowMs: parsePositiveInt(process.env.CIVICLENS_MUTATION_QUOTA_WINDOW_MS, 60_000),
+    },
   } as const;
+  const quotaCollectionName = process.env.CIVICLENS_QUOTA_COLLECTION || "rateLimitBuckets";
+  const quotaBackend = String(process.env.CIVICLENS_QUOTA_BACKEND || "firestore").toLowerCase();
+
+  function hashQuotaValue(value: string): string {
+    return createHash("sha256").update(value).digest("hex");
+  }
+
+  function memoryQuota(key: string, config: QuotaConfig, backend: "memory" | "memory-fallback"): QuotaResult & { backend: string } {
+    return {
+      ...consumeQuota(quotaFallbackBuckets, key, config),
+      backend,
+    };
+  }
+
+  async function consumeDistributedQuota(
+    routeKind: string,
+    key: string,
+    config: QuotaConfig
+  ): Promise<QuotaResult & { backend: string; unavailable?: boolean }> {
+    const fallbackWindowStart = quotaWindowStart(Date.now(), config.windowMs);
+    const fallbackResetTime = fallbackWindowStart + config.windowMs;
+    if (!adminDb) {
+      if (isProduction) {
+        return { allowed: false, remaining: 0, resetTime: fallbackResetTime, backend: "firestore-unavailable", unavailable: true };
+      }
+      return memoryQuota(key, config, "memory-fallback");
+    }
+
+    if (quotaBackend === "memory") {
+      return memoryQuota(key, config, "memory");
+    }
+
+    const now = Date.now();
+    const windowStartMs = quotaWindowStart(now, config.windowMs);
+    const resetTime = windowStartMs + config.windowMs;
+    const keyHash = hashQuotaValue(key);
+    const docId = hashQuotaValue(`${key}:${windowStartMs}`);
+    const ref = adminDb.collection(quotaCollectionName).doc(docId);
+
+    try {
+      const result = await adminDb.runTransaction(async (tx: any) => {
+        const snap = await tx.get(ref);
+        const currentCount = snap.exists && Number(snap.get("resetTime")) === resetTime
+          ? Math.max(0, Number(snap.get("count") || 0))
+          : 0;
+        const nextCount = currentCount + 1;
+        tx.set(ref, {
+          routeKind,
+          keyHash,
+          windowStartMs,
+          resetTime,
+          windowMs: config.windowMs,
+          limit: config.limit,
+          count: nextCount,
+          expiresAt: new Date(resetTime + config.windowMs),
+          updatedAt: FieldValue.serverTimestamp(),
+        }, { merge: true });
+        return {
+          allowed: nextCount <= config.limit,
+          remaining: Math.max(0, config.limit - nextCount),
+          resetTime,
+        };
+      });
+
+      return { ...result, backend: "firestore" };
+    } catch (error: any) {
+      structuredLog(isProduction ? "error" : "warn", "distributed_quota_unavailable", {
+        routeKind,
+        backend: "firestore",
+        fallback: !isProduction,
+        error: error?.message || String(error),
+      });
+      if (isProduction) {
+        return { allowed: false, remaining: 0, resetTime, backend: "firestore-unavailable", unavailable: true };
+      }
+      return memoryQuota(key, config, "memory-fallback");
+    }
+  }
 
   // Security headers for all API routes
   app.use("/api/*", (req, res, next) => {
@@ -364,16 +456,20 @@ async function startServer() {
   app.use("/api/*", verifyApiAppCheck);
   app.use("/api/*", attachActor);
 
-  app.use("/api/*", (req: any, res, next) => {
+  app.use("/api/*", async (req: any, res, next) => {
     const routeKind = classifyProtectedRoute(req.method, apiPath(req));
     if (routeKind === "health") return next();
     const config = routeKind === "gemini" ? quotaConfig.gemini : routeKind === "session" ? quotaConfig.session : quotaConfig.mutation;
-    const actorKey = req.actor?.uid || "anonymous";
+    const actorKey = hasValidJobSecret(req) ? "job-secret" : req.actor?.uid || "anonymous";
     const key = `${routeKind}:${actorKey}:${clientIp(req)}`;
-    const quota = consumeQuota(quotaBuckets, key, config);
+    const quota = await consumeDistributedQuota(routeKind, key, config);
     res.setHeader("X-RateLimit-Limit", String(config.limit));
     res.setHeader("X-RateLimit-Remaining", String(quota.remaining));
     res.setHeader("X-RateLimit-Reset", new Date(quota.resetTime).toISOString());
+    res.setHeader("X-RateLimit-Backend", quota.backend);
+    if (quota.unavailable) {
+      return sendApiError(res, 503, "Quota enforcement is temporarily unavailable.");
+    }
     if (!quota.allowed) {
       return sendApiError(res, 429, "Too many requests. Please try again later.");
     }

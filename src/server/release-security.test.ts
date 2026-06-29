@@ -20,6 +20,11 @@ describe("release security gate coverage", () => {
     expect(server).toContain("findOversizedStringField");
     expect(server).toContain("exceeds the maximum allowed size.");
     expect(server).toContain("X-RateLimit-Limit");
+    expect(server).toContain("X-RateLimit-Backend");
+    expect(server).toContain("consumeDistributedQuota");
+    expect(server).toContain('adminDb.collection(quotaCollectionName)');
+    expect(server).toContain("runTransaction");
+    expect(server).toContain("Quota enforcement is temporarily unavailable.");
     expect(server).toContain("Too many requests. Please try again later.");
   });
 

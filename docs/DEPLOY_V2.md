@@ -11,6 +11,10 @@ Cloud Run and schedule the autonomous agents.
 |---|---|---|
 | `CIVICLENS_OUTBOUND_WEBHOOK` | Cloud Run runtime env | Authority intake URL for **real escalation dispatch**. Empty ⇒ escalations stay draft-only. |
 | `CIVICLENS_JOB_SECRET` | Secret Manager → Cloud Run | Shared secret Cloud Scheduler sends (`x-civiclens-job-secret`) to run workers without an operator login. |
+| `CIVICLENS_QUOTA_BACKEND` | Cloud Run runtime env | `firestore` for distributed fixed-window API quotas; production fails closed if Firestore quota storage is unavailable. |
+| `CIVICLENS_QUOTA_COLLECTION` | Cloud Run runtime env | Firestore collection for quota buckets. Defaults to `rateLimitBuckets`. |
+| `CIVICLENS_SESSION_QUOTA_LIMIT`, `CIVICLENS_GEMINI_QUOTA_LIMIT`, `CIVICLENS_MUTATION_QUOTA_LIMIT` | Cloud Run runtime env | Per-window limits for session, Gemini, and mutation routes. |
+| `CIVICLENS_SESSION_QUOTA_WINDOW_MS`, `CIVICLENS_GEMINI_QUOTA_WINDOW_MS`, `CIVICLENS_MUTATION_QUOTA_WINDOW_MS` | Cloud Run runtime env | Fixed-window duration for the matching quota class. |
 | `GEMINI_API_KEY` | Secret Manager (unchanged) | Gemini + `gemini-embedding-001` for triage, workers, dedup, grounding. |
 
 Everything else (Firebase, `GOOGLE_MAPS_PLATFORM_KEY`, operator allowlist, App Check) is unchanged from v1.
@@ -38,7 +42,7 @@ gcloud run deploy civiclens \
   --region asia-south1 \
   --allow-unauthenticated \
   --set-secrets "GEMINI_API_KEY=civiclens-gemini-key:latest,CIVICLENS_JOB_SECRET=civiclens-job-secret:latest" \
-  --set-env-vars "FIREBASE_PROJECT_ID=$PROJECT,FIRESTORE_DATABASE_ID=(default),CIVICLENS_OUTBOUND_WEBHOOK=<authority-webhook-or-blank>,CIVICLENS_REQUIRE_APP_CHECK=true,CIVICLENS_DEMO_OPERATOR_ENABLED=false" \
+  --set-env-vars "FIREBASE_PROJECT_ID=$PROJECT,FIRESTORE_DATABASE_ID=(default),CIVICLENS_OUTBOUND_WEBHOOK=<authority-webhook-or-blank>,CIVICLENS_REQUIRE_APP_CHECK=true,CIVICLENS_DEMO_OPERATOR_ENABLED=false,CIVICLENS_QUOTA_BACKEND=firestore,CIVICLENS_QUOTA_COLLECTION=rateLimitBuckets" \
   --project "$PROJECT"
 ```
 
@@ -46,6 +50,7 @@ Notes:
 - Set `CIVICLENS_REQUIRE_APP_CHECK=true` and `CIVICLENS_DEMO_OPERATOR_ENABLED=false` for the public production cut (keep demo on only for a judging demo instance).
 - `VITE_*` browser values are baked at build time (already wired in `cloudbuild.yaml`).
 - After deploy, smoke-check: `GET /readyz` should report `adminDb:true, geminiConfigured:true, configValid:true`.
+- Keep `CIVICLENS_QUOTA_BACKEND=firestore` in production so quota buckets are shared across Cloud Run instances. Development may use `memory`, but it is process-local.
 
 ## 4. Schedule the four autonomous workers (Cloud Scheduler)
 

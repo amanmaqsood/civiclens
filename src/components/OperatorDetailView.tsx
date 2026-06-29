@@ -1,8 +1,8 @@
 import React, { useState, useEffect } from "react";
 import { IssueReport, IssueActivity } from "../types";
-import { approveRoutingPlan, fetchIssueActivities, finalizeEscalation, updateIssueStatus } from "../services/issues";
+import { approveRoutingPlan, dispatchEscalation, fetchIssueActivities, finalizeEscalation, updateIssueStatus } from "../services/issues";
 import { fetchLatestAgentRun, runAgentForIssue } from "../services/api";
-import { ArrowLeft, Clock, CheckSquare, RefreshCw, Lock, Sparkles } from "lucide-react";
+import { ArrowLeft, Clock, CheckSquare, RefreshCw, Lock, Sparkles, Send, CheckCircle2 } from "lucide-react";
 import ClosureVerificationPanel from "./ClosureVerificationPanel";
 import AutoEscalationPanel from "./AutoEscalationPanel";
 import AgentTraceTimeline from "./AgentTraceTimeline";
@@ -148,6 +148,22 @@ export default function OperatorDetailView({ issue, onBack, onRefresh, demoOpera
       onRefresh();
     } catch (e: any) {
       setActionError(e.message || "Failed finalizing escalation draft.");
+    } finally {
+      setActionPending(false);
+    }
+  };
+
+  const [dispatchResult, setDispatchResult] = useState<any>(issue.dispatch || null);
+  const handleDispatchEscalation = async () => {
+    setActionPending(true);
+    setActionError(null);
+    try {
+      const dispatch = await dispatchEscalation(issue.id, { demoOperator });
+      setDispatchResult(dispatch);
+      await loadActivities();
+      onRefresh();
+    } catch (e: any) {
+      setActionError(e.message || "Failed to dispatch escalation to the authority channel.");
     } finally {
       setActionPending(false);
     }
@@ -326,6 +342,25 @@ export default function OperatorDetailView({ issue, onBack, onRefresh, demoOpera
               <span>Finalize escalation/RTI draft</span>
               <span className="text-sm bg-violet-100 text-violet-800 px-2 py-1 rounded-lg">Record</span>
             </button>
+          )}
+          {issue.escalation && (
+            <button
+              onClick={handleDispatchEscalation}
+              disabled={actionPending || dispatchResult?.status === "delivered"}
+              className="w-full min-h-[44px] text-left bg-marigold/10 disabled:opacity-60 hover:bg-marigold/20 cursor-pointer border border-marigold/30 py-2.5 px-3 rounded-xl flex items-center justify-between font-semibold text-sm"
+            >
+              <span className="flex items-center gap-1.5 text-marigold-ink">
+                <Send className="w-4 h-4" aria-hidden="true" />
+                {dispatchResult?.status === "delivered" ? "Dispatched to authority channel" : "Dispatch to authority channel"}
+              </span>
+              <span className="text-sm bg-marigold/20 text-marigold-ink px-2 py-1 rounded-lg">Send</span>
+            </button>
+          )}
+          {dispatchResult?.status === "delivered" && (
+            <p className="flex items-center gap-1.5 text-[13px] text-verify font-medium px-1">
+              <CheckCircle2 className="w-4 h-4" aria-hidden="true" />
+              Delivered to {dispatchResult.endpoint} (HTTP {dispatchResult.httpStatus}) · receipt {String(dispatchResult.deliveryId).slice(-12)}
+            </p>
           )}
             </div>
           )}

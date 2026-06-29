@@ -1222,6 +1222,75 @@ Output ONLY valid JSON and nothing else.`;
     }
   });
 
+  // ---- Phase 4: real outbound dispatch of an approved escalation ----------
+  // Actually SENDS the escalation to a configured authority webhook (municipal
+  // intake / Zapier / n8n) and records a delivery receipt. No webhook configured
+  // => honest 400; failed delivery => recorded as failed (never faked as sent).
+  app.post("/api/issues/:issueId/escalation-dispatch", async (req: any, res) => {
+    if (!adminDb) return sendApiError(res, 503, "Server data layer unavailable.");
+    const actor = req.actor as RequestActor | undefined;
+    const { issueId } = req.params;
+    if (!actor || !isSafeDocumentId(issueId)) return sendApiError(res, 400, "Invalid dispatch request.");
+    const webhook = process.env.CIVICLENS_OUTBOUND_WEBHOOK || "";
+    if (!/^https?:\/\//.test(webhook)) return sendApiError(res, 400, "No outbound authority channel is configured (set CIVICLENS_OUTBOUND_WEBHOOK).");
+    const issueRef = adminDb.collection("issues").doc(issueId);
+    try {
+      const snap = await issueRef.get();
+      if (!snap.exists) return sendApiError(res, 404, "Issue not found.");
+      const data: any = snap.data();
+      if (!requireOperatorForIssue(data, actor, res)) return;
+      if (!data.escalation?.escalationLetter) return sendApiError(res, 409, "An escalation draft is required before dispatch.");
+      if (data.dispatch?.status === "delivered") return res.json({ success: true, dispatch: data.dispatch, idempotent: true });
+
+      const payload = {
+        source: "CivicLens",
+        ticketId: issueId,
+        title: data.title || data.category,
+        category: data.category,
+        location: data.locationName || null,
+        coordinates: (typeof data.lat === "number" && typeof data.lng === "number") ? { lat: data.lat, lng: data.lng } : null,
+        escalationLetter: data.escalation.escalationLetter,
+        rtiRequest: data.escalation.rtiRequest || null,
+        escalationLevel: data.escalation.escalationLevel || 1,
+        dispatchedAt: new Date().toISOString(),
+      };
+      let httpStatus = 0; let ok = false; let errText = "";
+      try {
+        const resp = await fetch(webhook, { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify(payload), signal: AbortSignal.timeout(10000) });
+        httpStatus = resp.status; ok = resp.ok;
+        if (!ok) errText = (await resp.text().catch(() => "")).slice(0, 200);
+      } catch (e: any) {
+        errText = e?.message || "network error";
+      }
+      const nowIso = new Date().toISOString();
+      let endpointHost = "configured-endpoint";
+      try { endpointHost = new URL(webhook).host; } catch { /* keep default */ }
+      const dispatch = {
+        deliveryId: `${issueId}_${nowIso}`,
+        channel: "webhook",
+        endpoint: endpointHost,
+        status: ok ? "delivered" : "failed",
+        httpStatus: httpStatus || null,
+        error: ok ? null : (errText || "delivery failed"),
+        dispatchedAt: nowIso,
+        dispatchedBy: actor.uid,
+      };
+      await issueRef.set({ dispatch }, { merge: true });
+      await addServerActivity(issueRef, {
+        actorType: "operator",
+        eventType: ok ? "escalation_dispatched" : "escalation_dispatch_failed",
+        message: ok ? `Escalation dispatched to authority channel (${endpointHost}, HTTP ${httpStatus}).` : `Escalation dispatch to ${endpointHost} FAILED: ${dispatch.error}`,
+        timestamp: nowIso,
+        byUid: actor.uid,
+        byRole: actor.role,
+      });
+      if (!ok) return res.status(502).json({ success: false, dispatch, error: "Authority channel rejected or was unreachable." });
+      return res.json({ success: true, dispatch });
+    } catch (error) {
+      return sendApiError(res, 500, "Failed to dispatch escalation.", error);
+    }
+  });
+
   const demoSeedTemplates = [
     {
       title: "Clogged Stormwater Drain on Koramangala 80 Feet Road",

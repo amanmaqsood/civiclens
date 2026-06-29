@@ -93,6 +93,17 @@ export interface IssueReport {
     escalatedAt: string;
     escalationLetter: string;
     rtiRequest: string;
+    autoDraftedAt?: string;
+    escalationLevel?: number;
+    source?: string;
+  };
+  dispatch?: {
+    deliveryId: string;
+    channel: string;
+    endpoint: string;
+    status: string;
+    httpStatus?: number | null;
+    dispatchedAt?: string;
   };
 }
 

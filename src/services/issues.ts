@@ -592,6 +592,15 @@ export async function finalizeEscalation(issueId: string, rationale: string, opt
   }
 }
 
+export async function dispatchEscalation(issueId: string, options: { demoOperator?: boolean } = {}): Promise<any> {
+  const response = await apiFetch(`/api/issues/${issueId}/escalation-dispatch`, {
+    method: "POST",
+  }, options);
+  const data = await response.json().catch(() => ({}));
+  if (!response.ok) throw new Error(data.error || "Failed to dispatch escalation to the authority channel.");
+  return data.dispatch;
+}
+
 
 // Update cached translations
 export async function updateIssueTranslations(

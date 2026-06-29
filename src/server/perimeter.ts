@@ -158,6 +158,8 @@ export function classifyProtectedRoute(method: string, path: string): "health" |
   if (method === "GET" && path === "/api/insights/predictive") return "health";
   // Community leaderboard is public (anonymized handles only).
   if (method === "GET" && path === "/api/leaderboard") return "health";
+  // External grounding (weather/OSM/recurrence) is open data.
+  if (method === "GET" && path.endsWith("/grounding")) return "health";
   if (path === "/api/session") return "session";
   if (
     path === "/api/analyze-report" ||

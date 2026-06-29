@@ -2533,6 +2533,66 @@ Return STRICT JSON: { "action": "wait|escalate|request_evidence|ready_to_close",
     return { worker: "followup", scanned: snap.size, decisions: details };
   }
 
+  // ---- Phase 3: real external grounding (keyless public data) -------------
+  // Grounds AI reasoning in real-world context: live weather (Open-Meteo),
+  // nearby sensitive amenities (OpenStreetMap/Overpass), and historical
+  // recurrence (Firestore). All sources fail gracefully (Promise.allSettled).
+  async function fetchExternalGrounding(lat: number, lng: number, category: string, selfId?: string) {
+    const out: any = { weather: null, nearbyAmenities: [], recurrence: null, sources: [], errors: [] };
+    if (typeof lat !== "number" || typeof lng !== "number") { out.errors.push("no coordinates"); return out; }
+    const hav = (la1: number, lo1: number, la2: number, lo2: number) => {
+      const R = 6371000, toR = (d: number) => (d * Math.PI) / 180;
+      const dLa = toR(la2 - la1), dLo = toR(lo2 - lo1);
+      const a = Math.sin(dLa / 2) ** 2 + Math.cos(toR(la1)) * Math.cos(toR(la2)) * Math.sin(dLo / 2) ** 2;
+      return 2 * R * Math.asin(Math.sqrt(a));
+    };
+    await Promise.allSettled([
+      (async () => {
+        try {
+          const r = await fetch(`https://api.open-meteo.com/v1/forecast?latitude=${lat}&longitude=${lng}&current=temperature_2m,precipitation,weather_code,wind_speed_10m`, { signal: AbortSignal.timeout(6000) });
+          const d: any = await r.json();
+          if (d.current) out.weather = { temperatureC: d.current.temperature_2m, precipitationMm: d.current.precipitation, windKmh: d.current.wind_speed_10m, weatherCode: d.current.weather_code };
+          out.sources.push("open-meteo");
+        } catch (e: any) { out.errors.push("weather: " + (e?.message || e)); }
+      })(),
+      (async () => {
+        try {
+          const q = `[out:json][timeout:8];(node["amenity"~"school|hospital|clinic"](around:400,${lat},${lng});way["amenity"~"school|hospital|clinic"](around:400,${lat},${lng}););out center 12;`;
+          const r = await fetch("https://overpass-api.de/api/interpreter", { method: "POST", body: "data=" + encodeURIComponent(q), headers: { "Content-Type": "application/x-www-form-urlencoded" }, signal: AbortSignal.timeout(9000) });
+          const d: any = await r.json();
+          out.nearbyAmenities = (d.elements || []).filter((el: any) => el.tags?.amenity).slice(0, 8).map((el: any) => ({ type: el.tags.amenity, name: el.tags.name || null }));
+          out.sources.push("overpass-osm");
+        } catch (e: any) { out.errors.push("amenities: " + (e?.message || e)); }
+      })(),
+      (async () => {
+        try {
+          const snap = await adminDb.collection("issues").where("category", "==", category).limit(50).get();
+          let near = 0;
+          snap.docs.forEach((doc: any) => { if (doc.id === selfId) return; const i = doc.data(); if (typeof i.lat === "number" && typeof i.lng === "number" && hav(lat, lng, i.lat, i.lng) <= 1000) near++; });
+          out.recurrence = { sameCategoryWithin1km: near };
+          out.sources.push("firestore-history");
+        } catch (e: any) { out.errors.push("recurrence: " + (e?.message || e)); }
+      })(),
+    ]);
+    return out;
+  }
+
+  // Public grounding for an issue (open data).
+  app.get("/api/issues/:issueId/grounding", async (req: any, res) => {
+    if (!adminDb) return sendApiError(res, 503, "Server data layer unavailable.");
+    const { issueId } = req.params;
+    if (!isSafeDocumentId(issueId)) return sendApiError(res, 400, "Invalid issue id.");
+    try {
+      const doc = await adminDb.collection("issues").doc(issueId).get();
+      if (!doc.exists) return sendApiError(res, 404, "Issue not found.");
+      const i: any = doc.data();
+      const grounding = await fetchExternalGrounding(i.lat, i.lng, i.category, doc.id);
+      return res.json({ grounding });
+    } catch (error) {
+      return sendApiError(res, 500, "Failed to load grounding.", error);
+    }
+  });
+
   // Latest predictive insight (open analytics, publicly readable).
   app.get("/api/insights/predictive", async (_req: any, res) => {
     if (!adminDb) return sendApiError(res, 503, "Server data layer unavailable.");

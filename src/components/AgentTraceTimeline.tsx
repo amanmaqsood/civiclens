@@ -85,7 +85,7 @@ export default function AgentTraceTimeline({ trace = [], run = null, mode = "per
             <p className="text-sm font-mono text-ink-2">
               {isLocalProgress ? "Local report progress" : "Server-generated agent trace"}
             </p>
-            <h3 className="mt-1 text-2xl font-black text-ink">
+            <h3 className="mt-1 text-xl font-black text-ink">
               {isLocalProgress ? "Preparing report" : "No persisted run yet"}
             </h3>
             <p className="mt-2 max-w-2xl text-base leading-relaxed text-ink-2">
@@ -106,41 +106,41 @@ export default function AgentTraceTimeline({ trace = [], run = null, mode = "per
       aria-label={ariaLabel}
     >
       <div className="flex flex-col gap-5">
-        <div className="flex flex-col justify-between gap-4 border-b border-hairline pb-4 lg:flex-row lg:items-start">
+        <div className="flex flex-col gap-4 border-b border-hairline pb-4">
           <div className="flex items-start gap-3">
             <div className="flex h-11 w-11 shrink-0 items-center justify-center rounded-2xl bg-ink text-marigold">
               <Sparkles className="h-5 w-5" />
             </div>
-            <div>
+            <div className="min-w-0">
               <p className="text-sm font-mono text-ink-2">
                 {isLocalProgress ? "Local report progress" : "Persisted server run"}
               </p>
-              <h3 className="mt-1 text-2xl font-black text-ink">
+              <h3 className="mt-1 text-xl font-black text-ink">
                 {isLocalProgress ? "Draft preparation timeline" : "Agent tool timeline"}
               </h3>
-              <p className="mt-2 max-w-2xl text-base leading-relaxed text-ink-2">
+              <p className="mt-2 max-w-2xl text-sm leading-relaxed text-ink-2">
                 {isLocalProgress
                   ? "These steps show in-browser report preparation and nearby-case checks before the draft is saved. They are not presented as persisted agent evidence."
                   : "Gemini selected tools, CivicLens executed them on the server, and these steps were loaded from persisted run data."}
               </p>
             </div>
           </div>
-          <div className="grid grid-cols-2 gap-2 sm:grid-cols-4 lg:min-w-[420px]">
-            <div className="rounded-2xl border border-hairline bg-paper p-3">
+          <div className="grid grid-cols-2 gap-2 sm:grid-cols-4">
+            <div className="min-w-0 rounded-2xl border border-hairline bg-paper p-3">
               <p className="text-sm font-bold text-ink-2">Status</p>
-              <p className="mt-1 text-base font-black text-ink capitalize">{run?.status || "completed"}</p>
+              <p className="mt-1 text-sm font-black text-ink capitalize">{run?.status || "completed"}</p>
             </div>
-            <div className="rounded-2xl border border-hairline bg-paper p-3">
+            <div className="min-w-0 rounded-2xl border border-hairline bg-paper p-3">
               <p className="text-sm font-bold text-ink-2">Model</p>
-              <p className="mt-1 text-base font-black text-ink">{run?.model || "Gemini"}</p>
+              <p className="mt-1 break-words text-sm font-black text-ink">{run?.model || "Gemini"}</p>
             </div>
-            <div className="rounded-2xl border border-hairline bg-paper p-3">
+            <div className="min-w-0 rounded-2xl border border-hairline bg-paper p-3">
               <p className="text-sm font-bold text-ink-2">Steps</p>
-              <p className="mt-1 text-base font-black text-ink">{completedSteps}/{expectedStepCount}</p>
+              <p className="mt-1 text-sm font-black text-ink">{completedSteps}/{expectedStepCount}</p>
             </div>
-            <div className="rounded-2xl border border-hairline bg-paper p-3">
+            <div className="min-w-0 rounded-2xl border border-hairline bg-paper p-3">
               <p className="text-sm font-bold text-ink-2">Loaded</p>
-              <p className="mt-1 text-base font-black text-ink">{formatTime(completedAt || startedAt)}</p>
+              <p className="mt-1 break-words text-sm font-black text-ink">{formatTime(completedAt || startedAt)}</p>
             </div>
           </div>
         </div>
@@ -150,7 +150,7 @@ export default function AgentTraceTimeline({ trace = [], run = null, mode = "per
             <article
               id={`trace-step-${entry.step.toLowerCase().replace(/\s+/g, "-")}`}
               key={`${entry.step}-${entry.ts}-${index}`}
-              className="grid gap-3 rounded-2xl border border-hairline bg-paper p-4 lg:grid-cols-[56px_minmax(0,1fr)_minmax(220px,0.36fr)] lg:items-start"
+              className="grid gap-3 rounded-2xl border border-hairline bg-paper p-4 2xl:grid-cols-[48px_minmax(0,1fr)_minmax(200px,0.34fr)] 2xl:items-start"
             >
               <div className="flex h-12 w-12 items-center justify-center rounded-2xl bg-white shadow-3xs">
                 <span className="text-base font-black text-ink">{index + 1}</span>

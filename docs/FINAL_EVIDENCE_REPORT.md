@@ -130,6 +130,17 @@ Phase 0.4 event-spine verification on 2026-06-30:
 - Live emulator proof: `firebase emulators:exec --project demo-civiclens --only auth,firestore,storage "powershell -NoProfile -ExecutionPolicy Bypass -File scripts\verify-event-spine-live.ps1"` passed and reported `EVENT_SPINE_LIVE seed=7 topEvents=7 firstEvent=demo_seeded issueEvents=1`.
 - Hygiene scans after the change found no prohibited attribution terms and no Google API-key prefix matches.
 
+Phase 1.3 + 1.6 agent self-critique and timeout verification on 2026-06-30:
+
+- `/api/agent/run` now runs a Gemini self-critique pass after the dynamic tool loop. The pass reviews the actual trace and Firestore-loaded issue fields, validates corrected category/severity/urgency against server enums, recomputes priority server-side, appends a persisted `self_critique` trace step, and writes `agent_self_critique_*` events.
+- Agent execution now uses `AbortSignal.timeout(agentTimeoutMs)` with `CIVICLENS_AGENT_TIMEOUT_MS`, passes the signal into Gemini calls/retry sleeps, and returns HTTP 504 with `agent_run_timed_out` if the run exceeds the configured budget.
+- `.\node_modules\.bin\tsc.cmd --noEmit`: passed with 0 errors.
+- `.\node_modules\.bin\vitest.cmd run src/server/agent-workflow.test.ts src/server/events-spine.test.ts`: passed; 2 files passed, 7 tests passed.
+- Real Gemini emulator proof: `firebase emulators:exec --project demo-civiclens --only auth,firestore,storage "powershell -NoProfile -ExecutionPolicy Bypass -File scripts\verify-agent-self-critique-live.ps1"` passed and reported `AGENT_SELF_CRITIQUE_LIVE steps=6 selfStepStatus=done anomaly=True critiqueEvent=agent_self_critique_corrected eventCount=4 timeoutMs=120000`.
+- `.\node_modules\.bin\vitest.cmd run`: passed; 19 files passed, 2 skipped; 87 tests passed, 7 skipped.
+- `npm run build`: passed; Vite transformed 2141 modules and emitted no chunk over 500 kB. Largest JS chunk was `fb-firestore` at 475.16 kB.
+- Hygiene scans after the change found no prohibited attribution terms and no Google API-key prefix matches.
+
 Latest local validation after public documentation cleanup and current-tree internal artifact removal:
 
 - `npm ci`: passed; install audit reported 3 moderate dev-dependency issues while production audit remained clean.

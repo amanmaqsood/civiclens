@@ -113,6 +113,67 @@ async function startServer() {
 
   const sleep = (ms: number) => new Promise((resolve) => setTimeout(resolve, ms));
 
+  function makeAbortError(signal?: AbortSignal): Error {
+    const reason = signal?.reason;
+    const message = reason instanceof Error ? reason.message : typeof reason === "string" ? reason : "Operation aborted.";
+    const error = new Error(message || "Operation aborted.");
+    error.name = "AbortError";
+    return error;
+  }
+
+  function isAbortError(error: any): boolean {
+    const message = String(error?.message || "").toLowerCase();
+    return error?.name === "AbortError" || error?.code === "ABORT_ERR" || message.includes("aborted") || message.includes("timeout");
+  }
+
+  function throwIfAborted(signal?: AbortSignal) {
+    if (signal?.aborted) {
+      throw makeAbortError(signal);
+    }
+  }
+
+  async function sleepWithAbort(ms: number, signal?: AbortSignal) {
+    throwIfAborted(signal);
+    if (!signal) {
+      await sleep(ms);
+      return;
+    }
+    await new Promise<void>((resolve, reject) => {
+      const timeout = setTimeout(() => {
+        signal.removeEventListener("abort", onAbort);
+        resolve();
+      }, ms);
+      const onAbort = () => {
+        clearTimeout(timeout);
+        signal.removeEventListener("abort", onAbort);
+        reject(makeAbortError(signal));
+      };
+      signal.addEventListener("abort", onAbort, { once: true });
+    });
+  }
+
+  async function withAbort<T>(promise: Promise<T>, signal?: AbortSignal): Promise<T> {
+    throwIfAborted(signal);
+    if (!signal) return promise;
+    return new Promise<T>((resolve, reject) => {
+      const onAbort = () => {
+        signal.removeEventListener("abort", onAbort);
+        reject(makeAbortError(signal));
+      };
+      signal.addEventListener("abort", onAbort, { once: true });
+      promise.then(
+        (value) => {
+          signal.removeEventListener("abort", onAbort);
+          resolve(value);
+        },
+        (error) => {
+          signal.removeEventListener("abort", onAbort);
+          reject(error);
+        }
+      );
+    });
+  }
+
   function isRetryableError(err: any): boolean {
     if (!err) return false;
     const errMsg = String(err.message || err.statusText || "").toUpperCase();
@@ -131,14 +192,21 @@ async function startServer() {
     );
   }
 
-  async function generateContentWithRetry(aiClient: any, args: any): Promise<{ response: any; retried: boolean }> {
+  async function generateContentWithRetry(aiClient: any, args: any, options: { signal?: AbortSignal } = {}): Promise<{ response: any; retried: boolean }> {
     const delays = [1500, 3000, 6000];
     let attempt = 0;
     while (true) {
       try {
-        const response = await aiClient.models.generateContent(args);
+        throwIfAborted(options.signal);
+        const callArgs = options.signal
+          ? { ...args, config: { ...(args.config || {}), abortSignal: options.signal } }
+          : args;
+        const response = await withAbort(aiClient.models.generateContent(callArgs), options.signal);
         return { response, retried: attempt > 0 };
       } catch (error: any) {
+        if (isAbortError(error)) {
+          throw error;
+        }
         if (attempt < delays.length && isRetryableError(error)) {
           const delayTime = delays[attempt];
           structuredLog("warn", "gemini_retry", {
@@ -147,7 +215,7 @@ async function startServer() {
             delayMs: delayTime,
             error: error?.message || String(error),
           });
-          await sleep(delayTime);
+          await sleepWithAbort(delayTime, options.signal);
           attempt++;
         } else {
           throw error;
@@ -2621,7 +2689,7 @@ Output ONLY valid JSON and nothing else.`;
   });
 
   // Helper to generate the structured action packet & native Hindi translations
-  async function generateActionPacket(aiClient: any, issue: any, authority: string, channel: string, slaDays: number): Promise<any> {
+  async function generateActionPacket(aiClient: any, issue: any, authority: string, channel: string, slaDays: number, options: { signal?: AbortSignal } = {}): Promise<any> {
     const todayStr = new Date().toLocaleDateString("en-US", { year: "numeric", month: "long", day: "numeric" });
     const promptText = `Draft a complaint packet for human review for this reported civic issue in India.
 Responsible Authority: ${authority}
@@ -2670,11 +2738,107 @@ Output ONLY valid JSON and nothing else.`;
           required: ["subject", "body", "bodyHindi", "summaryHindi", "nextActions"],
         },
       },
-    });
+    }, options);
 
     const text = (result.response.text || "").trim();
     const clean = text.replace(/^```(?:json)?\s*/i, "").replace(/```\s*$/, "").trim();
     return JSON.parse(clean);
+  }
+
+  async function runAgentSelfCritique(aiClient: any, issue: any, steps: any[], final: any, options: { signal?: AbortSignal } = {}) {
+    const originalCategory = categoriesList.includes(issue.category) ? issue.category : "other";
+    const originalSeverity = Math.round(cleanNumber(issue.severity, 1, 1, 5));
+    const originalUrgency = urgenciesList.includes(issue.urgency) ? issue.urgency : "routine";
+    const traceSummary = steps.slice(-8).map((step) => ({
+      step: step.step,
+      rationale: cleanText(step.rationale, "", 280),
+      outputSummary: cleanText(step.outputSummary, "", 220),
+    }));
+    const prompt = `You are CivicLens's QA self-critique pass for one server-side triage run.
+Review only the Firestore-loaded issue fields and the actual tool trace. Check whether category, severity, and urgency are defensible. If a correction is needed, return the corrected values and one concise reason. Do not invent facts outside this issue/trace.
+
+Issue:
+${JSON.stringify({
+  category: issue.category,
+  title: issue.title,
+  summary: issue.summary || issue.description,
+  severity: issue.severity,
+  urgency: issue.urgency,
+  affectedArea: issue.affectedArea,
+  visibleHazards: issue.visibleHazards,
+  confidence: issue.confidence,
+  reportCount: issue.reportCount,
+  confirmCount: issue.confirmCount,
+  final,
+})}
+
+Actual trace:
+${JSON.stringify(traceSummary)}
+
+Return STRICT JSON only:
+{
+  "anomaly": true,
+  "correctedCategory": "pothole|water_leak|streetlight|waste|drainage|road_damage|other",
+  "correctedSeverity": 1,
+  "correctedUrgency": "routine|priority|urgent",
+  "rationale": "one concise grounded sentence",
+  "confidence": 0.0
+}`;
+
+    const startedAt = Date.now();
+    const result = await generateContentWithRetry(aiClient, {
+      model: "gemini-2.5-flash",
+      contents: prompt,
+      config: {
+        responseMimeType: "application/json",
+        responseSchema: {
+          type: Type.OBJECT,
+          properties: {
+            anomaly: { type: Type.BOOLEAN },
+            correctedCategory: { type: Type.STRING, enum: categoriesList },
+            correctedSeverity: { type: Type.INTEGER },
+            correctedUrgency: { type: Type.STRING, enum: urgenciesList },
+            rationale: { type: Type.STRING },
+            confidence: { type: Type.NUMBER },
+          },
+          required: ["anomaly", "correctedCategory", "correctedSeverity", "correctedUrgency", "rationale", "confidence"],
+        },
+      },
+    }, options);
+
+    const responseText = (result.response.text || "").trim().replace(/^```(?:json)?\s*/i, "").replace(/```\s*$/, "").trim();
+    const parsed = JSON.parse(responseText);
+    const correctedCategory = categoriesList.includes(parsed.correctedCategory) ? parsed.correctedCategory : originalCategory;
+    const correctedSeverity = Math.round(cleanNumber(parsed.correctedSeverity, originalSeverity, 1, 5));
+    const correctedUrgency = urgenciesList.includes(parsed.correctedUrgency) ? parsed.correctedUrgency : originalUrgency;
+    const correctedIssue = {
+      ...issue,
+      category: correctedCategory,
+      severity: correctedSeverity,
+      urgency: correctedUrgency,
+    };
+    const priorityScore = serverPriorityScore(correctedIssue);
+    const changed =
+      correctedCategory !== originalCategory ||
+      correctedSeverity !== originalSeverity ||
+      correctedUrgency !== originalUrgency;
+    const anomaly = parsed.anomaly === true || changed;
+    const rationale = cleanText(parsed.rationale, anomaly ? "Self-critique flagged a triage correction." : "Self-critique found no correction needed.", 800);
+
+    return {
+      anomaly,
+      correctedCategory,
+      correctedSeverity,
+      correctedUrgency,
+      priorityScore,
+      confidence: cleanNumber(parsed.confidence, 0, 0, 1),
+      rationale,
+      durationMs: Date.now() - startedAt,
+      retried: result.retried,
+      outputSummary: anomaly
+        ? `QA corrected to ${correctedCategory}, severity ${correctedSeverity}, ${correctedUrgency}`
+        : "QA self-critique found no correction needed",
+    };
   }
 
   function distanceMeters(lat1: number, lon1: number, lat2: number, lon2: number): number {
@@ -2714,7 +2878,7 @@ Output ONLY valid JSON and nothing else.`;
     return candidates.slice(0, 8);
   }
 
-  async function persistAgentRun(issueRef: any, runRef: any, run: any, steps: any[], resolutionPlan: any, final: any) {
+  async function persistAgentRun(issueRef: any, runRef: any, run: any, steps: any[], resolutionPlan: any, final: any, issueUpdates: Record<string, unknown> = {}) {
     const batch = adminDb.batch();
     batch.set(runRef, run, { merge: true });
     for (const step of steps) {
@@ -2725,6 +2889,7 @@ Output ONLY valid JSON and nothing else.`;
       latestAgentRunId: run.id,
       agentTrace: steps.map(({ id, runId, issueId, order, model, ...trace }) => trace),
       resolutionPlan,
+      ...issueUpdates,
       priorityScore: typeof final?.priorityScore === "number" ? cleanNumber(final.priorityScore, 0, 0, 100) : FieldValue.delete(),
       updatedAt: new Date().toISOString(),
     });
@@ -3303,6 +3468,11 @@ Return STRICT JSON: { "action": "wait|escalate|request_evidence|ready_to_close",
 
     const issueRef = adminDb.collection("issues").doc(issueId);
     const runRef = adminDb.collection("agentRuns").doc(`${issueId}_${idempotencyKey}`);
+    const configuredAgentTimeoutMs = Number(process.env.CIVICLENS_AGENT_TIMEOUT_MS || 90_000);
+    const agentTimeoutMs = Number.isFinite(configuredAgentTimeoutMs)
+      ? Math.max(15_000, Math.min(180_000, configuredAgentTimeoutMs))
+      : 90_000;
+    const agentSignal = AbortSignal.timeout(agentTimeoutMs);
 
     try {
       const existingRun = await runRef.get();
@@ -3503,7 +3673,7 @@ Return STRICT JSON: { "action": "wait|escalate|request_evidence|ready_to_close",
               config: {
                 tools: [{ googleSearch: {} }]
               }
-            });
+            }, { signal: agentSignal });
 
             const responseText = (searchRes.response.text || "").trim();
             let cleanText = responseText;
@@ -3596,15 +3766,19 @@ Issue: ${JSON.stringify(issue)}` }]}];
       let duplicateCandidateId: string | null = null;
       let duplicateSimilarity: number | null = null;
       let duplicateReasoning: string | null = null;
+      let selfCritique: any = null;
+      let issueForPlan: any = { ...issue };
+      let agentIssueUpdates: Record<string, unknown> = {};
 
       const MAX_AGENT_TURNS = 12; // safety backstop only; the model decides when to stop
       while (guard++ < MAX_AGENT_TURNS) {
+        throwIfAborted(agentSignal);
         const t0 = Date.now();
         const { response, retried } = await generateContentWithRetry(ai, {
           model: "gemini-2.5-flash",
           contents,
           config: { tools: agentTools }
-        });
+        }, { signal: agentSignal });
         const turnReasoning = (response.text || "").trim();
         const calls = response.functionCalls || [];
         if (!calls.length) break;
@@ -3667,10 +3841,119 @@ Issue: ${JSON.stringify(issue)}` }]}];
       // in the order it called them - no forced canonical sequence, no padded
       // "skipped" rows. Two different issues produce two different, real traces.
 
+      try {
+        selfCritique = await runAgentSelfCritique(ai, issueForPlan, steps, final, { signal: agentSignal });
+        const critiqueTs = new Date().toISOString();
+        steps.push({
+          id: `${runRef.id}_${steps.length + 1}_self_critique`,
+          runId: runRef.id,
+          issueId,
+          order: steps.length + 1,
+          step: "self_critique",
+          tool: "agent.self_critique",
+          status: "done",
+          inputDigest: "QA review of category, severity, urgency, and actual trace",
+          outputSummary: selfCritique.outputSummary,
+          durationMs: selfCritique.durationMs,
+          ts: critiqueTs,
+          rationale: selfCritique.rationale,
+          confidence: selfCritique.confidence,
+          model: "gemini-2.5-flash",
+          retried: selfCritique.retried,
+          qaAnomaly: selfCritique.anomaly,
+          sources: [],
+        });
+
+        final = {
+          ...(final || {}),
+          priorityScore: selfCritique.priorityScore,
+          selfCritique: {
+            anomaly: selfCritique.anomaly,
+            confidence: selfCritique.confidence,
+            rationale: selfCritique.rationale,
+          },
+        };
+
+        if (selfCritique.anomaly) {
+          issueForPlan = {
+            ...issueForPlan,
+            category: selfCritique.correctedCategory,
+            severity: selfCritique.correctedSeverity,
+            urgency: selfCritique.correctedUrgency,
+            priorityScore: selfCritique.priorityScore,
+          };
+          agentIssueUpdates = {
+            category: selfCritique.correctedCategory,
+            severity: selfCritique.correctedSeverity,
+            urgency: selfCritique.correctedUrgency,
+            qaAnomaly: {
+              correctedAt: critiqueTs,
+              correctedBy: "agent.self_critique",
+              confidence: selfCritique.confidence,
+              rationale: selfCritique.rationale,
+            },
+          };
+        }
+
+        await recordEvent({
+          issueRef,
+          actorType: "ai",
+          eventType: selfCritique.anomaly ? "agent_self_critique_corrected" : "agent_self_critique_passed",
+          message: selfCritique.anomaly ? "Agent self-critique corrected triage fields." : "Agent self-critique found no triage correction needed.",
+          actor,
+          source: "agent",
+          status: "succeeded",
+          idempotencyKey,
+          payload: {
+            runId: runRef.id,
+            anomaly: selfCritique.anomaly,
+            correctedCategory: selfCritique.correctedCategory,
+            correctedSeverity: selfCritique.correctedSeverity,
+            correctedUrgency: selfCritique.correctedUrgency,
+            priorityScore: selfCritique.priorityScore,
+            confidence: selfCritique.confidence,
+          },
+        });
+      } catch (critiqueError: any) {
+        const critiqueTs = new Date().toISOString();
+        steps.push({
+          id: `${runRef.id}_${steps.length + 1}_self_critique`,
+          runId: runRef.id,
+          issueId,
+          order: steps.length + 1,
+          step: "self_critique",
+          tool: "agent.self_critique",
+          status: "failed",
+          inputDigest: "QA review of category, severity, urgency, and actual trace",
+          outputSummary: "Self-critique unavailable; original triage retained",
+          durationMs: 0,
+          ts: critiqueTs,
+          rationale: critiqueError?.message || String(critiqueError),
+          model: "gemini-2.5-flash",
+          retried: false,
+          sources: [],
+        });
+        await recordEvent({
+          issueRef,
+          actorType: "ai",
+          eventType: "agent_self_critique_failed",
+          message: "Agent self-critique failed; original triage retained.",
+          actor,
+          source: "agent",
+          status: "failed",
+          severity: isAbortError(critiqueError) ? "warn" : "error",
+          idempotencyKey,
+          payload: { runId: runRef.id, error: critiqueError?.message || String(critiqueError) },
+        });
+        if (isAbortError(critiqueError)) {
+          throw critiqueError;
+        }
+      }
+
       // Generate the final rich resolution plan
       let resolutionPlan = null;
       try {
-        const actionPacket = await generateActionPacket(ai, issue, authority, channel, slaDays);
+        const actionPacket = await generateActionPacket(ai, issueForPlan, authority, channel, slaDays, { signal: agentSignal });
         resolutionPlan = {
           recommendedAuthority: authority,
           contactChannel: channel,
@@ -3690,8 +3973,8 @@ Issue: ${JSON.stringify(issue)}` }]}];
           contactChannel: channel,
           slaDays,
           actionPacket: {
-            subject: `Draft Civic Grievance: ${issue.title || "Civic Incident"}`,
-            body: `To the Commissioner / Officer,\n\nWe would like to share a civic grievance draft regarding ${issue.category} at ${issue.locationName || "the location"}.\nSummary: ${issue.summary || "No details provided."}\n\nPlease review and advise on next steps within the suggested follow-up window of ${slaDays} days.\n\nSincerely,\nCivicLens Prototype`,
+            subject: `Draft Civic Grievance: ${issueForPlan.title || "Civic Incident"}`,
+            body: `To the Commissioner / Officer,\n\nWe would like to share a civic grievance draft regarding ${issueForPlan.category} at ${issueForPlan.locationName || "the location"}.\nSummary: ${issueForPlan.summary || "No details provided."}\n\nPlease review and advise on next steps within the suggested follow-up window of ${slaDays} days.\n\nSincerely,\nCivicLens Prototype`,
             bodyHindi: `आयुक्त / अधिकारी के लिए,\n\nहम ${issue.locationName || "स्थान"} पर ${issue.category} के संबंध में यह नागरिक शिकायत मसौदा साझा करना चाहते हैं।\nसारांश: ${issue.summary || "कोई विवरण प्रदान नहीं किया गया।"}\n\nकृपया इस मुद्दे की समीक्षा करें और ${slaDays} दिनों की सुझाई गई फॉलो-अप अवधि के भीतर अगले कदम बताएं।\n\nसादर,\nCivicLens Prototype`,
             summaryHindi: `${issue.category} की शिकायत दर्ज की गई है।`,
             nextActions: [
@@ -3722,12 +4005,14 @@ Issue: ${JSON.stringify(issue)}` }]}];
         duplicateCandidateId,
         duplicateSimilarity,
         duplicateReasoning,
+        selfCritique,
         final,
         resolutionPlan,
         stepCount: steps.length,
+        timeoutMs: agentTimeoutMs,
       };
 
-      await persistAgentRun(issueRef, runRef, run, steps, resolutionPlan, final);
+      await persistAgentRun(issueRef, runRef, run, steps, resolutionPlan, final, agentIssueUpdates);
       await recordEvent({
         issueRef,
         actorType: "ai",
@@ -3759,19 +4044,20 @@ Issue: ${JSON.stringify(issue)}` }]}];
       });
     } catch (error: any) {
       console.error("Agent run error:", error);
+      const timedOut = isAbortError(error);
       await recordEvent({
         issueRef,
         actorType: "ai",
-        eventType: "agent_run_failed",
-        message: "Server-side triage agent run failed.",
+        eventType: timedOut ? "agent_run_timed_out" : "agent_run_failed",
+        message: timedOut ? "Server-side triage agent run timed out." : "Server-side triage agent run failed.",
         actor,
         source: "agent",
         status: "failed",
-        severity: "error",
+        severity: timedOut ? "warn" : "error",
         idempotencyKey,
-        payload: { error: error?.message || String(error) },
+        payload: { error: error?.message || String(error), timeoutMs: agentTimeoutMs },
       });
-      return sendApiError(res, 500, "An unexpected error occurred during the agent triage run.");
+      return sendApiError(res, timedOut ? 504 : 500, timedOut ? "Agent run timed out before completing." : "An unexpected error occurred during the agent triage run.");
     }
   });
 

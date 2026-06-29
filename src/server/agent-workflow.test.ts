@@ -44,6 +44,23 @@ describe("persisted server agent workflow", () => {
 
     // The model's own reasoning text is captured per turn.
     expect(server).toContain("const turnReasoning = (response.text");
+
+    // A second Gemini QA pass reviews the trace and can persist corrections.
+    expect(server).toContain("runAgentSelfCritique");
+    expect(server).toContain('step: "self_critique"');
+    expect(server).toContain("agent_self_critique_corrected");
+    expect(server).toContain("qaAnomaly");
+  });
+
+  it("bounds agent execution with an abortable timeout", () => {
+    const server = readProjectFile("server.ts");
+
+    expect(server).toContain("CIVICLENS_AGENT_TIMEOUT_MS");
+    expect(server).toContain("AbortSignal.timeout(agentTimeoutMs)");
+    expect(server).toContain("generateContentWithRetry(ai, {");
+    expect(server).toContain("{ signal: agentSignal }");
+    expect(server).toContain("agent_run_timed_out");
+    expect(server).toContain("Agent run timed out before completing.");
   });
 
   it("uses the server agent API from the operator detail page without sending candidates", () => {

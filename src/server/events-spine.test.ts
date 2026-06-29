@@ -40,7 +40,10 @@ describe("server event spine", () => {
     expect(server).toContain('eventType: "ai_escalation_draft"');
     expect(server).toContain('eventType: "ai_translation"');
     expect(server).toContain('eventType: "agent_triage_completed"');
+    expect(server).toContain('eventType: selfCritique.anomaly ? "agent_self_critique_corrected" : "agent_self_critique_passed"');
+    expect(server).toContain('eventType: "agent_self_critique_failed"');
     expect(server).toContain('eventType: "agent_run_completed"');
+    expect(server).toContain('eventType: timedOut ? "agent_run_timed_out" : "agent_run_failed"');
     expect(server).toContain('eventType: "worker_job_requested"');
     expect(server).toContain('eventType: "worker_job_completed"');
     expect(server).toContain('eventType: "worker_sla_completed"');

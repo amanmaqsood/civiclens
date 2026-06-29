@@ -2,7 +2,7 @@ import React, { useState, useEffect } from "react";
 import { IssueReport, IssueActivity } from "../types";
 import { approveRoutingPlan, dispatchEscalation, fetchIssueActivities, finalizeEscalation, updateIssueStatus } from "../services/issues";
 import { fetchLatestAgentRun, runAgentForIssue } from "../services/api";
-import { ArrowLeft, Clock, CheckSquare, RefreshCw, Lock, Sparkles, Send, CheckCircle2 } from "lucide-react";
+import { ArrowLeft, Clock, CheckSquare, RefreshCw, Lock, Sparkles, Send, CheckCircle2, MapPin, CloudRain, Building2, Repeat } from "lucide-react";
 import ClosureVerificationPanel from "./ClosureVerificationPanel";
 import AutoEscalationPanel from "./AutoEscalationPanel";
 import AgentTraceTimeline from "./AgentTraceTimeline";
@@ -154,6 +154,26 @@ export default function OperatorDetailView({ issue, onBack, onRefresh, demoOpera
   };
 
   const [dispatchResult, setDispatchResult] = useState<any>(issue.dispatch || null);
+
+  // Live local context (weather / nearby sensitive places / recurrence).
+  const [grounding, setGrounding] = useState<any>(null);
+  const [groundingLoading, setGroundingLoading] = useState(true);
+  useEffect(() => {
+    let active = true;
+    setGroundingLoading(true);
+    fetch(`/api/issues/${issue.id}/grounding`)
+      .then((r) => (r.ok ? r.json() : null))
+      .then((d) => { if (active) setGrounding(d?.grounding || null); })
+      .catch(() => { if (active) setGrounding(null); })
+      .finally(() => { if (active) setGroundingLoading(false); });
+    return () => { active = false; };
+  }, [issue.id]);
+  const weatherLabel = (code: number | undefined) => {
+    if (code == null) return "";
+    if (code === 0) return "Clear"; if (code <= 3) return "Partly cloudy";
+    if (code <= 48) return "Fog"; if (code <= 67) return "Rain/drizzle";
+    if (code <= 77) return "Snow"; if (code <= 82) return "Showers"; return "Thunderstorm";
+  };
   const handleDispatchEscalation = async () => {
     setActionPending(true);
     setActionError(null);
@@ -212,6 +232,40 @@ export default function OperatorDetailView({ issue, onBack, onRefresh, demoOpera
                 </span>
                 <span className="text-[13px] text-ink-2 leading-snug">{issue.followUp.reasoning}</span>
               </div>
+            </div>
+          )}
+
+          {/* Live local context grounding (weather / nearby places / recurrence) */}
+          {!groundingLoading && grounding && (grounding.weather || (grounding.nearbyAmenities?.length) || grounding.recurrence) && (
+            <div className="rounded-xl border border-hairline bg-white p-3 flex flex-col gap-2 shadow-3xs">
+              <h3 className="flex items-center gap-1.5 text-sm font-bold text-ink">
+                <MapPin className="w-4 h-4 text-marigold" aria-hidden="true" />
+                Live local context
+                <span className="ml-1 text-[13px] font-medium text-slate">(grounds AI severity & priority)</span>
+              </h3>
+              <div className="grid grid-cols-1 sm:grid-cols-3 gap-2">
+                <div className="flex items-center gap-2 rounded-lg bg-paper p-2">
+                  <CloudRain className="w-4 h-4 shrink-0 text-slate" aria-hidden="true" />
+                  <span className="text-[13px] text-ink-2">
+                    {grounding.weather ? `${weatherLabel(grounding.weather.weatherCode)}, ${Math.round(grounding.weather.temperatureC)}°C${grounding.weather.precipitationMm ? `, ${grounding.weather.precipitationMm}mm rain` : ""}` : "Weather unavailable"}
+                  </span>
+                </div>
+                <div className="flex items-center gap-2 rounded-lg bg-paper p-2">
+                  <Building2 className="w-4 h-4 shrink-0 text-slate" aria-hidden="true" />
+                  <span className="text-[13px] text-ink-2">
+                    {(grounding.nearbyAmenities?.length || 0)} sensitive place{(grounding.nearbyAmenities?.length || 0) === 1 ? "" : "s"} within 400m
+                  </span>
+                </div>
+                <div className="flex items-center gap-2 rounded-lg bg-paper p-2">
+                  <Repeat className="w-4 h-4 shrink-0 text-slate" aria-hidden="true" />
+                  <span className="text-[13px] text-ink-2">
+                    {grounding.recurrence?.sameCategoryWithin1km ?? 0} similar within 1km
+                  </span>
+                </div>
+              </div>
+              {grounding.sources?.length > 0 && (
+                <span className="text-[13px] text-slate">Sources: {grounding.sources.join(", ")}</span>
+              )}
             </div>
           )}
 
@@ -391,7 +445,7 @@ export default function OperatorDetailView({ issue, onBack, onRefresh, demoOpera
             {activities.map((act) => (
               <div key={act.id} className="relative flex flex-col">
                 <div className="absolute -left-[20px] top-1 w-2.5 h-2.5 rounded-full bg-indigo-500 border border-white" />
-                <span className="text-sm text-slate-500 font-bold">{act.actorType === "operator" ? "Prototype Operator" : "Citizen"}</span>
+                <span className="text-sm text-slate-500 font-bold">{act.actorType === "operator" ? "Prototype Operator" : act.actorType === "ai" ? "AI Agent" : "Citizen"}</span>
                 <p className="text-slate-700 font-semibold mt-0.5">{act.message}</p>
                 <span className="text-sm text-slate-500 font-mono mt-0.5">{new Date(act.timestamp).toLocaleString()}</span>
               </div>

@@ -32,7 +32,7 @@ export default function AppBottomNav({
 
   const itemClass = (active: boolean) =>
     `min-h-[52px] flex flex-1 flex-col items-center justify-center gap-1 rounded-xl px-2 text-sm font-semibold transition-colors ${
-      active ? "bg-ink text-paper shadow-sm" : "text-[#334155] hover:bg-paper hover:text-ink"
+      active ? "bg-ink text-paper shadow-sm" : "text-ink-2 hover:bg-paper hover:text-ink"
     }`;
 
   return (

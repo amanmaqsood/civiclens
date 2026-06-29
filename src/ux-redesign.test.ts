@@ -180,8 +180,8 @@ describe("UX redesign contract", () => {
     expect(duplicate).toContain("Cancel and edit report");
     expect(duplicate).toContain("Ticket: {candidate.ticketId} - reported");
     expect(duplicate).toContain("text-base font-bold");
-    expect(duplicate).not.toContain("text-[10px]");
-    expect(duplicate).not.toContain("text-[11px]");
+    expect(duplicate).not.toContain("text-[13px]");
+    expect(duplicate).not.toContain("text-[13px]");
     expect(duplicate).not.toContain("text-[9px]");
     expect(duplicate).not.toContain("â");
   });

@@ -255,13 +255,13 @@ export default function PlacesAutocompleteField({
           />
         )}
       </div>
-      <p className="text-sm font-medium leading-relaxed text-[#334155]">
+      <p className="text-sm font-medium leading-relaxed text-ink-2">
         {status === "ready" ? helperText : status === "loading" ? loadingText : status === "no-key" ? noKeyText : failedText}
       </p>
 
       {(status === "no-key" || status === "failed") && (
         <div className="grid gap-2" id="manual-location-suggestions" role="listbox" aria-label={fallbackTitle}>
-          <p className="text-sm font-bold text-[#334155]">{fallbackTitle}</p>
+          <p className="text-sm font-bold text-ink-2">{fallbackTitle}</p>
           {fallbackMatches.length > 0 ? (
             fallbackMatches.map((suggestion) => (
               <button
@@ -277,15 +277,15 @@ export default function PlacesAutocompleteField({
               >
                 <span className="min-w-0">
                   <span className="block text-base font-bold">{suggestion.label}</span>
-                  <span className="block truncate text-sm font-medium text-[#334155]">{suggestion.address}</span>
+                  <span className="block truncate text-sm font-medium text-ink-2">{suggestion.address}</span>
                 </span>
-                <span className="shrink-0 rounded-lg bg-paper px-2 py-1 text-sm font-bold text-[#334155]">
+                <span className="shrink-0 rounded-lg bg-paper px-2 py-1 text-sm font-bold text-ink-2">
                   {useLabel}
                 </span>
               </button>
             ))
           ) : (
-            <p className="rounded-xl border border-dashed border-hairline bg-white p-3 text-sm leading-relaxed text-[#334155]">
+            <p className="rounded-xl border border-dashed border-hairline bg-white p-3 text-sm leading-relaxed text-ink-2">
               {noFallbackText}
             </p>
           )}

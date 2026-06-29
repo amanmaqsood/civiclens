@@ -132,7 +132,7 @@ export default function ClosureVerificationPanel({ issue, onVerified }: ClosureV
           <div className="grid grid-cols-2 gap-2 text-sm pb-1.5 border-b border-slate-200/40">
             <div>
               <span className="text-slate-400 block font-bold">Confidence Rating</span>
-              <span className="font-extrabold text-[#4F46E5]">{(assessment.confidence * 100).toFixed(0)}% Match</span>
+              <span className="font-extrabold text-marigold">{(assessment.confidence * 100).toFixed(0)}% Match</span>
             </div>
             <div>
               <span className="text-slate-400 block font-bold">Recommendation</span>

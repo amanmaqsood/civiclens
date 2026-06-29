@@ -91,7 +91,7 @@ export default function DuplicateCheckPage({
       {reasons && reasons.length > 0 && (
         <div className="flex flex-col gap-2.5 rounded-2xl border border-slate-200 bg-white p-4 shadow-3xs">
           <h3 className="flex items-center gap-1 text-sm font-extrabold text-slate-500">
-            <ArrowRightLeft className="h-3.5 w-3.5 text-[#4F46E5]" />
+            <ArrowRightLeft className="h-3.5 w-3.5 text-marigold" />
             AI comparison reasons
           </h3>
           <ul className="flex flex-col gap-2 pl-1.5 text-sm font-medium leading-relaxed text-slate-600">
@@ -112,7 +112,7 @@ export default function DuplicateCheckPage({
           type="button"
           disabled={isProcessing}
           onClick={onMerge}
-          className="flex min-h-[46px] w-full items-center justify-center gap-2 rounded-xl bg-[#4F46E5] px-4 py-3.5 text-base font-bold text-white shadow-xs transition hover:bg-[#4338CA] disabled:opacity-50"
+          className="flex min-h-[46px] w-full items-center justify-center gap-2 rounded-xl bg-marigold px-4 py-3.5 text-base font-bold text-white shadow-xs transition hover:bg-[#4338CA] disabled:opacity-50"
         >
           <ShieldCheck className="h-4 w-4 flex-shrink-0" />
           <span>Add my report as evidence to this case</span>

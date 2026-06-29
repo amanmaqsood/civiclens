@@ -67,7 +67,7 @@ export default function IssueListWithFilter({
               className={`min-h-[44px] whitespace-nowrap rounded-xl border px-4 py-2 text-sm font-semibold transition-all ${
                 isSelected
                   ? "border-ink bg-ink text-paper shadow-2xs"
-                  : "border-hairline bg-white text-[#334155] hover:border-slate/40 hover:text-ink"
+                  : "border-hairline bg-white text-ink-2 hover:border-slate/40 hover:text-ink"
               }`}
             >
               {filter === "All" ? "All" : issueStatusLabel(filter)}
@@ -76,7 +76,7 @@ export default function IssueListWithFilter({
         })}
       </div>
 
-      <div className="flex items-center justify-between px-1 text-sm font-bold text-[#334155]">
+      <div className="flex items-center justify-between px-1 text-sm font-bold text-ink-2">
         <span>{t("card.reports")}</span>
         <span>{filteredIssues.length} {t("card.matching")}</span>
       </div>
@@ -104,7 +104,7 @@ export default function IssueListWithFilter({
           ))
         ) : filteredIssues.length === 0 ? (
           <div className="flex flex-col items-center gap-3 rounded-2xl border border-hairline bg-white p-6 text-center shadow-xs">
-            <p className="text-sm font-medium text-[#334155]">{t("card.empty")}</p>
+            <p className="text-sm font-medium text-ink-2">{t("card.empty")}</p>
             {onNavigateToReport && (
               <button
                 type="button"
@@ -137,7 +137,7 @@ export default function IssueListWithFilter({
                 </div>
                 <div className="flex shrink-0 items-center gap-1.5">
                   {issue.isDemoData && (
-                    <span className="rounded-lg bg-slate-100 px-2 py-1 text-sm font-bold text-[#334155]">
+                    <span className="rounded-lg bg-slate-100 px-2 py-1 text-sm font-bold text-ink-2">
                       DEMO
                     </span>
                   )}
@@ -172,12 +172,12 @@ export default function IssueListWithFilter({
                       ? (issue.titleHi || issue.title || "Geotagged Civic Incident")
                       : (issue.title || "Geotagged Civic Incident")}
                   </h4>
-                  <p className="mt-1 line-clamp-2 text-base font-normal leading-relaxed text-[#334155]">
+                  <p className="mt-1 line-clamp-2 text-base font-normal leading-relaxed text-ink-2">
                     {language === "hi"
                       ? (issue.summaryHi || issue.summary || issue.description)
                       : (issue.summary || issue.description)}
                   </p>
-                  <div className="mt-1 flex items-center gap-1 text-[#334155]">
+                  <div className="mt-1 flex items-center gap-1 text-ink-2">
                     <MapPin className="h-3 w-3 text-marigold" />
                     <span className="truncate text-sm font-medium">{issue.locationName || "Reported Location"}</span>
                   </div>
@@ -185,12 +185,12 @@ export default function IssueListWithFilter({
               </button>
 
               <div className="mt-0.5 flex items-center justify-between border-t border-hairline/80 pt-2.5">
-                <span className="text-sm font-mono text-[#334155]">{issue.ticketId}</span>
+                <span className="text-sm font-mono text-ink-2">{issue.ticketId}</span>
 
                 <div className="flex items-center gap-1">
                   <button
                     onClick={() => onSelectIssue(issue.id)}
-                    className="min-h-[44px] rounded-xl px-3 text-sm font-bold text-[#334155] hover:bg-paper hover:text-ink"
+                    className="min-h-[44px] rounded-xl px-3 text-sm font-bold text-ink-2 hover:bg-paper hover:text-ink"
                   >
                     {t("card.details")}
                   </button>

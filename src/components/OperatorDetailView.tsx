@@ -175,7 +175,7 @@ export default function OperatorDetailView({ issue, onBack, onRefresh, demoOpera
           <ArrowLeft className="w-5 h-5 text-slate-700" />
         </button>
         <div>
-          <span className="text-sm font-black bg-indigo-100 text-[#4F46E5] px-2 py-1 rounded-lg">
+          <span className="text-sm font-black bg-indigo-100 text-marigold px-2 py-1 rounded-lg">
             Prototype Ticket: {issue.ticketId}
           </span>
           <h2 className="text-2xl font-black text-slate-900 line-clamp-2">Command center case: {issue.title || "Civic Incident"}</h2>
@@ -288,7 +288,7 @@ export default function OperatorDetailView({ issue, onBack, onRefresh, demoOpera
                       type="checkbox"
                       checked={manualOverride}
                       onChange={(e) => setManualOverride(e.target.checked)}
-                      className="rounded border-slate-300 text-[#4F46E5] focus:ring-[#4F46E5] w-5 h-5"
+                      className="rounded border-slate-300 text-marigold focus:ring-marigold w-5 h-5"
                     />
                     <span>Manual prototype override (requires written operator rationale)</span>
                   </label>
@@ -368,7 +368,7 @@ export default function OperatorDetailView({ issue, onBack, onRefresh, demoOpera
           >
             <h4 id="operator-status-dialog-title" className="text-xl font-bold text-slate-800">Confirm status</h4>
             <p className="text-base text-slate-500 font-medium">
-              Transition this complaint status to <span className="font-extrabold text-[#4F46E5]">"{issueStatusLabel(confirmingStatus)}"</span>?
+              Transition this complaint status to <span className="font-extrabold text-marigold">"{issueStatusLabel(confirmingStatus)}"</span>?
             </p>
             <textarea
               value={approvalRationale}
@@ -384,7 +384,7 @@ export default function OperatorDetailView({ issue, onBack, onRefresh, demoOpera
             </p>
             <div className="flex gap-2 justify-center">
               <button type="button" onClick={() => { setConfirmingStatus(null); setApprovalRationale(""); }} className="min-h-[44px] bg-slate-100 text-slate-700 text-base font-bold py-2 px-4 rounded-lg cursor-pointer border">Cancel</button>
-              <button type="button" onClick={() => handleAdvanceStatus(confirmingStatus)} disabled={actionPending || approvalRationale.trim().length === 0} className="min-h-[44px] bg-[#4F46E5] text-white text-base font-bold py-2 px-4 rounded-lg cursor-pointer disabled:opacity-60">Confirm transition</button>
+              <button type="button" onClick={() => handleAdvanceStatus(confirmingStatus)} disabled={actionPending || approvalRationale.trim().length === 0} className="min-h-[44px] bg-marigold text-white text-base font-bold py-2 px-4 rounded-lg cursor-pointer disabled:opacity-60">Confirm transition</button>
             </div>
           </div>
         </div>

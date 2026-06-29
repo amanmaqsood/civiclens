@@ -178,7 +178,7 @@ export default function Header({ currentView, onNavigate, persona, onTogglePerso
                   <UserCircle className="mt-0.5 h-5 w-5 shrink-0 text-marigold" />
                   <div>
                     <p className="text-sm font-black text-ink">{t("account.title")}</p>
-                    <p className="mt-0.5 text-sm font-semibold text-[#334155]">{citizenSessionLabel}</p>
+                    <p className="mt-0.5 text-sm font-semibold text-ink-2">{citizenSessionLabel}</p>
                   </div>
                 </div>
 
@@ -186,7 +186,7 @@ export default function Header({ currentView, onNavigate, persona, onTogglePerso
                   <ShieldCheck className="mt-0.5 h-5 w-5 shrink-0 text-[#0F766E]" />
                   <div>
                     <p className="text-sm font-black text-ink">{t("account.operatorStatus")}: {operatorAccessLabel}</p>
-                    <p className="mt-0.5 text-sm leading-relaxed text-[#334155]">
+                    <p className="mt-0.5 text-sm leading-relaxed text-ink-2">
                       {t("account.operatorHelp")}
                     </p>
                   </div>
@@ -225,7 +225,7 @@ export default function Header({ currentView, onNavigate, persona, onTogglePerso
 
                 <div className="mt-2 rounded-xl border border-hairline p-3">
                   <p className="text-sm font-black text-ink">{signedInWithGoogle ? t("account.googleSession") : t("account.publicAccess")}</p>
-                  <p className="mt-0.5 text-sm leading-relaxed text-[#334155]">
+                  <p className="mt-0.5 text-sm leading-relaxed text-ink-2">
                     {signedInWithGoogle ? t("account.googleActiveHelp") : t("account.googleHelp")}
                   </p>
                   {accountError && (

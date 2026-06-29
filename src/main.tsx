@@ -57,7 +57,7 @@ class ErrorBoundary extends React.Component<{ children: ReactNode }, { hasError:
                 An unexpected system-level error or network connection timeout has occurred. The Citizen Hub agent state has been safely preserved offline.
               </p>
               {this.state.error && (
-                <div className="mt-3 p-3 bg-slate-50 border border-slate-100 rounded-xl text-[10px] font-mono text-left overflow-x-auto max-h-24">
+                <div className="mt-3 p-3 bg-slate-50 border border-slate-100 rounded-xl text-[13px] font-mono text-left overflow-x-auto max-h-24">
                   {this.state.error.message}
                 </div>
               )}

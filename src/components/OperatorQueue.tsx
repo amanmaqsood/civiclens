@@ -86,17 +86,17 @@ export default function OperatorQueue({
       {/* Grid of counters */}
       <div className="grid grid-cols-3 gap-2">
         <div className="bg-white p-2.5 rounded-xl border border-hairline flex flex-col shadow-2xs">
-          <span className="text-sm font-mono text-[#334155]">Total feed</span>
+          <span className="text-sm font-mono text-ink-2">Total feed</span>
           <span className="text-sm font-mono font-bold text-ink mt-0.5">{issues.length}</span>
         </div>
         <div className="bg-white p-2.5 rounded-xl border border-hairline flex flex-col shadow-2xs">
-          <span className="text-sm font-mono text-[#334155]">Active triages</span>
+          <span className="text-sm font-mono text-ink-2">Active triages</span>
           <span className="text-sm font-mono font-bold text-marigold mt-0.5">
             {issues.filter(i => i.status === "submitted" || i.status === "verified").length}
           </span>
          </div>
         <div className="bg-white p-2.5 rounded-xl border border-hairline flex flex-col shadow-2xs">
-          <span className="text-sm font-mono text-[#334155]">Resolved</span>
+          <span className="text-sm font-mono text-ink-2">Resolved</span>
           <span className="text-sm font-mono font-bold text-verify mt-0.5">
             {issues.filter(i => i.status === "resolved").length}
           </span>
@@ -107,8 +107,8 @@ export default function OperatorQueue({
       <div className="bg-white border border-hairline rounded-2xl p-4 shadow-sm flex flex-col gap-3">
         <div className="flex items-center justify-between border-b border-hairline pb-2.5">
           <div className="flex items-center gap-1.5">
-            <Layers className="w-4 h-4 text-[#334155]" />
-            <h3 className="text-base font-mono font-bold text-[#334155]">Active cases</h3>
+            <Layers className="w-4 h-4 text-ink-2" />
+            <h3 className="text-base font-mono font-bold text-ink-2">Active cases</h3>
           </div>
           <button
             onClick={onRefresh}
@@ -128,7 +128,7 @@ export default function OperatorQueue({
             </div>
             <div>
               <h4 className="text-[13px] font-semibold text-ink">Demo Data Control</h4>
-              <p className="text-[13px] text-[#334155] mt-0.5 leading-relaxed max-w-xs">
+              <p className="text-[13px] text-ink-2 mt-0.5 leading-relaxed max-w-xs">
                 Seed 7 synthetic Bengaluru reports to preview the workflow, or clear only demo records.
               </p>
             </div>
@@ -155,7 +155,7 @@ export default function OperatorQueue({
                 id="clear-demo-btn"
                 onClick={handleClearDemo}
                 disabled={seeding || clearing || loading}
-                className="flex-1 min-h-[44px] bg-white hover:bg-paper text-[#334155] border border-slate-300 hover:border-slate-500 hover:text-ink text-[13px] font-bold px-3 py-2 rounded-lg cursor-pointer flex items-center justify-center gap-1.5 transition-all"
+                className="flex-1 min-h-[44px] bg-white hover:bg-paper text-ink-2 border border-slate-300 hover:border-slate-500 hover:text-ink text-[13px] font-bold px-3 py-2 rounded-lg cursor-pointer flex items-center justify-center gap-1.5 transition-all"
               >
                 {clearing ? (
                   <>
@@ -192,11 +192,11 @@ export default function OperatorQueue({
               >
                 {/* Header info */}
                 <div className="flex items-center justify-between gap-2.5">
-                  <span className="text-sm font-mono text-[#334155] font-semibold">
+                  <span className="text-sm font-mono text-ink-2 font-semibold">
                     {humanizeCategory(issue.category)}
                   </span>
                   <div className="flex items-center gap-1">
-                    <span className="text-sm font-mono text-[#334155]">Priority</span>
+                    <span className="text-sm font-mono text-ink-2">Priority</span>
                     <span className="font-mono text-sm font-bold text-ink bg-white border border-hairline px-2 py-1 rounded-lg">
                       {Math.round(issue.priorityScore || 0)}
                     </span>
@@ -206,14 +206,14 @@ export default function OperatorQueue({
                 {/* Body details */}
                 <div className="flex flex-col">
                   <h4 className="text-sm font-semibold text-ink line-clamp-1 leading-normal">{issue.title || "Civic Incident"}</h4>
-                  <p className="text-[13px] text-[#334155] mt-0.5 line-clamp-1 leading-snug font-normal">
+                  <p className="text-[13px] text-ink-2 mt-0.5 line-clamp-1 leading-snug font-normal">
                     {issue.description}
                   </p>
                 </div>
 
                 {/* Footer metrics info */}
                 <div className="flex items-center justify-between flex-wrap gap-2 pt-2 border-t border-hairline/60 text-sm font-mono">
-                  <div className="flex gap-2 items-center text-[#334155] font-medium">
+                  <div className="flex gap-2 items-center text-ink-2 font-medium">
                     <span>SEVERITY: <span className="font-bold text-ink">{issue.severity || 1}/5</span></span>
                     <span className="w-0.5 h-0.5 rounded-full bg-slate" />
                     <span>RPTS: <span className="font-bold text-ink">{issue.reportCount || 1}</span></span>
@@ -223,7 +223,7 @@ export default function OperatorQueue({
 
                   <div className="flex items-center gap-1.5 ml-auto">
                     {issue.isDemoData && (
-                      <span className="text-sm font-mono font-bold bg-marigold/10 border border-marigold/20 text-[#7A4300] px-2 py-1 rounded-lg">
+                      <span className="text-sm font-mono font-bold bg-marigold/10 border border-marigold/20 text-marigold-ink px-2 py-1 rounded-lg">
                         Demo
                       </span>
                     )}

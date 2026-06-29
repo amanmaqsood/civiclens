@@ -91,7 +91,7 @@ export default function LandingPage({
             </div>
             <div className="min-w-0 flex-1">
               <p className="text-base font-bold">{t("demo.title")}</p>
-              <p className="mt-1 max-w-3xl text-base leading-relaxed text-[#334155]">
+              <p className="mt-1 max-w-3xl text-base leading-relaxed text-ink-2">
                 {t("demo.banner")}
               </p>
             </div>
@@ -162,10 +162,10 @@ export default function LandingPage({
           <div className="mb-3 flex items-center justify-between gap-3">
             <div>
               <h3 className="text-xl font-bold text-ink">{t("hero.mapTitle")}</h3>
-              <p className="mt-1 text-base text-[#334155]">{t("hero.mapSubtitle")}</p>
+              <p className="mt-1 text-base text-ink-2">{t("hero.mapSubtitle")}</p>
             </div>
             {demoIssues.length > 0 && (
-              <span className="rounded-lg border border-marigold/30 bg-marigold/10 px-3 py-1 text-sm font-bold text-[#7A4300]">
+              <span className="rounded-lg border border-marigold/30 bg-marigold/10 px-3 py-1 text-sm font-bold text-marigold-ink">
                 {t("hero.syntheticVisible")}
               </span>
             )}
@@ -183,19 +183,19 @@ export default function LandingPage({
 
       <section className="grid gap-4 md:grid-cols-3">
         <div className="rounded-2xl border border-hairline bg-white p-5 shadow-xs">
-          <p className="text-sm font-bold text-[#334155]">{t("hero.loadedRecords")}</p>
+          <p className="text-sm font-bold text-ink-2">{t("hero.loadedRecords")}</p>
           <p id="stats-total-reported" className="mt-2 text-4xl font-black text-marigold">{visibleIssues.length}</p>
-          <p className="mt-1 text-base text-[#334155]">{t("hero.visibleRecords")}</p>
+          <p className="mt-1 text-base text-ink-2">{t("hero.visibleRecords")}</p>
         </div>
         <div className="rounded-2xl border border-hairline bg-white p-5 shadow-xs">
-          <p className="text-sm font-bold text-[#334155]">{t("hero.activeCases")}</p>
+          <p className="text-sm font-bold text-ink-2">{t("hero.activeCases")}</p>
           <p id="stats-in-progress" className="mt-2 text-4xl font-black text-[#2563EB]">{activeCount}</p>
-          <p className="mt-1 text-base text-[#334155]">{t("hero.activeCasesHint")}</p>
+          <p className="mt-1 text-base text-ink-2">{t("hero.activeCasesHint")}</p>
         </div>
         <div className="rounded-2xl border border-hairline bg-white p-5 shadow-xs">
-          <p className="text-sm font-bold text-[#334155]">{t("hero.resolvedRecords")}</p>
+          <p className="text-sm font-bold text-ink-2">{t("hero.resolvedRecords")}</p>
           <p id="stats-resolved" className="mt-2 text-4xl font-black text-verify">{resolvedCount}</p>
-          <p className="mt-1 text-base text-[#334155]">{t("hero.resolvedHint")}</p>
+          <p className="mt-1 text-base text-ink-2">{t("hero.resolvedHint")}</p>
         </div>
       </section>
 
@@ -203,7 +203,7 @@ export default function LandingPage({
         <div className="flex flex-col justify-between gap-3 sm:flex-row sm:items-end">
           <div>
             <h3 className="text-2xl font-black text-ink">{t("hero.caseStories")}</h3>
-            <p className="mt-1 max-w-3xl text-base leading-relaxed text-[#334155]">
+            <p className="mt-1 max-w-3xl text-base leading-relaxed text-ink-2">
               {t("hero.metricsNote")}
             </p>
           </div>
@@ -240,7 +240,7 @@ export default function LandingPage({
               {loadingMoreIssues ? t("hero.loadingMore") : t("hero.loadMore")}
             </button>
           ) : (
-            <p className="text-sm font-medium text-[#334155]">
+            <p className="text-sm font-medium text-ink-2">
               {t("hero.showingAll")}
             </p>
           )}
@@ -249,7 +249,7 @@ export default function LandingPage({
 
       <div className="flex items-center justify-center gap-2 py-2 text-center">
         <CheckCircle2 className="h-4 w-4 text-verify" />
-        <span className="text-sm font-semibold text-[#334155]">
+        <span className="text-sm font-semibold text-ink-2">
           {t("app.boundary")}
         </span>
       </div>

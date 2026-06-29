@@ -176,11 +176,11 @@ export default function HomeMap({
       <div id="google-maps-setup-card" className="flex flex-col gap-4 rounded-2xl border border-hairline bg-white p-5 font-sans shadow-xs">
         <div className="flex flex-col gap-1.5">
           <h4 className="text-lg font-bold text-ink">Interactive map inactive</h4>
-          <p className="text-base leading-relaxed text-[#334155]">
+          <p className="text-base leading-relaxed text-ink-2">
             Google Maps JavaScript API key is required to render active hazard locations.
           </p>
         </div>
-        <div className="flex flex-col gap-2 rounded-xl border border-hairline bg-paper p-3 font-mono text-sm text-[#334155]">
+        <div className="flex flex-col gap-2 rounded-xl border border-hairline bg-paper p-3 font-mono text-sm text-ink-2">
           <p className="font-bold text-ink">To enable Google Maps integration:</p>
           <ol className="flex list-decimal flex-col gap-1 pl-4 leading-normal">
             <li>
@@ -189,7 +189,7 @@ export default function HomeMap({
                 href="https://console.cloud.google.com/google/maps-apis/start?utm_campaign=gmp-code-assist-ais"
                 target="_blank"
                 rel="noopener noreferrer"
-                className="font-bold text-[#7A4300] underline"
+                className="font-bold text-marigold-ink underline"
               >
                 Google Cloud Console
               </a>

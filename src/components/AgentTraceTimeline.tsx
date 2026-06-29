@@ -82,13 +82,13 @@ export default function AgentTraceTimeline({ trace = [], run = null, mode = "per
             <Sparkles className="h-5 w-5" />
           </div>
           <div>
-            <p className="text-sm font-mono text-[#334155]">
+            <p className="text-sm font-mono text-ink-2">
               {isLocalProgress ? "Local report progress" : "Server-generated agent trace"}
             </p>
             <h3 className="mt-1 text-2xl font-black text-ink">
               {isLocalProgress ? "Preparing report" : "No persisted run yet"}
             </h3>
-            <p className="mt-2 max-w-2xl text-base leading-relaxed text-[#334155]">
+            <p className="mt-2 max-w-2xl text-base leading-relaxed text-ink-2">
               {isLocalProgress
                 ? "Progress appears here while the browser prepares the draft report. Persisted server agent evidence appears only after a saved case has stored tool steps."
                 : "Persisted server tool records appear here after the server-side agent has run for this case."}
@@ -112,13 +112,13 @@ export default function AgentTraceTimeline({ trace = [], run = null, mode = "per
               <Sparkles className="h-5 w-5" />
             </div>
             <div>
-              <p className="text-sm font-mono text-[#334155]">
+              <p className="text-sm font-mono text-ink-2">
                 {isLocalProgress ? "Local report progress" : "Persisted server run"}
               </p>
               <h3 className="mt-1 text-2xl font-black text-ink">
                 {isLocalProgress ? "Draft preparation timeline" : "Agent tool timeline"}
               </h3>
-              <p className="mt-2 max-w-2xl text-base leading-relaxed text-[#334155]">
+              <p className="mt-2 max-w-2xl text-base leading-relaxed text-ink-2">
                 {isLocalProgress
                   ? "These steps show in-browser report preparation and nearby-case checks before the draft is saved. They are not presented as persisted agent evidence."
                   : "Gemini selected tools, CivicLens executed them on the server, and these steps were loaded from persisted run data."}
@@ -127,19 +127,19 @@ export default function AgentTraceTimeline({ trace = [], run = null, mode = "per
           </div>
           <div className="grid grid-cols-2 gap-2 sm:grid-cols-4 lg:min-w-[420px]">
             <div className="rounded-2xl border border-hairline bg-paper p-3">
-              <p className="text-sm font-bold text-[#334155]">Status</p>
+              <p className="text-sm font-bold text-ink-2">Status</p>
               <p className="mt-1 text-base font-black text-ink capitalize">{run?.status || "completed"}</p>
             </div>
             <div className="rounded-2xl border border-hairline bg-paper p-3">
-              <p className="text-sm font-bold text-[#334155]">Model</p>
+              <p className="text-sm font-bold text-ink-2">Model</p>
               <p className="mt-1 text-base font-black text-ink">{run?.model || "Gemini"}</p>
             </div>
             <div className="rounded-2xl border border-hairline bg-paper p-3">
-              <p className="text-sm font-bold text-[#334155]">Steps</p>
+              <p className="text-sm font-bold text-ink-2">Steps</p>
               <p className="mt-1 text-base font-black text-ink">{completedSteps}/{expectedStepCount}</p>
             </div>
             <div className="rounded-2xl border border-hairline bg-paper p-3">
-              <p className="text-sm font-bold text-[#334155]">Loaded</p>
+              <p className="text-sm font-bold text-ink-2">Loaded</p>
               <p className="mt-1 text-base font-black text-ink">{formatTime(completedAt || startedAt)}</p>
             </div>
           </div>
@@ -160,18 +160,18 @@ export default function AgentTraceTimeline({ trace = [], run = null, mode = "per
                 <div className="flex flex-wrap items-center gap-2">
                   <StatusIcon status={entry.status} />
                   <h4 className="text-lg font-black text-ink">{formatStepName(entry.step)}</h4>
-                  <span className="rounded-lg border border-hairline bg-white px-2 py-1 text-sm font-mono text-[#334155]">
+                  <span className="rounded-lg border border-hairline bg-white px-2 py-1 text-sm font-mono text-ink-2">
                     {entry.tool?.replace("agent.", "") || "server tool"}
                   </span>
                 </div>
 
-                <p className="mt-2 text-base leading-relaxed text-[#334155]">{entry.rationale || "Tool completed without a model rationale."}</p>
+                <p className="mt-2 text-base leading-relaxed text-ink-2">{entry.rationale || "Tool completed without a model rationale."}</p>
 
                 {(entry.inputDigest || entry.outputSummary) && (
                   <div className="mt-3 grid gap-2 md:grid-cols-2">
                     {entry.inputDigest && (
                       <div className="rounded-xl border border-hairline bg-white p-3">
-                        <p className="flex items-center gap-2 text-sm font-bold text-[#334155]">
+                        <p className="flex items-center gap-2 text-sm font-bold text-ink-2">
                           <Database className="h-4 w-4 text-marigold" />
                           Safe input summary
                         </p>
@@ -180,7 +180,7 @@ export default function AgentTraceTimeline({ trace = [], run = null, mode = "per
                     )}
                     {entry.outputSummary && (
                       <div className="rounded-xl border border-hairline bg-white p-3">
-                        <p className="flex items-center gap-2 text-sm font-bold text-[#334155]">
+                        <p className="flex items-center gap-2 text-sm font-bold text-ink-2">
                           <CheckCircle2 className="h-4 w-4 text-verify" />
                           Output summary
                         </p>
@@ -194,24 +194,24 @@ export default function AgentTraceTimeline({ trace = [], run = null, mode = "per
               <aside className="rounded-2xl border border-hairline bg-white p-3">
                 <div className="grid grid-cols-2 gap-3 text-sm">
                   <div>
-                    <p className="font-bold text-[#334155]">Time</p>
+                    <p className="font-bold text-ink-2">Time</p>
                     <p className="mt-1 font-mono text-ink">{formatTime(entry.ts)}</p>
                   </div>
                   <div>
-                    <p className="font-bold text-[#334155]">Latency</p>
+                    <p className="font-bold text-ink-2">Latency</p>
                     <p className="mt-1 font-mono text-ink">{entry.durationMs ? `${(entry.durationMs / 1000).toFixed(1)}s` : "n/a"}</p>
                   </div>
                   <div>
-                    <p className="font-bold text-[#334155]">Confidence</p>
+                    <p className="font-bold text-ink-2">Confidence</p>
                     <p className="mt-1 font-mono text-ink">{entry.confidence !== undefined ? `${Math.round(entry.confidence * 100)}%` : "n/a"}</p>
                   </div>
                   <div>
-                    <p className="font-bold text-[#334155]">Status</p>
+                    <p className="font-bold text-ink-2">Status</p>
                     <p className="mt-1 font-mono text-ink capitalize">{entry.status}</p>
                   </div>
                 </div>
                 {(entry.retried || entry.fallbackUsed) && (
-                  <p className="mt-3 rounded-lg border border-marigold/25 bg-marigold/10 px-3 py-2 text-sm font-bold text-[#7A4300]">
+                  <p className="mt-3 rounded-lg border border-marigold/25 bg-marigold/10 px-3 py-2 text-sm font-bold text-marigold-ink">
                     Recovered through retry or fallback.
                   </p>
                 )}

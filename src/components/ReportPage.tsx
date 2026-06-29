@@ -425,7 +425,7 @@ export default function ReportPage({ onBack, onSubmit, prefilledLocation, prefil
           <div
             key={step.label}
             className={`flex min-h-[58px] flex-col items-center justify-center gap-1 rounded-xl px-2 text-center ${
-              step.done ? "bg-verify/10 text-ink" : index === 0 || stepperItems[index - 1]?.done ? "bg-marigold/10 text-ink" : "bg-paper text-[#334155]"
+              step.done ? "bg-verify/10 text-ink" : index === 0 || stepperItems[index - 1]?.done ? "bg-marigold/10 text-ink" : "bg-paper text-ink-2"
             }`}
           >
             <span className="flex h-6 w-6 items-center justify-center rounded-full bg-white text-sm font-black shadow-3xs">
@@ -444,7 +444,7 @@ export default function ReportPage({ onBack, onSubmit, prefilledLocation, prefil
 
       {/* Upload proof */}
       <div className="flex flex-col gap-1.5">
-        <label className="text-sm font-mono text-[#334155] block">{t("report.imageLabel")}</label>
+        <label className="text-sm font-mono text-ink-2 block">{t("report.imageLabel")}</label>
         <input
           id="report-live-photo-input"
           type="file"
@@ -475,10 +475,10 @@ export default function ReportPage({ onBack, onSubmit, prefilledLocation, prefil
               </div>
               <div>
                 <p className="text-base font-semibold text-ink">{t("report.addPhoto")}</p>
-                <p className="text-sm text-[#334155] mt-0.5">
+                <p className="text-sm text-ink-2 mt-0.5">
                   {t("report.imageHint")}
                 </p>
-                <p className="text-sm text-[#334155] mt-0.5">{t("report.imageHint2")}</p>
+                <p className="text-sm text-ink-2 mt-0.5">{t("report.imageHint2")}</p>
               </div>
             </div>
             <div className="mt-4 grid gap-2 sm:grid-cols-2">
@@ -533,7 +533,7 @@ export default function ReportPage({ onBack, onSubmit, prefilledLocation, prefil
 
       {/* Geolocation Live Capture Component */}
       <div className="bg-paper border border-hairline p-4 rounded-xl flex flex-col gap-2.5">
-        <label className="text-sm font-mono text-[#334155] block">{t("report.locationLabel")}</label>
+        <label className="text-sm font-mono text-ink-2 block">{t("report.locationLabel")}</label>
         
         <div className="text-sm font-semibold leading-normal py-0.5">
           {locLoading && (
@@ -563,7 +563,7 @@ export default function ReportPage({ onBack, onSubmit, prefilledLocation, prefil
             <CheckCircle2 className="w-3.5 h-3.5 text-verify mt-0.5 flex-shrink-0" />
             <div className="text-sm font-semibold">
               <p>{t("report.gpsLocked")}</p>
-              <p className="font-mono text-sm text-[#334155] mt-0.5">
+              <p className="font-mono text-sm text-ink-2 mt-0.5">
                 {location.lat.toFixed(5)}, {location.lng.toFixed(5)}
               </p>
             </div>
@@ -591,7 +591,7 @@ export default function ReportPage({ onBack, onSubmit, prefilledLocation, prefil
               <MapPinned className="mt-0.5 h-5 w-5 shrink-0 text-marigold" />
               <div className="flex-1">
                 <p className="text-base font-bold text-ink">{t("report.manualPinTitle")}</p>
-                <p className="mt-1 text-sm leading-relaxed text-[#334155]">
+                <p className="mt-1 text-sm leading-relaxed text-ink-2">
                   {t("report.manualPinHelp")}
                 </p>
               </div>
@@ -631,16 +631,16 @@ export default function ReportPage({ onBack, onSubmit, prefilledLocation, prefil
       {speechSupported && (
         <div className="bg-paper border border-hairline p-4 rounded-xl flex flex-col gap-2 shadow-3xs animate-fade-in select-none">
           <div className="flex items-center justify-between">
-          <span className="text-sm font-mono text-[#334155] block">
+          <span className="text-sm font-mono text-ink-2 block">
               {t("report.voiceInput")}
             </span>
             <div className="flex items-center gap-1.5">
               <span className="w-1.5 h-1.5 rounded-full bg-marigold animate-ping" />
-              <span className="text-sm font-mono text-[#334155] font-bold">{t("report.englishActive")}</span>
+              <span className="text-sm font-mono text-ink-2 font-bold">{t("report.englishActive")}</span>
             </div>
           </div>
           
-          <p className="text-sm text-[#334155] font-medium leading-normal">
+          <p className="text-sm text-ink-2 font-medium leading-normal">
             {t("report.voiceHint")}
           </p>
 
@@ -670,7 +670,7 @@ export default function ReportPage({ onBack, onSubmit, prefilledLocation, prefil
 
       {/* Description / Dictation */}
       <div className="flex flex-col gap-1.5">
-        <label className="text-sm font-mono text-[#334155] block">
+        <label className="text-sm font-mono text-ink-2 block">
           {t("report.descLabel")}
         </label>
         <textarea

@@ -548,7 +548,7 @@ export default function App() {
               </div>
               <div>
                 <h3 className="text-sm font-bold text-ink">Unable to fetch registered incidents</h3>
-                <p className="text-[11px] text-slate mt-1 leading-relaxed">
+                <p className="text-[13px] text-slate mt-1 leading-relaxed">
                   The prototype service could not load saved reports. Please check the network and try again.
                 </p>
               </div>
@@ -605,7 +605,7 @@ export default function App() {
                       <button
                         type="button"
                         onClick={() => setOperatorSelectedIssueId(null)}
-                        className="min-h-[44px] rounded-xl border border-slate-300 bg-white px-4 text-xs font-bold text-[#4F46E5]"
+                        className="min-h-[44px] rounded-xl border border-slate-300 bg-white px-4 text-xs font-bold text-marigold"
                       >
                         Back to Queue
                       </button>
@@ -645,7 +645,7 @@ export default function App() {
                   return (
                     <div className="p-4 text-center text-xs font-semibold text-slate-500">
                       Issue report not found. Please navigate back manually.
-                      <button onClick={() => handleNavigate("landing")} className="block mt-2 underline mx-auto text-[#4F46E5] font-sans">
+                      <button onClick={() => handleNavigate("landing")} className="block mt-2 underline mx-auto text-marigold font-sans">
                         Back to Hub
                       </button>
                     </div>
@@ -722,7 +722,7 @@ export default function App() {
                       </div>
                     </div>
                     <h2 className="text-base font-bold text-ink font-display mt-2">Preparing Prototype Report...</h2>
-                    <p className="text-[11px] text-slate max-w-xs leading-normal font-medium">
+                    <p className="text-[13px] text-slate max-w-xs leading-normal font-medium">
                       Analyzing the image, checking location, comparing nearby reports, and preparing a draft case record.
                     </p>
                   </div>
@@ -740,9 +740,9 @@ export default function App() {
       {isDeduplicating && (
         <div className="fixed inset-0 bg-slate-900/60 backdrop-blur-xs flex flex-col items-center justify-center z-50 px-6">
           <div className="bg-white p-6 rounded-2xl shadow-xl flex flex-col items-center gap-3 max-w-xs text-center border border-slate-100">
-            <Loader2 className="w-8 h-8 text-[#4F46E5] animate-spin" />
+            <Loader2 className="w-8 h-8 text-marigold animate-spin" />
             <p className="text-xs font-bold text-slate-800">Checking Nearby Reports</p>
-            <p className="text-[10px] text-slate-400 font-medium leading-normal">
+            <p className="text-[13px] text-slate-400 font-medium leading-normal">
               Comparing saved prototype cases with distance and semantic signals.
             </p>
           </div>

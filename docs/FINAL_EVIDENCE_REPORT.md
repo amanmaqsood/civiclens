@@ -92,6 +92,21 @@ Recorded evidence supports:
 
 ## Validation Summary
 
+Fresh local v2 continuation baseline on 2026-06-29 from `master` at `8e94e6e`:
+
+- `.\node_modules\.bin\tsc.cmd --noEmit`: passed with 0 errors.
+- `.\node_modules\.bin\vitest.cmd run`: passed; 18 files passed, 2 skipped; 83 tests passed, 7 skipped.
+- `npm run build`: passed; Vite transformed 2141 modules, built `dist/server.cjs`, and emitted no chunk over 500 kB. Largest JS chunk was `fb-firestore` at 475.16 kB.
+- `npm run test:rules`: passed; 1 emulator rules file passed, 3 tests passed.
+- `npm run test:concurrency`: passed; 1 emulator concurrency file passed, 4 tests passed.
+- `npm run test:e2e`: passed; 7 Chromium Playwright tests passed against local Firebase Auth, Firestore, and Storage emulators.
+
+Baseline notes:
+
+- The no-attribution hygiene scan found no judged-project references to prohibited assistant/vendor attribution terms.
+- The Firebase browser key remains committed in `firebase-applet-config.json`; this is the next tracked hygiene fix.
+- The Playwright emulator gate runs with local test config and reports expected development warnings when Gemini and Maps keys are not injected into that test process. Real Gemini/Maps checks remain part of feature-level live verification.
+
 Latest local validation after public documentation cleanup and current-tree internal artifact removal:
 
 - `npm ci`: passed; install audit reported 3 moderate dev-dependency issues while production audit remained clean.

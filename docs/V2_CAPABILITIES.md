@@ -19,7 +19,7 @@ auditable trail.
    (OpenStreetMap)**, and **same-area recurrence** before judging severity/priority
    — e.g. rain worsening a flooding drain, a school near a hazard raising urgency.
 
-3. **Three autonomous workers (Cloud Scheduler-driven).**
+3. **Four autonomous workers (Cloud Scheduler-driven).**
    - **SLA → escalation → RTI:** detects cases past their follow-up window and
      auto-drafts a real Gemini grievance-escalation letter **and** a Section 6(1)
      RTI application, idempotently, with an audit event.
@@ -28,6 +28,8 @@ auditable trail.
      ready-to-close) with grounded reasoning.
    - **Predictive insights:** deterministic city aggregates feed a Gemini forecast
      of hotspots, priority categories, and recommended actions.
+   - **Embedding backfill:** keeps older cases searchable by the semantic dedup
+     pipeline using `gemini-embedding-001`.
 
 4. **Real outbound action (past "drafts only").** An approved escalation can be
    **dispatched** to a configured authority webhook with a persisted delivery

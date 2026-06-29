@@ -137,7 +137,7 @@ export function findOversizedStringField(
 ): string | null {
   if (typeof value === "string") {
     const key = path.split(".").pop() || "";
-    const maxLength = ["image", "afterImage", "beforeImage", "auditImage", "fieldAuditImage", "imageUrl", "beforeImageUrl", "auditImageUrl", "fieldAuditImageUrl", "audio", "audioBase64", "audioData", "voiceAudio"].includes(key)
+    const maxLength = ["image", "afterImage", "beforeImage", "closureAfterImage", "auditImage", "fieldAuditImage", "imageUrl", "beforeImageUrl", "auditImageUrl", "fieldAuditImageUrl", "audio", "audioBase64", "audioData", "voiceAudio"].includes(key)
       ? options.maxImageLength
       : options.maxTextLength;
     return value.length > maxLength ? path : null;

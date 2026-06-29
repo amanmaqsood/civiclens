@@ -20,6 +20,7 @@ describe("documentation release readiness", () => {
       "docs/DEMO_SCRIPT.md",
       "docs/GOOGLE_DOC_DRAFT.md",
       "docs/FINAL_EVIDENCE_REPORT.md",
+      "docs/RUBRIC_SELF_SCORE.md",
       "docs/OBSERVABILITY.md",
       "docs/monitoring/civiclens-cloud-monitoring-dashboard.json",
       "Dockerfile",
@@ -46,8 +47,12 @@ describe("documentation release readiness", () => {
     const evidence = readProjectFile("docs/FINAL_EVIDENCE_REPORT.md");
     const demo = readProjectFile("docs/DEMO_SCRIPT.md");
     const docDraft = readProjectFile("docs/GOOGLE_DOC_DRAFT.md");
+    const score = readProjectFile("docs/RUBRIC_SELF_SCORE.md");
 
     expect(evidence).toContain("Public URL: https://civiclens-py7ixxgroq-as.a.run.app");
+    expect(evidence).toContain("FINAL_GOLDEN_PATH_LIVE");
+    expect(score).toContain("97/100");
+    expect(score).toContain("FINAL_GOLDEN_PATH_LIVE");
     expect(evidence).toContain(
       "Public Google Doc body was replaced with `docs/GOOGLE_DOC_DRAFT.md`, formatted with headings/lists/links, and public text export was rechecked.",
     );

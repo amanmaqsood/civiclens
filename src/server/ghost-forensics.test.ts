@@ -25,11 +25,13 @@ describe("ghost closure forensics", () => {
     const perimeter = readProjectFile("src/server/perimeter.ts");
 
     expect(server).toContain("ghostForensics");
+    expect(server).toContain("req.body?.closureAfterImage");
     expect(server).toContain('eventType: shouldReopen ? "ghost_closure_reopened" : "ghost_closure_checked"');
     expect(server).toContain('eventType: "ai_ghost_forensics"');
     expect(server).toContain('adminDb.collection("officerAccountability").doc(officerId)');
     expect(server).toContain("ghostPenaltyPoints: FieldValue.increment(penaltyPoints)");
     expect(perimeter).toContain('path.endsWith("/ghost-forensics")');
+    expect(perimeter).toContain('"closureAfterImage"');
   });
 
   it("threads ghost forensics into issue reads and public detail UI", () => {

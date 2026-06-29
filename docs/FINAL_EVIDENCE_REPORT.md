@@ -325,6 +325,24 @@ Phase 6.4 deploy-smoke automation verification on 2026-06-30:
 - `npm run test:e2e`: passed; 7 Chromium Playwright tests passed against local Firebase Auth, Firestore, and Storage emulators.
 - Hygiene scans found no prohibited attribution terms and no Google API-key prefix matches. `git diff --check` returned only line-ending normalization warnings, and deploy-smoke temp logs were removed before commit.
 
+Phase 1.1/1.2 explicit planner and real agent tools closeout on 2026-06-30:
+
+- `/api/agent/run` now starts with a real Gemini JSON planner step. The persisted `agent.planner` step stores planned tools, rationale, deterministic priority context, planner model, retry state, and duration.
+- The agent run and issue documents both persist the planner output (`run.planner`, `issue.agentPlan`), including conditional steps such as `propose_merge` only after confident duplicate evidence.
+- The function-calling loop now executes every function call returned in a Gemini turn instead of only the first call, so independent tool calls can be batched while still producing separate persisted steps.
+- `calculate_priority` is no longer exposed as a callable tool. The server computes the deterministic priority breakdown from canonical issue data and server-loaded candidates, then passes it to Gemini as context.
+- `compare_candidate_evidence` now performs server-side duplicate work with Gemini embeddings, geospatial thresholds, and optional Gemini vision comparison when both evidence images are available.
+- Added `propose_merge`, which writes a pending human-approved merge proposal, plus `POST /api/issues/:issueId/merge-proposals/:proposalId/approve` to execute the merge transactionally by adding evidence to the canonical case and marking the source case merged/resolved.
+- `find_responsible_authority` still uses Gemini + Google Search grounding, then validates the suggestion against a small jurisdiction registry before persisting the authority/channel/SLA fields.
+- `.\node_modules\.bin\tsc.cmd --noEmit`: passed with 0 errors.
+- `.\node_modules\.bin\vitest.cmd run src\server\agent-workflow.test.ts`: passed; 1 file passed, 4 tests passed.
+- Real Gemini planner emulator proof: `npm run test:agent-planner` passed and reported `AGENT_PLANNER_LIVE issueId=8zqA4OqEQtcOoX6i21St runId=8zqA4OqEQtcOoX6i21St_planner_live_1782776670021 plannerModel=gemini-2.5-flash plannedTools=4 persistedSteps=6 plannerStep=done planPersisted=True calculateToolSteps=0 eventPlanCreated=True`.
+- `.\node_modules\.bin\vitest.cmd run`: passed; 29 files passed, 4 skipped; 119 tests passed, 11 skipped.
+- `npm run build`: passed; Vite transformed 2341 modules, emitted `dist/server.cjs` at 285.5 kB, and kept the largest JS chunk at `fb-firestore` 475.16 kB with no chunk over 500 kB.
+- `npm run test:rules`: passed; 1 emulator rules file passed, 3 tests passed.
+- `npm run test:concurrency`: passed; 1 emulator concurrency file passed, 4 tests passed.
+- `npm run test:e2e`: passed; 7 Chromium Playwright tests passed against local Firebase Auth, Firestore, and Storage emulators.
+
 Phase 6.5 final golden-path verification on 2026-06-30:
 
 - Added `npm run test:golden-path`, `scripts/verify-final-golden-path-live.ps1`, and a gated live Vitest verifier that starts the app under Firebase Auth/Firestore/Storage emulators with real Gemini and a local authority webhook sink.

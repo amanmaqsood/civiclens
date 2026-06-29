@@ -20,9 +20,11 @@ describe("persisted server agent workflow", () => {
     expect(server).toContain('app.get("/api/issues/:issueId/agent-runs/latest"');
     expect(server).toContain('name: "search_nearby_cases"');
     expect(server).toContain('name: "record_event"');
+    expect(server).toContain('name: "propose_merge"');
     expect(server).toContain("claimSupported");
     expect(server).toContain("server-loaded candidate set");
     expect(server).toContain("const cid = result?.candidateId");
+    expect(server).toContain('app.post("/api/issues/:issueId/merge-proposals/:proposalId/approve"');
     expect(server).not.toContain("const { issue, candidates } = req.body");
   });
 
@@ -34,13 +36,30 @@ describe("persisted server agent workflow", () => {
     expect(server).not.toContain("const requiredAgentSteps = [");
     expect(server).not.toContain("steps.splice(0, steps.length, ...normalizedSteps)");
 
-    // It must decide for itself, with a dynamic (not 8-capped) loop, and persist the real trace.
+    // It must plan first, then decide dynamically with a non-8-capped loop and persist the real trace.
+    expect(server).toContain("buildAgentExecutionPlan");
+    expect(server).toContain('step: "planner"');
+    expect(server).toContain("agentPlan: executionPlan");
+    expect(server).toContain("planner: executionPlan");
     expect(server).toContain("There is NO fixed script");
     expect(server).toContain("MAX_AGENT_TURNS");
     expect(server).toContain("reflects exactly the tools the agent chose to call");
 
-    // calculate_priority must compute from canonical data, not echo model args.
+    // Priority is deterministic context, not a model-callable tool.
+    expect(server).not.toContain('name: "calculate_priority"');
+    expect(server).toContain("Deterministic priority breakdown (context only; not a tool)");
     expect(server).toContain("canonical issue + server-loaded candidates");
+
+    // Multiple function calls returned in one model turn must all be honored.
+    expect(server).not.toContain("const fc = calls[0]");
+    expect(server).toContain("for (const fc of calls)");
+    expect(server).toContain("calls.map((fc: any) => ({ functionCall: fc }");
+
+    // Duplicate tools must use server-side evidence and leave an executable approval record.
+    expect(server).toContain("compareCandidateEvidenceSignals");
+    expect(server).toContain("gemini_embedding_cosine_plus_optional_vision");
+    expect(server).toContain("pending_human_approval");
+    expect(server).toContain("merge_proposal_approved");
 
     // The model's own reasoning text is captured per turn.
     expect(server).toContain("const turnReasoning = (response.text");

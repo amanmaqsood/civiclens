@@ -14,6 +14,10 @@ auditable trail.
    different cases produce different traces (e.g. a new pothole → 6 tool steps; an
    already-resolved case → 2 steps). No fixed step list, no fabricated rows.
 
+   The latest agent run begins with a persisted Gemini JSON execution plan
+   (tools, rationale, and conditions), can execute multiple Gemini tool calls in
+   one model turn, and stores the plan on both the run and issue documents.
+
 2. **The agent grounds itself in the real world.** It can call `get_local_context`
    to pull **live weather (Open-Meteo)**, **nearby schools/hospitals
    (OpenStreetMap)**, and **same-area recurrence** before judging severity/priority
@@ -38,6 +42,10 @@ auditable trail.
 5. **Semantic duplicate detection.** `gemini-embedding-001` embeddings + cosine
    similarity catch duplicates by *meaning*, not keywords (a "burst pipe gushing
    water" report matches an existing "leaking water pipeline" case).
+
+   Agent duplicate checks now use server-side embeddings, geospatial thresholds,
+   and optional Gemini vision comparison, then create a human-approved executable
+   merge proposal instead of silently merging consequential cases.
 
 6. **Municipal interoperability.** Public **Open311 GeoReport v2** export so the
    data plugs into real city systems.
@@ -68,6 +76,7 @@ auditable trail.
 - New public API: `GET /api/insights/predictive`, `/api/leaderboard`,
   `/api/export/open311`, `/api/issues/:id/open311`, `/api/issues/:id/grounding`;
   operator/job: `POST /api/jobs/run` (workers `sla|followup|predict|embed`),
-  `POST /api/dedup/semantic`, `POST /api/issues/:id/escalation-dispatch`.
+  `POST /api/dedup/semantic`, `POST /api/issues/:id/escalation-dispatch`,
+  `POST /api/issues/:id/merge-proposals/:proposalId/approve`.
 
 See `docs/DEPLOY_V2.md` for deployment + worker scheduling.

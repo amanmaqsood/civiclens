@@ -2369,6 +2369,101 @@ Mark suspicious only for obvious mismatch, pile-on, or unverifiable reasoning. K
     }
   });
 
+  app.post("/api/issues/:issueId/merge-proposals/:proposalId/approve", async (req: any, res) => {
+    if (!adminDb) return sendApiError(res, 503, "Server data layer unavailable.");
+    const actor = req.actor as RequestActor | undefined;
+    if (!actor) return sendApiError(res, 401, "Firebase ID token is required.");
+    const { issueId, proposalId } = req.params;
+    if (!isSafeDocumentId(issueId) || !isSafeDocumentId(proposalId)) return sendApiError(res, 400, "Invalid merge approval request.");
+    const sourceRef = adminDb.collection("issues").doc(issueId);
+    const sourceAuthSnap = await sourceRef.get();
+    if (!sourceAuthSnap.exists) return sendApiError(res, 404, "Issue not found.");
+    if (!requireOperatorForIssue(sourceAuthSnap.data(), actor, res)) return;
+
+    const proposalRef = sourceRef.collection("mergeProposals").doc(proposalId);
+    const nowIso = new Date().toISOString();
+    let targetIssueId = "";
+    try {
+      await adminDb.runTransaction(async (tx: any) => {
+        const proposalSnap = await tx.get(proposalRef);
+        if (!proposalSnap.exists) throw new Error("PROPOSAL_NOT_FOUND");
+        const proposal = proposalSnap.data() || {};
+        if (proposal.sourceIssueId !== issueId || !isSafeDocumentId(proposal.targetIssueId)) throw new Error("INVALID_PROPOSAL");
+        if (proposal.status === "approved") {
+          targetIssueId = proposal.targetIssueId;
+          return;
+        }
+        const targetRef = adminDb.collection("issues").doc(proposal.targetIssueId);
+        const targetSnap = await tx.get(targetRef);
+        if (!targetSnap.exists) throw new Error("TARGET_NOT_FOUND");
+        const targetData = targetSnap.data() || {};
+        targetIssueId = targetSnap.id;
+        const nextReportCount = cleanNumber(targetData.reportCount, 1, 1, 999) + 1;
+        const mergeEvidenceId = `agent_merge_${proposalId}`.slice(0, 140);
+        tx.set(targetRef.collection("evidence").doc(mergeEvidenceId), {
+          sourceIssueId: issueId,
+          mergeProposalId: proposalId,
+          description: cleanText(proposal.reason, "Agent merge proposal approved by operator.", 1200),
+          similarity: cleanNumber(proposal.similarity, 0, 0, 1),
+          imageUrl: cleanText(sourceAuthSnap.get("image"), "", 1200),
+          source: "agent_merge_proposal",
+          approvedBy: actor.uid,
+          approvedAt: nowIso,
+        }, { merge: true });
+        tx.update(targetRef, {
+          reportCount: nextReportCount,
+          priorityScore: serverPriorityScore({ ...targetData, reportCount: nextReportCount }),
+          updatedAt: nowIso,
+        });
+        tx.update(sourceRef, {
+          status: "resolved",
+          mergeStatus: "merged",
+          mergedInto: targetIssueId,
+          mergeApprovedAt: nowIso,
+          updatedAt: nowIso,
+        });
+        tx.set(proposalRef, {
+          status: "approved",
+          approvedAt: nowIso,
+          approvedBy: actor.uid,
+          executedAt: nowIso,
+          targetIssueId,
+        }, { merge: true });
+      });
+
+      await recordEvent({
+        issueRef: sourceRef,
+        actorType: "operator",
+        eventType: "merge_proposal_approved",
+        message: "Operator approved and executed an agent merge proposal.",
+        actor,
+        source: "api",
+        status: "succeeded",
+        idempotencyKey: proposalId,
+        payload: { proposalId, sourceIssueId: issueId, targetIssueId },
+      });
+      if (targetIssueId) {
+        await recordEvent({
+          issueRef: adminDb.collection("issues").doc(targetIssueId),
+          actorType: "operator",
+          eventType: "merge_proposal_approved",
+          message: "Agent merge proposal added supporting evidence to this canonical case.",
+          actor,
+          source: "api",
+          status: "succeeded",
+          idempotencyKey: proposalId,
+          payload: { proposalId, sourceIssueId: issueId, targetIssueId },
+        });
+      }
+      return res.json({ success: true, proposalId, sourceIssueId: issueId, targetIssueId, status: "approved" });
+    } catch (error: any) {
+      if (error?.message === "PROPOSAL_NOT_FOUND") return sendApiError(res, 404, "Merge proposal not found.");
+      if (error?.message === "TARGET_NOT_FOUND") return sendApiError(res, 404, "Merge target not found.");
+      if (error?.message === "INVALID_PROPOSAL") return sendApiError(res, 400, "Merge proposal is invalid.");
+      return sendApiError(res, 500, "Failed to approve merge proposal.", error);
+    }
+  });
+
   app.post("/api/issues/:issueId/support", async (req: any, res) => {
     if (!adminDb) return sendApiError(res, 503, "Server data layer unavailable.");
     const actor = req.actor as RequestActor | undefined;
@@ -4757,6 +4852,494 @@ Return STRICT JSON only:
     return candidates.slice(0, 8);
   }
 
+  const AGENT_EXECUTION_TOOL_NAMES = [
+    "search_nearby_cases",
+    "get_local_context",
+    "compare_candidate_evidence",
+    "propose_merge",
+    "find_responsible_authority",
+    "draft_action_packet",
+    "verify_closure",
+    "request_human_approval",
+    "record_event",
+  ] as const;
+
+  type AgentExecutionToolName = typeof AGENT_EXECUTION_TOOL_NAMES[number];
+  type AgentPlanStep = {
+    id: string;
+    tool: AgentExecutionToolName;
+    why: string;
+    required: boolean;
+    condition?: string | null;
+    dependsOn?: string[];
+  };
+  type AgentExecutionPlan = {
+    summary: string;
+    plannerModel: string;
+    fallback: boolean;
+    generatedAt: string;
+    stopWhen: string;
+    priorityBreakdown: ReturnType<typeof buildPriorityBreakdown>;
+    steps: AgentPlanStep[];
+    rawStepCount?: number;
+    error?: string;
+  };
+
+  const AGENT_EXECUTION_TOOL_SET = new Set<string>(AGENT_EXECUTION_TOOL_NAMES);
+
+  const JURISDICTION_REGISTRY = [
+    {
+      id: "bengaluru_bbmp",
+      keywords: ["bengaluru", "bangalore", "bbmp"],
+      aliases: ["bbmp", "bruha bengaluru mahanagara palike"],
+      authority: "BBMP",
+      channel: "BBMP public grievance portal / Sahaaya",
+      slaDays: 7,
+    },
+    {
+      id: "mumbai_bmc",
+      keywords: ["mumbai", "brihanmumbai", "bmc", "mcgm"],
+      aliases: ["bmc", "mcgm", "brihanmumbai municipal corporation"],
+      authority: "Brihanmumbai Municipal Corporation",
+      channel: "BMC 1916 / public grievance portal",
+      slaDays: 7,
+    },
+    {
+      id: "delhi_mcd",
+      keywords: ["delhi", "mcd", "new delhi"],
+      aliases: ["mcd", "municipal corporation of delhi"],
+      authority: "Municipal Corporation of Delhi",
+      channel: "MCD 311 / public grievance portal",
+      slaDays: 7,
+    },
+    {
+      id: "pune_pmc",
+      keywords: ["pune", "pmc"],
+      aliases: ["pmc", "pune municipal corporation"],
+      authority: "Pune Municipal Corporation",
+      channel: "PMC Care / public grievance portal",
+      slaDays: 7,
+    },
+    {
+      id: "hyderabad_ghmc",
+      keywords: ["hyderabad", "ghmc"],
+      aliases: ["ghmc", "greater hyderabad municipal corporation"],
+      authority: "Greater Hyderabad Municipal Corporation",
+      channel: "GHMC grievance portal / helpline",
+      slaDays: 7,
+    },
+    {
+      id: "chennai_gcc",
+      keywords: ["chennai", "gcc"],
+      aliases: ["gcc", "greater chennai corporation"],
+      authority: "Greater Chennai Corporation",
+      channel: "GCC public grievance portal / helpline",
+      slaDays: 7,
+    },
+    {
+      id: "kolkata_kmc",
+      keywords: ["kolkata", "kmc"],
+      aliases: ["kmc", "kolkata municipal corporation"],
+      authority: "Kolkata Municipal Corporation",
+      channel: "KMC public grievance portal / helpline",
+      slaDays: 7,
+    },
+  ];
+
+  function buildPriorityBreakdown(issue: any, nearbyCandidateCount = 0) {
+    const severity = cleanNumber(issue?.severity, 1, 1, 5);
+    const urgency = urgenciesList.includes(issue?.urgency) ? issue.urgency : "routine";
+    const urgencyBonus = urgency === "urgent" ? 10 : urgency === "priority" ? 5 : 0;
+    const confirmCount = cleanNumber(issue?.verificationCount ?? issue?.confirmCount, 0, 0, 999);
+    const reportCount = Math.max(cleanNumber(issue?.reportCount, 1, 1, 999), nearbyCandidateCount + 1);
+    const confirmBonus = Math.min(confirmCount * 3, 15);
+    const reportBonus = Math.min(reportCount * 4, 15);
+    const score = Math.round(Math.min(100, severity * 12 + urgencyBonus + confirmBonus + reportBonus) * 10) / 10;
+    return {
+      score,
+      basis: {
+        severity,
+        urgency,
+        urgencyBonus,
+        confirmCount,
+        confirmBonus,
+        reportCount,
+        reportBonus,
+        source: "canonical issue + server-loaded candidates",
+      },
+      explanation: `severity ${severity}, ${urgency} urgency, ${confirmCount} confirmations, ${reportCount} related report(s)`,
+    };
+  }
+
+  function parseJsonObject(text: string): any {
+    const cleaned = String(text || "").trim().replace(/^```(?:json)?\s*/i, "").replace(/```\s*$/, "").trim();
+    try {
+      return JSON.parse(cleaned);
+    } catch {
+      const jsonStart = cleaned.indexOf("{");
+      const jsonEnd = cleaned.lastIndexOf("}");
+      if (jsonStart === -1 || jsonEnd === -1 || jsonEnd <= jsonStart) throw new Error("No JSON object found.");
+      return JSON.parse(cleaned.slice(jsonStart, jsonEnd + 1));
+    }
+  }
+
+  function fallbackAgentExecutionPlan(issue: any, safeCandidates: any[], priorityBreakdown: ReturnType<typeof buildPriorityBreakdown>, error?: unknown): AgentExecutionPlan {
+    const steps: AgentPlanStep[] = [
+      {
+        id: "context",
+        tool: "get_local_context",
+        why: "Ground severity and urgency with live local weather, sensitive amenities, and recurrence.",
+        required: true,
+      },
+    ];
+    if (safeCandidates.length > 0) {
+      steps.push({
+        id: "nearby",
+        tool: "search_nearby_cases",
+        why: "Expose server-loaded nearby cases before duplicate reasoning.",
+        required: true,
+      });
+      steps.push({
+        id: "compare",
+        tool: "compare_candidate_evidence",
+        why: "Use server-side embeddings and available vision evidence to decide whether a nearby case is the same physical issue.",
+        required: true,
+        dependsOn: ["nearby"],
+      });
+      steps.push({
+        id: "merge",
+        tool: "propose_merge",
+        why: "Only if comparison is confident, create a pending human-approved merge action instead of merging automatically.",
+        required: false,
+        condition: "compare_candidate_evidence returns a confident duplicate",
+        dependsOn: ["compare"],
+      });
+    }
+    steps.push(
+      {
+        id: "authority",
+        tool: "find_responsible_authority",
+        why: "Validate the responsible authority against the local jurisdiction registry.",
+        required: true,
+      },
+      {
+        id: "draft",
+        tool: "draft_action_packet",
+        why: "Prepare a human-reviewable action packet for non-duplicate routing.",
+        required: false,
+        condition: "issue is not a confident duplicate",
+        dependsOn: ["authority"],
+      },
+      {
+        id: "approval",
+        tool: "request_human_approval",
+        why: "Consequential routing, merge, or closure recommendations require operator approval.",
+        required: true,
+      },
+      {
+        id: "finish",
+        tool: "record_event",
+        why: "Persist the final route, deterministic priority score, and rationale.",
+        required: true,
+      },
+    );
+    if (issue?.closureAssessment) {
+      steps.splice(steps.length - 2, 0, {
+        id: "closure",
+        tool: "verify_closure",
+        why: "Closure evidence exists, so verify it before any final status recommendation.",
+        required: true,
+      });
+    }
+    return {
+      summary: "Deterministic fallback plan generated because the planning model did not return a valid plan.",
+      plannerModel: "deterministic-fallback",
+      fallback: true,
+      generatedAt: new Date().toISOString(),
+      stopWhen: "record_event has persisted the route and rationale",
+      priorityBreakdown,
+      steps,
+      rawStepCount: steps.length,
+      error: error instanceof Error ? error.message : error ? String(error) : undefined,
+    };
+  }
+
+  function sanitizeAgentExecutionPlan(parsed: any, plannerModel: string, safeCandidates: any[], priorityBreakdown: ReturnType<typeof buildPriorityBreakdown>) {
+    const rawSteps = Array.isArray(parsed?.steps) ? parsed.steps : [];
+    const steps: AgentPlanStep[] = [];
+    for (const raw of rawSteps) {
+      const tool = cleanText(raw?.tool, "", 120);
+      if (!AGENT_EXECUTION_TOOL_SET.has(tool)) continue;
+      if (tool === "compare_candidate_evidence" && safeCandidates.length === 0) continue;
+      const id = cleanText(raw?.id, `step_${steps.length + 1}`, 80) || `step_${steps.length + 1}`;
+      steps.push({
+        id,
+        tool: tool as AgentExecutionToolName,
+        why: cleanText(raw?.why, `Use ${tool} when evidence requires it.`, 500),
+        required: raw?.required !== false,
+        condition: cleanText(raw?.condition, "", 300) || null,
+        dependsOn: Array.isArray(raw?.dependsOn)
+          ? raw.dependsOn.map((item: unknown) => cleanText(item, "", 80)).filter(Boolean).slice(0, 5)
+          : [],
+      });
+    }
+    const hasRecordEvent = steps.some((step) => step.tool === "record_event");
+    if (!hasRecordEvent) {
+      steps.push({
+        id: "finish",
+        tool: "record_event",
+        why: "Persist the final route and rationale.",
+        required: true,
+      });
+    }
+    if (!steps.length) throw new Error("Planner returned no allowed tools.");
+    return {
+      summary: cleanText(parsed?.summary, "Gemini generated a conditional execution plan for this issue.", 800),
+      plannerModel,
+      fallback: false,
+      generatedAt: new Date().toISOString(),
+      stopWhen: cleanText(parsed?.stopWhen, "record_event has persisted the route and rationale", 300),
+      priorityBreakdown,
+      steps,
+      rawStepCount: rawSteps.length,
+    } satisfies AgentExecutionPlan;
+  }
+
+  async function buildAgentExecutionPlan(
+    aiClient: any,
+    issue: any,
+    safeCandidates: any[],
+    priorityBreakdown: ReturnType<typeof buildPriorityBreakdown>,
+    options: GeminiGenerateOptions = {},
+  ): Promise<{ plan: AgentExecutionPlan; retried: boolean; durationMs: number }> {
+    const plannerModel = process.env.CIVICLENS_PLANNER_MODEL || "gemini-2.5-pro";
+    const startedAt = Date.now();
+    const plannerPrompt = `Create a JSON execution plan for a CivicLens server-side triage agent.
+
+Allowed tools, exactly as names:
+${AGENT_EXECUTION_TOOL_NAMES.map((name) => `- ${name}`).join("\n")}
+
+Rules:
+- Do not include calculate_priority; deterministic priority is already provided as context.
+- Include only tools justified by the issue state.
+- Use conditional steps when a tool should run only after a prior result, for example propose_merge only after a confident duplicate.
+- The runtime may execute more than one independent tool in a Gemini turn.
+- The plan must finish with record_event once enough evidence exists.
+
+Issue: ${JSON.stringify(issue)}
+Nearby candidate count: ${safeCandidates.length}
+Deterministic priority context: ${JSON.stringify(priorityBreakdown)}
+
+Return strict JSON with:
+{
+  "summary": "one sentence",
+  "stopWhen": "condition",
+  "steps": [
+    { "id": "short_id", "tool": "allowed_tool_name", "why": "reason", "required": true, "condition": "optional", "dependsOn": ["optional ids"] }
+  ]
+}`;
+    try {
+      const result = await generateContentWithRetry(aiClient, {
+        model: plannerModel,
+        contents: plannerPrompt,
+        config: {
+          responseMimeType: "application/json",
+          responseSchema: {
+            type: Type.OBJECT,
+            properties: {
+              summary: { type: Type.STRING },
+              stopWhen: { type: Type.STRING },
+              steps: {
+                type: Type.ARRAY,
+                items: {
+                  type: Type.OBJECT,
+                  properties: {
+                    id: { type: Type.STRING },
+                    tool: { type: Type.STRING, enum: [...AGENT_EXECUTION_TOOL_NAMES] },
+                    why: { type: Type.STRING },
+                    required: { type: Type.BOOLEAN },
+                    condition: { type: Type.STRING },
+                    dependsOn: { type: Type.ARRAY, items: { type: Type.STRING } },
+                  },
+                  required: ["id", "tool", "why", "required"],
+                },
+              },
+            },
+            required: ["summary", "stopWhen", "steps"],
+          },
+        },
+      }, options);
+      const parsed = parseJsonObject(result.response.text || "");
+      const plan = sanitizeAgentExecutionPlan(parsed, plannerModel, safeCandidates, priorityBreakdown);
+      return { plan, retried: result.retried, durationMs: Date.now() - startedAt };
+    } catch (error) {
+      return {
+        plan: fallbackAgentExecutionPlan(issue, safeCandidates, priorityBreakdown, error),
+        retried: false,
+        durationMs: Date.now() - startedAt,
+      };
+    }
+  }
+
+  function validateAuthorityAgainstRegistry(locationName: unknown, suggested: any) {
+    const location = cleanText(locationName, "", 300).toLowerCase();
+    const suggestion = cleanText(suggested?.authority, "", 240);
+    const suggestionLower = suggestion.toLowerCase();
+    const registryEntry = JURISDICTION_REGISTRY.find((entry) =>
+      entry.keywords.some((keyword) => location.includes(keyword) || suggestionLower.includes(keyword))
+    );
+    if (!registryEntry) {
+      return {
+        authority: suggestion || "Municipal Corporation",
+        sla: cleanNumber(suggested?.sla, 7, 1, 60),
+        channel: cleanText(suggested?.channel, "Public grievance channel", 240),
+        registryValidated: false,
+        registryId: "generic_india_municipal",
+        suggestedAuthority: suggestion || null,
+        validationReason: "No precise city registry match; using generic municipal fallback for human review.",
+      };
+    }
+    const aliasMatched = registryEntry.aliases.some((alias) => suggestionLower.includes(alias));
+    return {
+      authority: aliasMatched || !suggestion ? registryEntry.authority : suggestion,
+      sla: cleanNumber(suggested?.sla, registryEntry.slaDays, 1, 60),
+      channel: cleanText(suggested?.channel, registryEntry.channel, 240),
+      registryValidated: aliasMatched || !suggestion,
+      registryId: registryEntry.id,
+      suggestedAuthority: suggestion || null,
+      validationReason: aliasMatched || !suggestion
+        ? "Authority matched the jurisdiction registry."
+        : `Registry matched location; review suggested authority against ${registryEntry.authority}.`,
+    };
+  }
+
+  async function compareCandidateEvidenceSignals(issueId: string, issue: any, safeCandidates: any[], requestedCandidateId: string, options: GeminiGenerateOptions = {}) {
+    if (!safeCandidates.length) {
+      return { candidateId: "none", similarity: null, reason: "No server-loaded nearby candidates were available." };
+    }
+    const candidateSet = new Set(safeCandidates.map((candidate) => candidate.id));
+    const requestedSafe = requestedCandidateId && requestedCandidateId !== "none" && candidateSet.has(requestedCandidateId);
+    if (requestedCandidateId && requestedCandidateId !== "none" && !requestedSafe) {
+      return {
+        candidateId: "none",
+        similarity: null,
+        rejected: true,
+        reason: "Candidate id was not part of the server-loaded candidate set.",
+      };
+    }
+
+    const queryEmbedding = Array.isArray(issue.embedding) && issue.embedding.length
+      ? issue.embedding
+      : await embedText(issueEmbeddingText(issue));
+    const candidateDocs = await Promise.all(
+      safeCandidates
+        .filter((candidate) => !requestedSafe || candidate.id === requestedCandidateId)
+        .slice(0, requestedSafe ? 1 : 5)
+        .map(async (candidate) => {
+          const snap = await adminDb.collection("issues").doc(candidate.id).get();
+          return snap.exists ? { ...candidate, data: snap.data() || {} } : { ...candidate, data: {} };
+        })
+    );
+
+    let best: any = null;
+    for (const candidate of candidateDocs) {
+      const data = candidate.data || {};
+      let candidateEmbedding = Array.isArray(data.embedding) && data.embedding.length ? data.embedding : null;
+      if (!candidateEmbedding) {
+        candidateEmbedding = await embedText(issueEmbeddingText(data));
+      }
+      const semanticSimilarity = queryEmbedding && candidateEmbedding
+        ? Math.round(cosineSim(queryEmbedding, candidateEmbedding) * 1000) / 1000
+        : null;
+      const distanceM = typeof candidate.distanceM === "number"
+        ? candidate.distanceM
+        : typeof issue.lat === "number" && typeof issue.lng === "number" && typeof data.lat === "number" && typeof data.lng === "number"
+          ? Math.round(havMeters(issue.lat, issue.lng, data.lat, data.lng))
+          : null;
+      const categoryCompatible = data.category === issue.category || data.category === "other" || issue.category === "other";
+      const score = semanticSimilarity ?? 0;
+      if (!best || score > best.semanticSimilarity || (score === best.semanticSimilarity && (distanceM ?? 9999) < (best.distanceM ?? 9999))) {
+        best = {
+          id: candidate.id,
+          title: data.title || candidate.title || candidate.id,
+          semanticSimilarity,
+          distanceM,
+          categoryCompatible,
+          issueImage: cleanText(issue.image, "", 1_200_000),
+          candidateImage: cleanText(data.image, "", 1_200_000),
+        };
+      }
+    }
+
+    let vision: any = null;
+    if (best?.issueImage && best?.candidateImage) {
+      try {
+        const issuePart = await imageSourceToInlinePart(best.issueImage, "agent-compare-issue-image");
+        const candidatePart = await imageSourceToInlinePart(best.candidateImage, "agent-compare-candidate-image");
+        if (issuePart && candidatePart) {
+          const visionResult = await generateContentWithRetry(ai, {
+            model: "gemini-2.5-flash",
+            contents: [
+              { text: "Compare these two civic issue photos. Return whether they appear to show the same physical issue/location and a 0-1 visual similarity score. Return strict JSON only." },
+              issuePart,
+              candidatePart,
+            ],
+            config: {
+              responseMimeType: "application/json",
+              responseSchema: {
+                type: Type.OBJECT,
+                properties: {
+                  samePhysicalIssue: { type: Type.BOOLEAN },
+                  visualSimilarity: { type: Type.NUMBER },
+                  rationale: { type: Type.STRING },
+                },
+                required: ["samePhysicalIssue", "visualSimilarity", "rationale"],
+              },
+            },
+          }, options);
+          const parsedVision = parseJsonObject(visionResult.response.text || "");
+          vision = {
+            available: true,
+            samePhysicalIssue: parsedVision.samePhysicalIssue === true,
+            visualSimilarity: cleanNumber(parsedVision.visualSimilarity, 0, 0, 1),
+            rationale: cleanText(parsedVision.rationale, "Gemini vision compared the two evidence images.", 500),
+            retried: visionResult.retried,
+          };
+        }
+      } catch (error: any) {
+        vision = {
+          available: false,
+          error: cleanText(error?.message || String(error), "vision compare unavailable", 300),
+        };
+      }
+    }
+
+    if (!best) {
+      return { candidateId: "none", similarity: null, reason: "No candidate evidence could be evaluated." };
+    }
+    const visualSimilarity = vision?.available ? vision.visualSimilarity : null;
+    const combinedSimilarity = Math.round((((best.semanticSimilarity ?? 0) * 0.7) + ((visualSimilarity ?? best.semanticSimilarity ?? 0) * 0.3)) * 1000) / 1000;
+    const duplicate = combinedSimilarity >= 0.85 && (best.distanceM == null || best.distanceM <= 50) && best.categoryCompatible !== false;
+    return {
+      candidateId: duplicate ? best.id : "none",
+      evaluatedCandidateId: best.id,
+      similarity: combinedSimilarity,
+      semanticSimilarity: best.semanticSimilarity,
+      visualSimilarity,
+      distanceM: best.distanceM,
+      categoryCompatible: best.categoryCompatible,
+      method: "gemini_embedding_cosine_plus_optional_vision",
+      embeddingAvailable: !!queryEmbedding,
+      visionCompared: vision?.available === true,
+      vision,
+      threshold: { similarity: 0.85, distanceM: 50 },
+      requiresHumanApproval: duplicate,
+      reason: duplicate
+        ? "Embedding/location signals meet duplicate threshold; merge must still be approved by a human operator."
+        : "Candidate did not meet the embedding/location duplicate threshold.",
+    };
+  }
+
   async function persistAgentRun(issueRef: any, runRef: any, run: any, steps: any[], resolutionPlan: any, final: any, issueUpdates: Record<string, unknown> = {}) {
     const batch = adminDb.batch();
     batch.set(runRef, run, { merge: true });
@@ -5556,6 +6139,15 @@ Return STRICT JSON: { "action": "wait|escalate|request_evidence|ready_to_close",
       if (!issueSnap.exists) return sendApiError(res, 404, "Issue not found.");
       const issue = { id: issueSnap.id, ...issueSnap.data() };
       const safeCandidates = await loadNearbyCandidates(issueId, issue);
+      const priorityBreakdown = buildPriorityBreakdown(issue, safeCandidates.length);
+      const plannerResult = await buildAgentExecutionPlan(
+        ai,
+        issue,
+        safeCandidates,
+        priorityBreakdown,
+        { signal: agentSignal, usageAccumulator: agentGeminiUsage },
+      );
+      const executionPlan = plannerResult.plan;
 
       const agentTools = [{
         functionDeclarations: [
@@ -5570,22 +6162,8 @@ Return STRICT JSON: { "action": "wait|escalate|request_evidence|ready_to_close",
             }
           },
           {
-            name: "calculate_priority",
-            description: "Compute the deterministic 0-100 civic priority score for this issue.",
-            parameters: {
-              type: Type.OBJECT,
-              properties: {
-                severity: { type: Type.NUMBER },
-                urgency: { type: Type.STRING },
-                confirmCount: { type: Type.NUMBER },
-                reportCount: { type: Type.NUMBER }
-              },
-              required: ["severity", "urgency"]
-            }
-          },
-          {
             name: "compare_candidate_evidence",
-            description: "Decide whether this issue duplicates one of the provided nearby candidates. Return the candidate id to merge into, or 'none'.",
+            description: "Use server-side embeddings, location, and available Gemini vision evidence to decide whether this issue duplicates a provided nearby candidate.",
             parameters: {
               type: Type.OBJECT,
               properties: {
@@ -5597,8 +6175,21 @@ Return STRICT JSON: { "action": "wait|escalate|request_evidence|ready_to_close",
             }
           },
           {
+            name: "propose_merge",
+            description: "Create a server-side pending merge proposal that can only be executed after human operator approval.",
+            parameters: {
+              type: Type.OBJECT,
+              properties: {
+                candidateId: { type: Type.STRING },
+                similarity: { type: Type.NUMBER },
+                reason: { type: Type.STRING },
+              },
+              required: ["candidateId", "reason"]
+            }
+          },
+          {
             name: "find_responsible_authority",
-            description: "Suggest a responsible municipal authority and typical follow-up window for this category and location.",
+            description: "Suggest and registry-validate the responsible municipal authority and typical follow-up window for this category and location.",
             parameters: {
               type: Type.OBJECT,
               properties: {
@@ -5674,37 +6265,60 @@ Return STRICT JSON: { "action": "wait|escalate|request_evidence|ready_to_close",
         if (name === "get_local_context") {
           return await fetchExternalGrounding((issue as any).lat, (issue as any).lng, (issue as any).category, issueId);
         }
-        if (name === "calculate_priority") {
-          // Real work: derive inputs from canonical server data, not model args,
-          // so the score cannot be fabricated by the model.
-          const severity = Number(issue.severity) || Number(args.severity) || 1;
-          const urgency = (issue.urgency || args.urgency || "routine") as string;
-          const confirmCount = Number(issue.verificationCount ?? issue.confirmCount ?? 0);
-          const reportCount = (safeCandidates?.length || 0) + 1;
-          let urgencyBonus = 0;
-          if (urgency === "urgent") urgencyBonus = 10;
-          else if (urgency === "priority") urgencyBonus = 5;
-          const score = severity * 12 + urgencyBonus + Math.min(confirmCount * 3, 15) + Math.min(reportCount * 4, 15);
-          const roundedScore = Math.round(Math.max(0, Math.min(100, score)) * 10) / 10;
-          return {
-            score: roundedScore,
-            basis: { severity, urgency, confirmCount, reportCount, source: "canonical issue + server-loaded candidates" },
-          };
-        }
         if (name === "compare_candidate_evidence") {
           const candidateId = cleanText(args.candidateId, "none", 160);
-          if (!candidateId || candidateId === "none") {
-            return { candidateId: "none", similarity: null };
-          }
-          if (!safeCandidates.some((candidate) => candidate.id === candidateId)) {
+          return await compareCandidateEvidenceSignals(issueId, issue, safeCandidates, candidateId, { signal: agentSignal, usageAccumulator: agentGeminiUsage });
+        }
+        if (name === "propose_merge") {
+          const candidateId = cleanText(args.candidateId || duplicateCandidateId, "", 160);
+          if (!candidateId || !safeCandidates.some((candidate) => candidate.id === candidateId)) {
             return {
-              candidateId: "none",
-              similarity: null,
-              rejected: true,
-              reason: "Candidate id was not part of the server-loaded candidate set.",
+              proposed: false,
+              reason: "Merge proposal rejected because the target candidate was not in the server-loaded nearby candidate set.",
             };
           }
-          return { candidateId, similarity: cleanNumber(args.similarity, 0, 0, 1) };
+          const proposalId = `${issueId}_into_${candidateId}`;
+          const nowIso = new Date().toISOString();
+          const proposal = {
+            id: proposalId,
+            sourceIssueId: issueId,
+            targetIssueId: candidateId,
+            status: "pending_human_approval",
+            similarity: cleanNumber(args.similarity ?? duplicateSimilarity, 0, 0, 1),
+            reason: cleanText(args.reason || duplicateReasoning, "Agent proposed merge for operator review.", 1000),
+            createdAt: nowIso,
+            createdBy: "agent.propose_merge",
+            executableAction: {
+              type: "merge_into_canonical",
+              approvalRequired: true,
+              approveEndpoint: `/api/issues/${issueId}/merge-proposals/${proposalId}/approve`,
+            },
+          };
+          await issueRef.collection("mergeProposals").doc(proposalId).set(proposal, { merge: true });
+          await recordEvent({
+            issueRef,
+            actorType: "ai",
+            eventType: "merge_proposed",
+            message: "Agent created a pending merge proposal for human approval.",
+            actor,
+            source: "agent",
+            status: "succeeded",
+            idempotencyKey,
+            payload: {
+              runId: runRef.id,
+              proposalId,
+              sourceIssueId: issueId,
+              targetIssueId: candidateId,
+              similarity: proposal.similarity,
+            },
+          });
+          return {
+            proposed: true,
+            proposalId,
+            status: proposal.status,
+            targetIssueId: candidateId,
+            approvalRequired: true,
+          };
         }
         if (name === "find_responsible_authority") {
           try {
@@ -5741,14 +6355,14 @@ Return STRICT JSON: { "action": "wait|escalate|request_evidence|ready_to_close",
             }
             
             const parsed = JSON.parse(cleanText);
-            const authVal = parsed.authority || "Municipal Corporation";
-            const slaVal = typeof parsed.sla === "number" ? parsed.sla : parseInt(parsed.sla) || 7;
-            const chanVal = parsed.channel || "Public grievance channel";
-            
-            return { authority: authVal, sla: slaVal, channel: chanVal };
+            return validateAuthorityAgainstRegistry(args.locationName || issue.locationName, parsed);
           } catch (searchErr: any) {
             console.warn("find_responsible_authority grounded search failed, returning fallback:", searchErr);
-            return { authority: "Municipal Corporation", sla: 7, channel: "Public grievance channel" };
+            return validateAuthorityAgainstRegistry(args.locationName || issue.locationName, {
+              authority: "Municipal Corporation",
+              sla: 7,
+              channel: "Public grievance channel",
+            });
           }
         }
         if (name === "draft_action_packet") {
@@ -5790,27 +6404,72 @@ Return STRICT JSON: { "action": "wait|escalate|request_evidence|ready_to_close",
         return { error: `Unknown tool: ${name}` };
       }
 
+      const steps: any[] = [{
+        id: `${runRef.id}_1_planner`,
+        runId: runRef.id,
+        issueId,
+        order: 1,
+        step: "planner",
+        tool: "agent.planner",
+        status: executionPlan.fallback ? "fallback" : "done",
+        inputDigest: `issue ${issueId}; ${safeCandidates.length} nearby candidate(s)`,
+        outputSummary: `${executionPlan.steps.length} planned tool step(s): ${executionPlan.steps.map((step) => step.tool).join(", ")}`.slice(0, 300),
+        durationMs: plannerResult.durationMs,
+        ts: executionPlan.generatedAt,
+        rationale: executionPlan.summary,
+        reasoning: executionPlan.summary,
+        model: executionPlan.plannerModel,
+        retried: plannerResult.retried,
+        plannedTools: executionPlan.steps.map((step) => step.tool),
+        priorityBreakdown,
+        sources: [],
+      }];
+      await recordEvent({
+        issueRef,
+        actorType: "ai",
+        eventType: executionPlan.fallback ? "agent_plan_fallback" : "agent_plan_created",
+        message: executionPlan.fallback ? "Agent planner fell back to deterministic execution plan." : "Gemini planner created a conditional execution plan.",
+        actor,
+        source: "agent",
+        status: executionPlan.fallback ? "failed" : "succeeded",
+        severity: executionPlan.fallback ? "warn" : "info",
+        idempotencyKey,
+        payload: {
+          runId: runRef.id,
+          plannerModel: executionPlan.plannerModel,
+          plannedTools: executionPlan.steps.map((step) => step.tool),
+          priorityScore: priorityBreakdown.score,
+          fallback: executionPlan.fallback,
+        },
+      });
+
       let contents: any[] = [{ role: "user", parts: [{ text:
         `You are CivicLens's autonomous server-side triage agent for ONE civic issue. There is NO fixed script: you decide which tools to call, in what order, and how many, based on the issue's actual state. Choose only the tools that the evidence justifies.
 
 Goal: produce a defensible triage - detect duplicates, ground the priority, identify the responsible authority, and prepare a human-reviewable action draft - then finish by calling record_event with your routing decision and rationale, and stop.
 
+Persisted execution plan:
+${JSON.stringify(executionPlan)}
+
+Deterministic priority breakdown (context only; not a tool):
+${JSON.stringify(priorityBreakdown)}
+
 Decision guidance (branch on evidence; do NOT blindly run every tool):
 - ${safeCandidates.length} nearby candidate(s) are available. Call search_nearby_cases only if duplicate detection is warranted; if there are 0 candidates do NOT call compare_candidate_evidence.
-- If you find a confident duplicate, you may SKIP draft_action_packet and instead record_event routing it as a merge that needs human approval.
+- Follow the persisted execution plan unless new evidence from a tool justifies a deviation, and explain any deviation in your reasoning.
+- If you find a confident duplicate, call propose_merge and request_human_approval; you may SKIP draft_action_packet and instead record_event routing it as a merge that needs human approval.
 - Call get_local_context to ground severity/priority in real-world conditions (live weather, nearby schools/hospitals, recurrence) before settling on a priority.
-- Call calculate_priority to ground the score in canonical server data.
+- Use the deterministic priority breakdown above for priorityScore; do not invent a new score.
 - Call find_responsible_authority when you need the department/contact for a non-duplicate issue.
 - Call draft_action_packet only for non-duplicate issues that need an outbound draft.
 - Call request_human_approval for any consequential recommendation (merge, routing, closure).
 - Call verify_closure ONLY if closure evidence already exists on the issue (closureAssessment present: ${issue.closureAssessment ? "yes" : "no"}).
 - When you have enough to route, call record_event(routeTo, priorityScore, rationale) and stop.
 
-Call one tool per turn. Briefly state your reasoning before each call - it is recorded. Use only server-provided data and tools; never invent facts.
+You may call more than one independent tool in a turn when the plan and current evidence support it. Briefly state your reasoning before tool calls - it is recorded. Use only server-provided data and tools; never invent facts.
 
 Issue: ${JSON.stringify(issue)}` }]}];
 
-      const steps: any[] = [];
       let final: any = null;
       let guard = 0;
 
@@ -5823,7 +6482,7 @@ Issue: ${JSON.stringify(issue)}` }]}];
       let duplicateReasoning: string | null = null;
       let selfCritique: any = null;
       let issueForPlan: any = { ...issue };
-      let agentIssueUpdates: Record<string, unknown> = {};
+      let agentIssueUpdates: Record<string, unknown> = { agentPlan: executionPlan };
 
       const MAX_AGENT_TURNS = 12; // safety backstop only; the model decides when to stop
       while (guard++ < MAX_AGENT_TURNS) {
@@ -5837,59 +6496,75 @@ Issue: ${JSON.stringify(issue)}` }]}];
         const turnReasoning = (response.text || "").trim();
         const calls = response.functionCalls || [];
         if (!calls.length) break;
-        const fc = calls[0];
-        const result = await execTool(fc.name, fc.args || {});
+        const functionResponses: any[] = [];
+        let stopAfterTurn = false;
+        contents.push({ role: "model", parts: calls.map((fc: any) => ({ functionCall: fc } as any)) });
+        for (const fc of calls) {
+          const toolStartedAt = Date.now();
+          const result = await execTool(fc.name, fc.args || {});
+          functionResponses.push({ functionResponse: { name: fc.name, response: { result } } } as any);
 
-        // Save tool execution findings
-        if (fc.name === "find_responsible_authority" && result) {
-          authority = result.authority || authority;
-          channel = result.channel || channel;
-          slaDays = typeof result.sla === "number" ? result.sla : slaDays;
-        }
+          // Save tool execution findings
+          if (fc.name === "find_responsible_authority" && result) {
+            authority = result.authority || authority;
+            channel = result.channel || channel;
+            slaDays = typeof result.sla === "number" ? result.sla : slaDays;
+          }
 
-        if (fc.name === "compare_candidate_evidence") {
-          const cid = result?.candidateId;
-          if (cid && cid !== "none" && cid !== "") {
-            duplicateCandidateId = cid;
-            duplicateSimilarity = result?.similarity ?? null;
-            duplicateReasoning = cleanText(fc.args?.reasoning, "", 1000) || null;
+          if (fc.name === "compare_candidate_evidence") {
+            const cid = result?.candidateId;
+            if (cid && cid !== "none" && cid !== "") {
+              duplicateCandidateId = cid;
+              duplicateSimilarity = result?.similarity ?? null;
+              duplicateReasoning = cleanText(result?.reason || fc.args?.reasoning, "", 1000) || null;
+            }
+          }
+
+          const plannedIndex = executionPlan.steps.findIndex((step) => step.tool === fc.name);
+          const stepId = `${runRef.id}_${steps.length + 1}_${fc.name}`;
+          steps.push({
+            id: stepId,
+            runId: runRef.id,
+            issueId,
+            order: steps.length + 1,
+            step: fc.name,
+            tool: `agent.${fc.name}`,
+            status: result?.error ? "failed" : "done",
+            inputDigest: JSON.stringify(fc.args).slice(0, 160),
+            outputSummary: JSON.stringify(result).slice(0, 220),
+            durationMs: Date.now() - toolStartedAt,
+            modelTurnDurationMs: Date.now() - t0,
+            ts: new Date().toISOString(),
+            rationale: turnReasoning || fc.args?.reasoning || fc.args?.rationale || fc.args?.reason || `Called ${fc.name}`,
+            reasoning: turnReasoning || null,
+            model: "gemini-2.5-flash",
+            retried,
+            turn: guard,
+            planned: plannedIndex >= 0,
+            planOrder: plannedIndex >= 0 ? plannedIndex + 1 : null,
+            sources: fc.name === "search_nearby_cases"
+              ? safeCandidates.map((candidate) => ({
+                  title: candidate.title || candidate.id,
+                  url: `firestore://issues/${candidate.id}`,
+                  claimSupported: "Nearby candidate loaded by server search",
+                  sourceType: "sourced",
+                }))
+              : [],
+          });
+
+          if (fc.name === "record_event") {
+            final = {
+              ...fc.args,
+              priorityScore: typeof fc.args?.priorityScore === "number"
+                ? cleanNumber(fc.args.priorityScore, 0, 0, 100)
+                : priorityBreakdown.score,
+            };
+            stopAfterTurn = true;
           }
         }
+        contents.push({ role: "user", parts: functionResponses });
 
-        const stepId = `${runRef.id}_${steps.length + 1}_${fc.name}`;
-        steps.push({
-          id: stepId,
-          runId: runRef.id,
-          issueId,
-          order: steps.length + 1,
-          step: fc.name,
-          tool: `agent.${fc.name}`,
-          status: "done",
-          inputDigest: JSON.stringify(fc.args).slice(0, 160),
-          outputSummary: JSON.stringify(result).slice(0, 160),
-          durationMs: Date.now() - t0,
-          ts: new Date().toISOString(),
-          rationale: turnReasoning || fc.args?.reasoning || fc.args?.rationale || fc.args?.reason || `Called ${fc.name}`,
-          reasoning: turnReasoning || null,
-          model: "gemini-2.5-flash",
-          retried,
-          sources: fc.name === "search_nearby_cases"
-            ? safeCandidates.map((candidate) => ({
-                title: candidate.title || candidate.id,
-                url: `firestore://issues/${candidate.id}`,
-                claimSupported: "Nearby candidate loaded by server search",
-                sourceType: "sourced",
-              }))
-            : [],
-        });
-
-        contents.push({ role: "model", parts: [{ functionCall: fc } as any] });
-        contents.push({ role: "user", parts: [{ functionResponse: { name: fc.name, response: { result } } } as any] });
-
-        if (fc.name === "record_event") {
-          final = fc.args;
-          break;
-        }
+        if (stopAfterTurn) break;
       }
 
       // The persisted trace reflects exactly the tools the agent chose to call,
@@ -5938,6 +6613,7 @@ Issue: ${JSON.stringify(issue)}` }]}];
             priorityScore: selfCritique.priorityScore,
           };
           agentIssueUpdates = {
+            ...agentIssueUpdates,
             category: selfCritique.correctedCategory,
             severity: selfCritique.correctedSeverity,
             urgency: selfCritique.correctedUrgency,
@@ -6005,6 +6681,19 @@ Issue: ${JSON.stringify(issue)}` }]}];
         }
       }
 
+      if (!final) {
+        final = {
+          routeTo: duplicateCandidateId ? "merge_review" : authority,
+          priorityScore: priorityBreakdown.score,
+          rationale: "Agent stopped before record_event; server persisted deterministic priority and manual-review route.",
+        };
+      } else if (typeof final.priorityScore !== "number") {
+        final = {
+          ...final,
+          priorityScore: priorityBreakdown.score,
+        };
+      }
+
       // Generate the final rich resolution plan
       let resolutionPlan = null;
       try {
@@ -6062,6 +6751,8 @@ Issue: ${JSON.stringify(issue)}` }]}];
         duplicateCandidateId,
         duplicateSimilarity,
         duplicateReasoning,
+        planner: executionPlan,
+        priorityBreakdown,
         selfCritique,
         final,
         resolutionPlan,
@@ -6082,6 +6773,8 @@ Issue: ${JSON.stringify(issue)}` }]}];
         idempotencyKey,
         payload: {
           runId: runRef.id,
+          plannerFallback: executionPlan.fallback,
+          plannedToolCount: executionPlan.steps.length,
           stepCount: steps.length,
           duplicateCandidateId,
           duplicateSimilarity,
@@ -6111,6 +6804,8 @@ Issue: ${JSON.stringify(issue)}` }]}];
         duplicateCandidateId,
         duplicateSimilarity,
         duplicateReasoning,
+        agentPlan: executionPlan,
+        priorityBreakdown,
         resolutionPlan
       });
     } catch (error: any) {

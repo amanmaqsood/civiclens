@@ -2224,6 +2224,103 @@ Output ONLY valid JSON and nothing else.`;
     }
   });
 
+  // ---- Phase 2: Autonomous SLA escalation worker -------------------------
+  // Generates an escalation letter + RTI draft for ONE issue using real Gemini,
+  // with an HONEST deterministic fallback (clearly labelled, never faked as AI).
+  async function generateEscalationAndRti(issue: any): Promise<{ escalationLetter: string; rtiRequest: string; aiFallback: boolean }> {
+    const todayStr = new Date().toISOString().slice(0, 10);
+    const ticketId = issue.id;
+    try {
+      const promptText = `Draft a public grievance escalation letter and a draft RTI request (Section 6(1), RTI Act 2005) for this unresolved civic complaint. For human review only; CivicLens does not submit anything.
+Complaint Title: ${issue.title || issue.category || "Civic Grievance"}
+Category: ${issue.category || "General"}
+Context Summary: ${issue.summary || issue.description || "Unresolved civic problem"}
+Location: ${issue.locationName || "India"}
+Recommended Initial Department: ${issue.resolutionPlan?.recommendedAuthority || "Municipal Corporation"}
+Prototype ticket ID: ${ticketId}
+Date: ${todayStr}
+Use ONLY the real ticketId and date above; never invent reference numbers or fake histories.
+Return STRICT JSON: { "escalationLetter": "string", "rtiRequest": "string" }`;
+      const result = await generateContentWithRetry(ai, {
+        model: "gemini-2.5-flash",
+        contents: promptText,
+        config: {
+          responseMimeType: "application/json",
+          responseSchema: { type: Type.OBJECT, properties: { escalationLetter: { type: Type.STRING }, rtiRequest: { type: Type.STRING } }, required: ["escalationLetter", "rtiRequest"] },
+        },
+      });
+      const txt = (result.response.text || "").trim().replace(/^```(?:json)?\s*/i, "").replace(/```\s*$/, "").trim();
+      const parsed = JSON.parse(txt);
+      return { escalationLetter: String(parsed.escalationLetter || ""), rtiRequest: String(parsed.rtiRequest || ""), aiFallback: false };
+    } catch (err) {
+      const letter = `To the Municipal Commissioner,\n\nThis is an escalation regarding an unresolved ${issue.category || "civic"} complaint (ref ${ticketId}) at ${issue.locationName || "the reported location"}, first reported on ${(issue.createdAt || "").slice(0, 10)}. Despite the elapsed follow-up window the issue remains open. We request urgent intervention.\n\n(Drafted by CivicLens for human review - AI generation unavailable.)`;
+      const rti = `To the Public Information Officer,\n\nUnder Section 6(1) of the RTI Act 2005, please provide the current status, responsible officer details, file notes, and published timeframe for complaint ref ${ticketId} (${issue.category || "civic"}) at ${issue.locationName || "the location"}.\n\n(Drafted by CivicLens for human review - AI generation unavailable.)`;
+      return { escalationLetter: letter, rtiRequest: rti, aiFallback: true };
+    }
+  }
+
+  // Scans open issues and autonomously drafts escalation+RTI for those whose
+  // follow-up window has elapsed - idempotently (one auto-draft per issue).
+  async function runSlaEscalationWorker(opts: { thresholdHours?: number; limit?: number }) {
+    const thresholdHours = Number.isFinite(opts.thresholdHours as number) ? Math.max(0, opts.thresholdHours as number) : 168;
+    const limit = Math.min(50, Math.max(1, opts.limit || 25));
+    const nowMs = Date.now();
+    const snap = await adminDb.collection("issues").where("status", "in", ["submitted", "verified", "in_progress"]).limit(limit).get();
+    const details: any[] = [];
+    let escalated = 0;
+    for (const doc of snap.docs) {
+      const issue: any = { id: doc.id, ...doc.data() };
+      if (issue.escalation?.autoDraftedAt) { details.push({ id: issue.id, action: "skip", reason: "already auto-escalated" }); continue; }
+      const createdMs = Date.parse(issue.createdAt || issue.triagedAt || "");
+      const ageHours = Number.isFinite(createdMs) ? (nowMs - createdMs) / 3600000 : Infinity;
+      if (ageHours < thresholdHours) { details.push({ id: issue.id, action: "skip", reason: `within SLA (${ageHours.toFixed(1)}h < ${thresholdHours}h)` }); continue; }
+      const draft = await generateEscalationAndRti(issue);
+      const nowIso = new Date().toISOString();
+      const escalation = {
+        escalatedAt: nowIso,
+        autoDraftedAt: nowIso,
+        escalationLetter: draft.escalationLetter,
+        rtiRequest: draft.rtiRequest,
+        escalationLevel: (issue.escalation?.escalationLevel || 0) + 1,
+        source: "sla-worker",
+        aiFallback: draft.aiFallback,
+        reason: `Auto-drafted by the SLA worker: case open ${ageHours.toFixed(1)}h, exceeding the ${thresholdHours}h follow-up window.`,
+      };
+      await doc.ref.set({ escalation }, { merge: true });
+      await addServerActivity(doc.ref, {
+        actorType: "ai",
+        eventType: "sla_auto_escalation",
+        message: `SLA worker auto-drafted an escalation + RTI (level ${escalation.escalationLevel}) after ${Math.round(ageHours)}h open. Awaiting human finalize.`,
+        timestamp: nowIso,
+        byRole: "system",
+      });
+      escalated++;
+      details.push({ id: issue.id, action: "escalated", ageHours: Math.round(ageHours), level: escalation.escalationLevel, aiFallback: draft.aiFallback });
+    }
+    return { worker: "sla", scanned: snap.size, escalated, thresholdHours, details };
+  }
+
+  // Auth-gated job runner. In production a Cloud Scheduler -> Cloud Run job (or a
+  // shared CIVICLENS_JOB_SECRET header) invokes this; operators may trigger it too.
+  app.post("/api/jobs/run", async (req: any, res) => {
+    if (!adminDb) return sendApiError(res, 503, "Server data layer unavailable.");
+    const actor = req.actor as RequestActor | undefined;
+    const jobSecret = process.env.CIVICLENS_JOB_SECRET || "";
+    const secretOk = !!jobSecret && req.headers["x-civiclens-job-secret"] === jobSecret;
+    const operatorOk = !!actor && (actor.isRealOperator || actor.isDemoOperator);
+    if (!secretOk && !operatorOk) return sendApiError(res, 403, "Job runner requires an operator session or a valid job secret.");
+    const worker = String(req.query.worker || req.body?.worker || "").toLowerCase();
+    try {
+      if (worker === "sla") {
+        const result = await runSlaEscalationWorker({ thresholdHours: Number(req.body?.thresholdHours), limit: Number(req.body?.limit) });
+        return res.json({ success: true, ...result });
+      }
+      return sendApiError(res, 400, `Unknown worker: "${worker}". Supported: sla.`);
+    } catch (error: any) {
+      return sendApiError(res, 500, "Job runner failed.", error);
+    }
+  });
+
   // Real Gemini Function-Calling Agentic Triage Loop
   app.post("/api/agent/run", async (req: any, res) => {
     if (!adminDb) return sendApiError(res, 503, "Server data layer unavailable.");

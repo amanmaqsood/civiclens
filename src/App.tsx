@@ -297,8 +297,6 @@ export default function App() {
     setCurrentView("submitting");
     setLiveTrace([]);
 
-    const delay = (ms: number) => new Promise(resolve => setTimeout(resolve, ms));
-
     try {
       // 1. Perceive Step
       const perceiveMeta = (reportData as any).perceiveMeta;
@@ -310,15 +308,14 @@ export default function App() {
           ? `Identified visual category "${reportData.category || "other"}" with severity rating ${reportData.severity || 3}/5 and parsed visible hazards: ${(reportData.visibleHazards || []).join(", ") || "none"}.`
           : "Manual form input: the citizen entered issue category, title, and description manually.",
         ts: new Date().toISOString(),
-        durationMs: perceiveMeta?.durationMs || 1200,
-        confidence: perceiveMeta?.confidence || 1.0,
+        durationMs: perceiveMeta?.durationMs,
+        confidence: perceiveMeta?.confidence,
         inputDigest: perceiveMeta?.inputDigest || `Manual input category: ${reportData.category}`,
         outputSummary: perceiveMeta?.outputSummary || `Manual form saved`,
         retried: perceiveMeta?.retried || false,
         fallbackUsed: perceiveMeta?.fallbackUsed || false,
       };
       setLiveTrace([perceiveEntry]);
-      await delay(1000);
 
       // 2. Locate Step
       const hasGeo = typeof reportData.lat === "number" && typeof reportData.lng === "number";
@@ -330,13 +327,10 @@ export default function App() {
           ? `Successfully resolved geo-coordinates (${reportData.lat?.toFixed(4)}, ${reportData.lng?.toFixed(4)}) at "${reportData.locationName || "Current Location"}".`
           : `No GPS coordinates provided. Standard fallback to local description: "${reportData.locationName || "Default Landmark"}".`,
         ts: new Date().toISOString(),
-        durationMs: hasGeo ? 150 : 50,
-        confidence: 1.0,
         inputDigest: hasGeo ? `lat: ${reportData.lat?.toFixed(4)}, lng: ${reportData.lng?.toFixed(4)}` : "No GPS",
         outputSummary: hasGeo ? `Located at: ${reportData.locationName}` : "Local address fallback",
       };
       setLiveTrace(prev => [...prev, locateEntry]);
-      await delay(1000);
 
       // 3. Find Nearby Candidates
       let localCandidates: any[] = [];
@@ -346,13 +340,13 @@ export default function App() {
       let aiResponse: any = null;
 
       if (hasGeo) {
+        const scanStart = Date.now();
         localCandidates = await findDuplicateCandidates(reportData);
         if (localCandidates.length === 0) {
           dupStatus = "done";
           dupRationale = "Proximity analysis scanned active issues within 150m. None matching: approved new standalone report.";
           dupMeta = {
-            durationMs: 320,
-            confidence: 1.0,
+            durationMs: Date.now() - scanStart,
             inputDigest: `Scan radius 150m around (${reportData.lat?.toFixed(2)}, ${reportData.lng?.toFixed(2)})`,
             outputSummary: "0 candidates found. Standard stand-alone path.",
           };
@@ -374,8 +368,7 @@ export default function App() {
             dupStatus = "done";
             dupRationale = "Failed to communicate with semantic service. Standalone fallback applied to preserve ticket integrity.";
             dupMeta = {
-              durationMs: 150,
-              confidence: 0.5,
+              fallbackUsed: true,
               errorMsg: err.message,
             };
           }
@@ -393,7 +386,6 @@ export default function App() {
       
       const currentTraceWithDup = [...[perceiveEntry, locateEntry], deduplicateEntry];
       setLiveTrace(currentTraceWithDup);
-      await delay(1000);
 
       // Handle duplicate check routing
       if (aiResponse && (aiResponse.recommendation === "merge" || aiResponse.recommendation === "ask_user") && aiResponse.bestCandidateId) {

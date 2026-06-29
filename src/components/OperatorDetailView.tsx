@@ -75,12 +75,9 @@ export default function OperatorDetailView({ issue, onBack, onRefresh, demoOpera
     setLiveAgentSteps([]);
     try {
       const agentResult = await runAgentForIssue(issue.id, { demoOperator });
-      let currentTrace: any[] = [];
-      for (const step of agentResult.steps || []) {
-        currentTrace = [...currentTrace, step];
-        setLiveAgentSteps(currentTrace);
-        await new Promise(resolve => setTimeout(resolve, 350));
-      }
+      // Show the real persisted trace exactly as the server recorded it - no
+      // artificial step-by-step replay timing.
+      setLiveAgentSteps(agentResult.steps || []);
       setActiveAgentRun(agentResult.run || null);
       setPersistedAgentSteps(agentResult.steps || []);
       await loadActivities();

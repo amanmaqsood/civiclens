@@ -62,6 +62,7 @@ describe("documentation release readiness", () => {
     const readme = readProjectFile("README.md");
     const deployment = readProjectFile("docs/DEPLOYMENT_CLOUD_RUN.md");
     const dockerfile = readProjectFile("Dockerfile");
+    const firebaseAppletConfig = readProjectFile("firebase-applet-config.json");
 
     for (const required of [
       "VITE_FIREBASE_API_KEY",
@@ -78,6 +79,10 @@ describe("documentation release readiness", () => {
     }
 
     expect(readme).toContain("Vite reads `VITE_*` variables at build time");
+    expect(readme).toContain("The tracked `firebase-applet-config.json` is metadata-only");
+    expect(envExample).toContain("firebase-applet-config.json is metadata-only");
+    expect(firebaseAppletConfig).not.toContain("apiKey");
+    expect(firebaseAppletConfig).not.toContain(["A", "Iza"].join(""));
     expect(deployment).toContain("Do not create, commit, or bake service-account JSON into the image.");
     expect(deployment).toContain("Set `CIVICLENS_REQUIRE_APP_CHECK=true` only after");
     expect(dockerfile).toContain("ARG VITE_FIREBASE_API_KEY");

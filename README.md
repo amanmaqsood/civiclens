@@ -63,7 +63,7 @@ Set real values in `.env` as needed:
 
 - `GEMINI_API_KEY` for Gemini calls.
 - `GOOGLE_MAPS_PLATFORM_KEY` or `VITE_GOOGLE_MAPS_PLATFORM_KEY` for Google Maps and Places autocomplete.
-- `VITE_FIREBASE_API_KEY`, `VITE_FIREBASE_AUTH_DOMAIN`, `VITE_FIREBASE_PROJECT_ID`, `VITE_FIREBASE_APP_ID`, and optional Firebase browser fields before building the frontend. If these are absent, the app falls back to the public `firebase-applet-config.json`.
+- `VITE_FIREBASE_API_KEY`, `VITE_FIREBASE_AUTH_DOMAIN`, `VITE_FIREBASE_PROJECT_ID`, `VITE_FIREBASE_APP_ID`, and optional Firebase browser fields before building the frontend. The tracked `firebase-applet-config.json` is metadata-only; the public Firebase browser key is supplied through env/build args.
 - `FIREBASE_PROJECT_ID` or Cloud Run's `GOOGLE_CLOUD_PROJECT` for Firebase Admin SDK project selection.
 - `FIRESTORE_DATABASE_ID`, defaulting to `(default)`, when using a named Firestore database.
 - `VITE_FIREBASE_APP_CHECK_SITE_KEY` to initialize frontend App Check token generation.

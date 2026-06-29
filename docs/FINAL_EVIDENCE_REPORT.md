@@ -104,8 +104,18 @@ Fresh local v2 continuation baseline on 2026-06-29 from `master` at `8e94e6e`:
 Baseline notes:
 
 - The no-attribution hygiene scan found no judged-project references to prohibited assistant/vendor attribution terms.
-- The Firebase browser key remains committed in `firebase-applet-config.json`; this is the next tracked hygiene fix.
+- The Firebase browser key was still committed at baseline and is tracked for the next hygiene fix.
 - The Playwright emulator gate runs with local test config and reports expected development warnings when Gemini and Maps keys are not injected into that test process. Real Gemini/Maps checks remain part of feature-level live verification.
+
+Phase 0.2 Firebase browser-key hygiene verification on 2026-06-30:
+
+- `firebase-applet-config.json` is metadata-only; it no longer contains an `apiKey` field.
+- Google API-key prefix scan: no matches in the repository.
+- `.\node_modules\.bin\tsc.cmd --noEmit`: passed with 0 errors.
+- `.\node_modules\.bin\vitest.cmd run src/lib/firebase-config.test.ts src/docs-readiness.test.ts`: passed; 2 files passed, 10 tests passed.
+- `.\node_modules\.bin\vitest.cmd run`: passed; 18 files passed, 2 skipped; 83 tests passed, 7 skipped.
+- `npm run build`: passed; Vite transformed 2141 modules and emitted no chunk over 500 kB. Largest JS chunk was `fb-firestore` at 475.16 kB.
+- Local env boot proof on `http://127.0.0.1:3000`: `/readyz` returned `ready:true`, `checks.adminDb:true`, `checks.geminiConfigured:true`, and `checks.configValid:true`; `/` returned `HTTP/1.1 200 OK` and served the Vite module client.
 
 Latest local validation after public documentation cleanup and current-tree internal artifact removal:
 

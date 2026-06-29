@@ -1,8 +1,11 @@
 import { describe, expect, it } from "vitest";
-import { resolveFirebaseWebConfig, shouldInitializeFirebaseAppCheck, type FirebaseWebConfig } from "./firebase-config";
+import {
+  resolveFirebaseWebConfig,
+  shouldInitializeFirebaseAppCheck,
+  type FirebaseWebConfigMetadata,
+} from "./firebase-config";
 
-const fallbackConfig: FirebaseWebConfig = {
-  apiKey: "fallback-api-key",
+const fallbackConfig: FirebaseWebConfigMetadata = {
   authDomain: "fallback.firebaseapp.com",
   projectId: "fallback-project",
   appId: "fallback-app-id",
@@ -13,11 +16,8 @@ const fallbackConfig: FirebaseWebConfig = {
 };
 
 describe("Firebase web config resolution", () => {
-  it("uses the checked-in public fallback when no Vite config is provided", () => {
-    const result = resolveFirebaseWebConfig({}, fallbackConfig);
-
-    expect(result.source).toBe("firebase-applet-config.json");
-    expect(result.config).toEqual(fallbackConfig);
+  it("fails closed when no Vite Firebase browser config is provided", () => {
+    expect(() => resolveFirebaseWebConfig({}, fallbackConfig)).toThrow(/VITE_FIREBASE_\*/);
   });
 
   it("uses complete Vite env config and keeps optional fallback fields", () => {
@@ -47,11 +47,15 @@ describe("Firebase web config resolution", () => {
 
   it("allows a Firestore database id override with the checked-in fallback app config", () => {
     const result = resolveFirebaseWebConfig({
+      VITE_FIREBASE_API_KEY: "env-api-key",
+      VITE_FIREBASE_AUTH_DOMAIN: "env.firebaseapp.com",
+      VITE_FIREBASE_PROJECT_ID: "env-project",
+      VITE_FIREBASE_APP_ID: "env-app-id",
       VITE_FIRESTORE_DATABASE_ID: "named-db",
     }, fallbackConfig);
 
-    expect(result.source).toBe("firebase-applet-config.json");
-    expect(result.config.projectId).toBe("fallback-project");
+    expect(result.source).toBe("vite-env");
+    expect(result.config.projectId).toBe("env-project");
     expect(result.config.firestoreDatabaseId).toBe("named-db");
   });
 

@@ -11,8 +11,10 @@ export interface FirebaseWebConfig {
 
 export interface FirebaseWebConfigResolution {
   config: FirebaseWebConfig;
-  source: "vite-env" | "firebase-applet-config.json";
+  source: "vite-env";
 }
+
+export type FirebaseWebConfigMetadata = Partial<FirebaseWebConfig>;
 
 const REQUIRED_ENV_KEYS = [
   "VITE_FIREBASE_API_KEY",
@@ -23,7 +25,7 @@ const REQUIRED_ENV_KEYS = [
 
 export function resolveFirebaseWebConfig(
   env: Record<string, string | undefined>,
-  fallbackConfig: FirebaseWebConfig
+  fallbackConfig: FirebaseWebConfigMetadata
 ): FirebaseWebConfigResolution {
   const firestoreDatabaseId = env.VITE_FIRESTORE_DATABASE_ID || fallbackConfig.firestoreDatabaseId || "(default)";
   const hasAnyEnvConfig = REQUIRED_ENV_KEYS.some((key) => !!env[key])
@@ -32,13 +34,10 @@ export function resolveFirebaseWebConfig(
     || !!env.VITE_FIREBASE_MEASUREMENT_ID;
 
   if (!hasAnyEnvConfig) {
-    return {
-      config: {
-        ...fallbackConfig,
-        firestoreDatabaseId,
-      },
-      source: "firebase-applet-config.json",
-    };
+    throw new Error(
+      "Firebase web config must be supplied with VITE_FIREBASE_* env vars. " +
+        "firebase-applet-config.json is metadata-only and must not contain browser keys.",
+    );
   }
 
   const missing = REQUIRED_ENV_KEYS.filter((key) => !env[key]);

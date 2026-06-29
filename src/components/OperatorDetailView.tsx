@@ -6,7 +6,6 @@ import { ArrowLeft, Clock, CheckSquare, RefreshCw, Lock, Sparkles, Send, CheckCi
 import ClosureVerificationPanel from "./ClosureVerificationPanel";
 import AutoEscalationPanel from "./AutoEscalationPanel";
 import AgentTraceTimeline from "./AgentTraceTimeline";
-import confetti from "canvas-confetti";
 import { IssueStatusKey, issueStatusLabel } from "../constants/status";
 
 interface OperatorDetailViewProps {
@@ -101,13 +100,6 @@ export default function OperatorDetailView({ issue, onBack, onRefresh, demoOpera
       await updateIssueStatus(issue.id, nextStatus, { demoOperator, rationale });
       setConfirmingStatus(null);
       setApprovalRationale("");
-      if (nextStatus === "resolved") {
-        confetti({
-          particleCount: 150,
-          spread: 80,
-          origin: { y: 0.6 }
-        });
-      }
       await loadActivities();
       onRefresh();
     } catch (e: any) {

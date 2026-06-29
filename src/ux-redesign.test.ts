@@ -14,6 +14,9 @@ describe("UX redesign contract", () => {
     const bottomNav = readProjectFile("src/components/AppBottomNav.tsx");
     const floatingAction = readProjectFile("src/components/FloatingReportAction.tsx");
     const header = readProjectFile("src/components/Header.tsx");
+    const themeContext = readProjectFile("src/context/ThemeContext.tsx");
+    const main = readProjectFile("src/main.tsx");
+    const css = readProjectFile("src/index.css");
 
     expect(app).toContain("AppBottomNav");
     expect(app).toContain("FloatingReportAction");
@@ -38,6 +41,15 @@ describe("UX redesign contract", () => {
     expect(header).toContain("<LogIn");
     expect(header).not.toContain("Google sign-in unavailable");
     expect(header).not.toContain("disabled={!signedInWithGoogle}");
+    expect(header).toContain('id="header-theme-toggle"');
+    expect(header).toContain("useTheme");
+    expect(main).toContain("<ThemeProvider>");
+    expect(themeContext).toContain('const STORAGE_KEY = "civiclens-theme"');
+    expect(themeContext).toContain("prefers-color-scheme: dark");
+    expect(themeContext).toContain('root.classList.toggle("dark"');
+    expect(css).toContain("html.dark");
+    expect(css).toContain("--surface-1: #0E1A2B");
+    expect(css).toContain("html.dark .bg-white");
   });
 
   it("keeps the landing page map-first and truthful about synthetic demo data", () => {
@@ -139,6 +151,7 @@ describe("UX redesign contract", () => {
     expect(operatorDetail).toContain("Persisted agent workflow");
     expect(operatorDetail).toContain("Written rationale is required");
     expect(operatorDetail).toContain("approvalRationale.trim().length === 0");
+    expect(operatorDetail).not.toContain("confetti");
     expect(queue).toContain("Demo actions are server-limited");
     expect(closure).toContain("recommendation");
     expect(closure).toContain('id="after-image-live-photo-input"');

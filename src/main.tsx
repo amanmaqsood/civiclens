@@ -4,6 +4,7 @@ import App from "./App.tsx";
 import { FirebaseProvider } from "./context/FirebaseContext";
 import { LanguageProvider } from "./context/LanguageContext";
 import { ToastProvider } from "./context/ToastContext";
+import { ThemeProvider } from "./context/ThemeContext";
 import "./index.css";
 
 // Global unhandled promise rejection handler to prevent environments/test-runners from intercepting harmless library/maps rejections
@@ -83,11 +84,13 @@ createRoot(document.getElementById("root")!).render(
   <StrictMode>
     <FirebaseProvider>
       <LanguageProvider>
-        <ToastProvider>
-          <ErrorBoundary>
-            <App />
-          </ErrorBoundary>
-        </ToastProvider>
+        <ThemeProvider>
+          <ToastProvider>
+            <ErrorBoundary>
+              <App />
+            </ErrorBoundary>
+          </ToastProvider>
+        </ThemeProvider>
       </LanguageProvider>
     </FirebaseProvider>
   </StrictMode>,

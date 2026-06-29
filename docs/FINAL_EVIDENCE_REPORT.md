@@ -163,6 +163,18 @@ Phase 3.3 semantic auto-merge-on-create verification on 2026-06-30:
 - `.\node_modules\.bin\vitest.cmd run`: passed; 21 files passed, 2 skipped; 93 tests passed, 7 skipped.
 - `npm run build`: passed; Vite transformed 2141 modules and emitted no chunk over 500 kB. Largest JS chunk was `fb-firestore` at 475.16 kB.
 
+Phase 5.1 + 5.5 dark mode and celebration-removal verification on 2026-06-30:
+
+- The app now has a persistent `ThemeProvider` with a header icon toggle, stored `civiclens-theme` preference, system dark-mode default, root `dark` class, `data-theme`, and browser `color-scheme`.
+- The stylesheet now exposes semantic surface/text/border/focus tokens and dark overrides for the existing utility classes, including formerly white cards, app paper surfaces, borders, inputs, and Places autocomplete.
+- Operator status resolution no longer triggers confetti, and `canvas-confetti` plus its type package were removed from the dependency graph.
+- `.\node_modules\.bin\tsc.cmd --noEmit`: passed with 0 errors.
+- `.\node_modules\.bin\vitest.cmd run src\ux-redesign.test.ts src\docs-readiness.test.ts`: passed; 2 files passed, 13 tests passed.
+- Live browser proof: `powershell -NoProfile -ExecutionPolicy Bypass -File .\scripts\verify-dark-mode-live.ps1` passed and reported `DARK_MODE_LIVE theme=dark stored=dark cardBg='rgb(14, 26, 43)' axeSeriousCritical=0 consoleErrors=0 pageErrors=0`.
+- `.\node_modules\.bin\vitest.cmd run`: passed; 21 files passed, 2 skipped; 93 tests passed, 7 skipped.
+- `npm run build`: passed; Vite transformed 2141 modules, emitted the dark-mode CSS bundle at 62.69 kB, and kept the largest JS chunk at `fb-firestore` 475.16 kB.
+- Hygiene scans found no prohibited attribution terms and no Google API-key prefix matches. `rg -n "confetti|canvas-confetti" src package.json package-lock.json` found only the UX contract assertion that `OperatorDetailView` does not contain `confetti`; `npm ls canvas-confetti @types/canvas-confetti` reported an empty dependency tree.
+
 Latest local validation after public documentation cleanup and current-tree internal artifact removal:
 
 - `npm ci`: passed; install audit reported 3 moderate dev-dependency issues while production audit remained clean.

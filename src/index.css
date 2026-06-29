@@ -23,6 +23,15 @@
   /* Severity ramp (1-2 verify, 3 marigold, 4, 5 alert) */
   --color-sev-4: #F2683B;
   --color-sev-5: #991B1B;
+  /* Semantic surfaces and text */
+  --color-surface-1: #FFFFFF;
+  --color-surface-2: #FAF9F6;
+  --color-surface-3: #F0EEE8;
+  --color-text-strong: #0E1A2B;
+  --color-text-default: #1F2A3A;
+  --color-text-muted: #64748B;
+  --color-border-subtle: #E3E1DA;
+  --color-focus-ring: #EE9B2D;
 }
 
 /* Custom dossier styles on top of variables */
@@ -30,10 +39,45 @@ html, body, #root {
   height: 100%;
 }
 
+:root {
+  --surface-1: #FFFFFF;
+  --surface-2: #FAF9F6;
+  --surface-3: #F0EEE8;
+  --text-strong: #0E1A2B;
+  --text-default: #1F2A3A;
+  --text-muted: #64748B;
+  --border-subtle: #E3E1DA;
+  --focus-ring: #EE9B2D;
+  --on-accent: #0E1A2B;
+}
+
+html.dark {
+  --surface-1: #0E1A2B;
+  --surface-2: #15233A;
+  --surface-3: #1C2C46;
+  --text-strong: #F5F6F8;
+  --text-default: #D7DEE8;
+  --text-muted: #93A1B5;
+  --border-subtle: #27374F;
+  --focus-ring: #EE9B2D;
+  --on-accent: #0E1A2B;
+  --color-paper: #0B1220;
+  --color-hairline: #27374F;
+  --color-ink-2: #93A1B5;
+  --color-slate: #93A1B5;
+  --color-surface-1: #0E1A2B;
+  --color-surface-2: #15233A;
+  --color-surface-3: #1C2C46;
+  --color-text-strong: #F5F6F8;
+  --color-text-default: #D7DEE8;
+  --color-text-muted: #93A1B5;
+  --color-border-subtle: #27374F;
+}
+
 body {
   font-family: var(--font-sans);
   background-color: var(--color-paper);
-  color: var(--color-ink);
+  color: var(--text-default);
   -webkit-font-smoothing: antialiased;
   -webkit-text-size-adjust: 100%;
   -webkit-tap-highlight-color: transparent;
@@ -53,7 +97,7 @@ body {
 
 /* Visible focus style globally for accessibility */
 *:focus-visible {
-  outline: 2px solid var(--color-marigold);
+  outline: 2px solid var(--focus-ring);
   outline-offset: 2px;
 }
 
@@ -63,7 +107,75 @@ body {
   min-height: 44px;
   color-scheme: light;
   --gmpx-color-primary: var(--color-marigold);
-  --gmpx-color-surface: #ffffff;
-  --gmpx-color-on-surface: var(--color-ink);
+  --gmpx-color-surface: var(--surface-1);
+  --gmpx-color-on-surface: var(--text-strong);
   --gmpx-font-family-base: var(--font-sans);
+}
+
+html.dark .civiclens-places-autocomplete {
+  color-scheme: dark;
+  --gmpx-color-surface: var(--surface-1);
+  --gmpx-color-on-surface: var(--text-strong);
+}
+
+html.dark .bg-white,
+html.dark .bg-slate-50,
+html.dark .bg-slate-100,
+html.dark .hover\:bg-white:hover,
+html.dark .hover\:bg-slate-50:hover {
+  background-color: var(--surface-1);
+}
+
+html.dark .bg-paper,
+html.dark .hover\:bg-paper:hover {
+  background-color: var(--surface-2);
+}
+
+html.dark .bg-hairline,
+html.dark .hover\:bg-hairline\/30:hover {
+  background-color: var(--surface-3);
+}
+
+html.dark .bg-ink {
+  background-color: #0E1A2B;
+}
+
+html.dark .text-ink,
+html.dark .text-slate-900,
+html.dark .text-slate-800,
+html.dark .text-slate-700 {
+  color: var(--text-strong);
+}
+
+html.dark .text-ink-2,
+html.dark .text-slate,
+html.dark .text-slate-600,
+html.dark .text-slate-500,
+html.dark .text-slate-400,
+html.dark .text-\[\#94a3b8\] {
+  color: var(--text-muted);
+}
+
+html.dark .text-ink\/80 {
+  color: color-mix(in srgb, var(--text-default) 80%, transparent);
+}
+
+html.dark .bg-marigold.text-ink,
+html.dark .hover\:bg-marigold:hover.text-ink,
+html.dark .bg-marigold .text-ink,
+html.dark .hover\:bg-marigold:hover .text-ink {
+  color: var(--on-accent);
+}
+
+html.dark .border-hairline,
+html.dark .border-slate-100,
+html.dark .border-slate-200,
+html.dark .border-slate-300 {
+  border-color: var(--border-subtle);
+}
+
+html.dark input,
+html.dark textarea,
+html.dark select {
+  color-scheme: dark;
 }

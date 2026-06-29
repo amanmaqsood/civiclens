@@ -1,8 +1,9 @@
 import React, { useEffect, useRef, useState } from "react";
-import { ArrowLeft, BarChart3, ChevronDown, Languages, LogIn, LogOut, ShieldCheck, UserCircle } from "lucide-react";
+import { ArrowLeft, BarChart3, ChevronDown, Languages, LogIn, LogOut, Moon, ShieldCheck, Sun, UserCircle } from "lucide-react";
 import { ActiveView } from "../types";
 import { useFirebase } from "../context/FirebaseContext";
 import { useLanguage } from "../context/LanguageContext";
+import { useTheme } from "../context/ThemeContext";
 
 interface HeaderProps {
   currentView: ActiveView;
@@ -15,6 +16,7 @@ interface HeaderProps {
 export default function Header({ currentView, onNavigate, persona, onTogglePersona, operatorAccess }: HeaderProps) {
   const { user, signInWithGoogle, signOutUser, loading } = useFirebase();
   const { language, setLanguage, t } = useLanguage();
+  const { theme, toggleTheme } = useTheme();
   const [accountOpen, setAccountOpen] = useState(false);
   const [accountError, setAccountError] = useState<string | null>(null);
   const [authActionPending, setAuthActionPending] = useState(false);
@@ -143,6 +145,18 @@ export default function Header({ currentView, onNavigate, persona, onTogglePerso
             <span className="hidden text-sm font-bold sm:inline">{t("nav.stats")}</span>
           </button>
         )}
+
+        <button
+          id="header-theme-toggle"
+          type="button"
+          onClick={toggleTheme}
+          className="flex min-h-[44px] min-w-[44px] items-center justify-center rounded-lg border border-white/10 bg-white/5 text-paper transition-colors hover:bg-white/10 hover:text-white"
+          title={theme === "dark" ? "Use light theme" : "Use dark theme"}
+          aria-label={theme === "dark" ? "Use light theme" : "Use dark theme"}
+          aria-pressed={theme === "dark"}
+        >
+          {theme === "dark" ? <Sun className="h-4 w-4 text-marigold" /> : <Moon className="h-4 w-4 text-marigold" />}
+        </button>
 
         {loading ? (
           <div className="h-6 w-6 rounded-full bg-white/10 animate-pulse" />

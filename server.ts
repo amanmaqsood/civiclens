@@ -946,6 +946,177 @@ async function startServer() {
   // ---- Phase 4: Gamification (civic reputation) -------------------------
   // Server-authoritative point award + badge/level recompute for a contributor.
   // Best-effort: failures here never block the underlying civic action.
+  function roundTrust(value: number): number {
+    return Math.round(cleanNumber(value, 0, 0, 1) * 100) / 100;
+  }
+
+  function computeTrustScore(profile: any, role?: string): number {
+    const points = cleanNumber(profile?.points, 0, 0, 100_000);
+    const reportCount = cleanNumber(profile?.reportCount, 0, 0, 10_000);
+    const supportCount = cleanNumber(profile?.supportCount, 0, 0, 10_000);
+    const verifyCount = cleanNumber(profile?.verifyCount, 0, 0, 10_000);
+    const successfulAppeals = cleanNumber(profile?.successfulAppeals, 0, 0, 1_000);
+    const trustPenalties = cleanNumber(profile?.trustPenalties, 0, 0, 1_000);
+    const roleBoost = role === "operator" || profile?.role === "operator" ? 0.04 : 0;
+    const score =
+      0.32 +
+      Math.min(reportCount * 0.035, 0.16) +
+      Math.min(supportCount * 0.012, 0.10) +
+      Math.min(verifyCount * 0.045, 0.24) +
+      Math.min(points / 450, 0.18) +
+      Math.min(successfulAppeals * 0.03, 0.09) +
+      roleBoost -
+      Math.min(trustPenalties * 0.05, 0.30);
+    return roundTrust(Math.max(0.08, Math.min(0.98, score)));
+  }
+
+  function summarizeIssueForTrustAudit(issueData: any) {
+    return {
+      title: cleanText(issueData?.title, "Untitled civic issue", 140),
+      category: cleanText(issueData?.category, "other", 60),
+      status: normalizeIssueStatus(issueData?.status),
+      summary: cleanText(issueData?.summary || issueData?.description, "", 600),
+      severity: cleanNumber(issueData?.severity, 3, 1, 5),
+      urgency: cleanText(issueData?.urgency, "routine", 30),
+      confirmCount: cleanNumber(issueData?.confirmCount, 0, 0, 100_000),
+      disputeCount: cleanNumber(issueData?.disputeCount, 0, 0, 100_000),
+      trustConsensus: issueData?.trustConsensus || null,
+    };
+  }
+
+  async function auditTrustWeightedVerification(input: {
+    issueData: any;
+    voteType: "confirm" | "dispute";
+    trustScore: number;
+    profile: any;
+    actor?: RequestActor;
+    reason?: string;
+  }) {
+    const fallback = {
+      voteQuality: input.trustScore < 0.22 ? "weak" : "valid",
+      weightMultiplier: input.trustScore < 0.22 ? 0.65 : 0.9,
+      confidence: 0.58,
+      signals: input.trustScore < 0.22 ? ["Low-history voter; deterministic audit weight reduced."] : ["Deterministic audit accepted the community signal."],
+      explanation: "Deterministic trust audit used because Gemini audit was unavailable.",
+      model: "deterministic-fallback",
+      aiFallback: true,
+      retried: false,
+      durationMs: 0,
+    };
+
+    if (!geminiApiKey) return fallback;
+
+    const promptText = `Audit this community verification signal for a public civic issue.
+Return strict JSON only.
+Issue snapshot: ${JSON.stringify(summarizeIssueForTrustAudit(input.issueData))}
+Vote type: ${input.voteType}
+Voter trust score: ${input.trustScore}
+Voter counters: ${JSON.stringify({
+  reportCount: cleanNumber(input.profile?.reportCount, 0, 0, 10_000),
+  supportCount: cleanNumber(input.profile?.supportCount, 0, 0, 10_000),
+  verifyCount: cleanNumber(input.profile?.verifyCount, 0, 0, 10_000),
+  points: cleanNumber(input.profile?.points, 0, 0, 100_000),
+})}
+Optional voter note: ${cleanText(input.reason, "none", 500)}
+Mark suspicious only for obvious mismatch, pile-on, or unverifiable reasoning. Keep weightMultiplier between 0 and 1.15.`;
+
+    const startTime = Date.now();
+    try {
+      const result = await generateContentWithRetry(ai, {
+        model: "gemini-2.5-flash",
+        contents: [{ text: promptText }],
+        config: {
+          responseMimeType: "application/json",
+          responseSchema: {
+            type: Type.OBJECT,
+            properties: {
+              voteQuality: { type: Type.STRING, enum: ["valid", "weak", "suspicious"] },
+              weightMultiplier: { type: Type.NUMBER },
+              confidence: { type: Type.NUMBER },
+              signals: { type: Type.ARRAY, items: { type: Type.STRING } },
+              explanation: { type: Type.STRING },
+            },
+            required: ["voteQuality", "weightMultiplier", "confidence", "signals", "explanation"],
+          },
+        },
+      }, { signal: AbortSignal.timeout(12_000) });
+      const responseText = (result.response.text || "").trim().replace(/^```(?:json)?\s*/i, "").replace(/```\s*$/, "").trim();
+      const parsed = JSON.parse(responseText);
+      const quality = ["valid", "weak", "suspicious"].includes(parsed.voteQuality) ? parsed.voteQuality : "weak";
+      return {
+        voteQuality: quality,
+        weightMultiplier: cleanNumber(parsed.weightMultiplier, quality === "suspicious" ? 0.25 : 0.9, 0, 1.15),
+        confidence: cleanNumber(parsed.confidence, 0.6, 0, 1),
+        signals: cleanStringArray(parsed.signals, 6, 180),
+        explanation: cleanText(parsed.explanation, "Gemini trust audit completed.", 900),
+        model: "gemini-2.5-flash",
+        aiFallback: false,
+        retried: result.retried,
+        durationMs: Date.now() - startTime,
+      };
+    } catch (error: any) {
+      structuredLog("warn", "trust_audit_fallback", { error: error?.message || String(error) });
+      return { ...fallback, durationMs: Date.now() - startTime };
+    }
+  }
+
+  function computeBrigadingGuard(input: {
+    voteType: "confirm" | "dispute";
+    trustScore: number;
+    audit: any;
+    recentVotes: any[];
+    nowMs: number;
+  }) {
+    const fifteenMinutesMs = 15 * 60 * 1000;
+    const recentSame = input.recentVotes.filter((vote) => {
+      const ts = Date.parse(String(vote.timestamp || ""));
+      return vote.type === input.voteType && Number.isFinite(ts) && input.nowMs - ts <= fifteenMinutesMs;
+    });
+    const lowTrustSame = recentSame.filter((vote) => cleanNumber(vote.baseTrustScore ?? vote.trustScore, 0.3, 0, 1) < 0.35);
+    const suspiciousAudit = input.audit.voteQuality === "suspicious" || input.audit.weightMultiplier <= 0.25;
+    const burst = recentSame.length >= 3 && (lowTrustSame.length >= 2 || input.trustScore < 0.28);
+    const collapsed = suspiciousAudit || burst;
+    const risk = collapsed ? "high" : recentSame.length >= 2 || input.trustScore < 0.3 ? "watch" : "low";
+    const signals = [
+      ...(burst ? [`${recentSame.length + 1} rapid ${input.voteType} votes detected in a 15 minute window.`] : []),
+      ...(lowTrustSame.length >= 2 ? [`${lowTrustSame.length + 1} low-trust ${input.voteType} signals clustered together.`] : []),
+      ...(suspiciousAudit ? ["Gemini audit marked this vote suspicious or very weak."] : []),
+    ];
+    return { collapsed, risk, signals };
+  }
+
+  function buildTrustConsensusUpdate(currentConsensus: any, voteType: "confirm" | "dispute", finalWeight: number, guard: any, nowIso: string) {
+    const previous = currentConsensus && typeof currentConsensus === "object" ? currentConsensus : {};
+    const confirmWeight = cleanNumber(previous.confirmWeight, 0, 0, 100_000) + (voteType === "confirm" ? finalWeight : 0);
+    const disputeWeight = cleanNumber(previous.disputeWeight, 0, 0, 100_000) + (voteType === "dispute" ? finalWeight : 0);
+    const confirmVotes = cleanNumber(previous.confirmVotes, 0, 0, 100_000) + (voteType === "confirm" ? 1 : 0);
+    const disputeVotes = cleanNumber(previous.disputeVotes, 0, 0, 100_000) + (voteType === "dispute" ? 1 : 0);
+    const collapsedVotes = cleanNumber(previous.collapsedVotes, 0, 0, 100_000) + (guard.collapsed ? 1 : 0);
+    const totalWeight = confirmWeight + disputeWeight;
+    const consensusRatio = totalWeight > 0 ? confirmWeight / totalWeight : 0;
+    const autoResolveThreshold = cleanNumber(previous.autoResolveThreshold, 2.4, 1, 20);
+    const brigadingRisk = guard.risk === "high" ? "high" : previous.brigadingRisk === "high" ? "watch" : guard.risk;
+    return {
+      ...previous,
+      confirmWeight: Math.round(confirmWeight * 100) / 100,
+      disputeWeight: Math.round(disputeWeight * 100) / 100,
+      totalWeight: Math.round(totalWeight * 100) / 100,
+      confirmVotes,
+      disputeVotes,
+      collapsedVotes,
+      consensusRatio: Math.round(consensusRatio * 100) / 100,
+      brigadingRisk,
+      autoResolveThreshold,
+      appealable: true,
+      publicExplanation: guard.collapsed
+        ? "A cluster of low-trust or suspicious votes was detected, so the newest signal received reduced weight."
+        : "Community confirmations are weighted by contributor trust and a Gemini audit before affecting case status.",
+      lastVoteAt: nowIso,
+      updatedAt: nowIso,
+      version: "trust-consensus-v1",
+    };
+  }
+
   async function awardPoints(uid: string | undefined, role: string | undefined, delta: number, counterField?: "reportCount" | "supportCount" | "verifyCount") {
     if (!adminDb || !uid) return;
     try {
@@ -967,12 +1138,15 @@ async function startServer() {
         if (counters.verifyCount >= 3) badges.push("Community Verifier");
         if (counters.supportCount >= 5) badges.push("Neighborhood Ally");
         if (points >= 100) badges.push("Civic Champion");
+        const trustScore = computeTrustScore({ ...cur, ...counters, points }, role || cur.role);
         tx.set(ref, {
           uid,
           points,
           level,
           badges,
           ...counters,
+          trustScore,
+          trustUpdatedAt: new Date().toISOString(),
           role: role || cur.role || "citizen",
           handle: cur.handle || `Hero-${String(uid).slice(0, 4).toUpperCase()}`,
           updatedAt: new Date().toISOString(),
@@ -1473,39 +1647,130 @@ async function startServer() {
     if (!actor) return sendApiError(res, 401, "Firebase ID token is required.");
     const { issueId } = req.params;
     const type = req.body?.type;
+    const reason = cleanText(req.body?.reason || req.body?.rationale, "", 700);
     if (!isSafeDocumentId(issueId) || !["confirm", "dispute"].includes(type)) {
       return sendApiError(res, 400, "Invalid verification request.");
     }
     const issueRef = adminDb.collection("issues").doc(issueId);
     const verificationRef = issueRef.collection("verifications").doc(actor.uid);
+    const profileRef = adminDb.collection("profiles").doc(actor.uid);
     const nowIso = new Date().toISOString();
 
     try {
+      const [issueSnapForAudit, existingVoteForAudit, profileSnapForAudit] = await Promise.all([
+        issueRef.get(),
+        verificationRef.get(),
+        profileRef.get(),
+      ]);
+      if (!issueSnapForAudit.exists) return sendApiError(res, 404, "Issue not found.");
+      if (existingVoteForAudit.exists) return sendApiError(res, 409, "You have already verified or disputed this issue.");
+
+      const issueDataForAudit = issueSnapForAudit.data() || {};
+      const profileForAudit = profileSnapForAudit.exists ? profileSnapForAudit.data() || {} : {};
+      const trustScore = computeTrustScore(profileForAudit, actor.role);
+      const trustAudit = await auditTrustWeightedVerification({
+        issueData: issueDataForAudit,
+        voteType: type,
+        trustScore,
+        profile: profileForAudit,
+        actor,
+        reason,
+      });
+      let responsePayload: any = null;
+
       await adminDb.runTransaction(async (tx: any) => {
         const issueSnap = await tx.get(issueRef);
         if (!issueSnap.exists) throw new Error("NOT_FOUND");
         const existingVote = await tx.get(verificationRef);
         if (existingVote.exists) throw new Error("ALREADY_VERIFIED");
+        const profileSnap = await tx.get(profileRef);
+        const profile = profileSnap.exists ? profileSnap.data() || {} : profileForAudit;
+        const freshTrustScore = computeTrustScore(profile, actor.role);
+        const recentVotesSnap = await tx.get(issueRef.collection("verifications").orderBy("timestamp", "desc").limit(25));
+        const recentVotes = recentVotesSnap.docs.map((doc: any) => doc.data() || {});
+        const guard = computeBrigadingGuard({
+          voteType: type,
+          trustScore: freshTrustScore,
+          audit: trustAudit,
+          recentVotes,
+          nowMs: Date.now(),
+        });
+        const baseWeight = roundTrust(type === "dispute" ? Math.min(1, freshTrustScore + 0.03) : freshTrustScore);
+        const auditedWeight = roundTrust(baseWeight * cleanNumber(trustAudit.weightMultiplier, 0.9, 0, 1.15));
+        const finalWeight = guard.collapsed ? roundTrust(Math.min(0.08, auditedWeight * 0.15)) : auditedWeight;
+        const issueData = issueSnap.data() || {};
+        const currentStatus = normalizeIssueStatus(issueData.status);
+        const consensus = buildTrustConsensusUpdate(issueData.trustConsensus, type, finalWeight, guard, nowIso);
+        const shouldAutoResolve =
+          type === "confirm" &&
+          !guard.collapsed &&
+          ["verified", "in_progress"].includes(currentStatus) &&
+          consensus.confirmVotes >= 3 &&
+          consensus.confirmWeight >= consensus.autoResolveThreshold &&
+          consensus.consensusRatio >= 0.75;
+
+        if (shouldAutoResolve) {
+          consensus.autoResolvedAt = nowIso;
+          consensus.autoResolvedBy = "weighted_community_consensus";
+          consensus.publicExplanation = "A weighted, audited community consensus crossed the public auto-resolution threshold.";
+        }
 
         tx.set(verificationRef, {
           userId: actor.uid,
           type,
           timestamp: nowIso,
+          reason,
+          baseTrustScore: freshTrustScore,
+          trustWeight: finalWeight,
+          brigadingCollapsed: guard.collapsed,
+          brigadingRisk: guard.risk,
+          trustAudit,
         });
-        tx.update(issueRef, {
+        const updates: any = {
           confirmCount: type === "confirm" ? FieldValue.increment(1) : FieldValue.increment(0),
           disputeCount: type === "dispute" ? FieldValue.increment(1) : FieldValue.increment(0),
-          verificationStatus: type === "confirm" ? "community_confirmed" : "community_disputed",
+          weightedConfirmScore: type === "confirm" ? FieldValue.increment(finalWeight) : FieldValue.increment(0),
+          weightedDisputeScore: type === "dispute" ? FieldValue.increment(finalWeight) : FieldValue.increment(0),
+          verificationStatus: shouldAutoResolve ? "trust_consensus_resolved" : type === "confirm" ? "community_confirmed" : "community_disputed",
+          trustConsensus: consensus,
           updatedAt: nowIso,
-        });
+        };
+        if (shouldAutoResolve) {
+          updates.status = "resolved";
+          updates.resolvedAt = issueData.resolvedAt || nowIso;
+        }
+        tx.update(issueRef, updates);
+        tx.set(profileRef, {
+          uid: actor.uid,
+          role: actor.role || profile.role || "citizen",
+          handle: profile.handle || `Hero-${String(actor.uid).slice(0, 4).toUpperCase()}`,
+          trustScore: freshTrustScore,
+          trustUpdatedAt: nowIso,
+          updatedAt: nowIso,
+        }, { merge: true });
         tx.set(issueRef.collection("activity").doc(), {
           actorType: "citizen",
-          eventType: "verification",
-          message: `Community ${type} recorded by server.`,
+          eventType: shouldAutoResolve ? "trust_consensus_resolved" : "verification",
+          message: shouldAutoResolve
+            ? "Weighted community consensus auto-resolved this case."
+            : `Community ${type} recorded by server.`,
           timestamp: nowIso,
           byUid: actor.uid,
           byRole: actor.role,
+          trustWeight: finalWeight,
         });
+        responsePayload = {
+          success: true,
+          trust: {
+            trustScore: freshTrustScore,
+            weight: finalWeight,
+            brigadingCollapsed: guard.collapsed,
+            brigadingRisk: guard.risk,
+            audit: trustAudit,
+          },
+          consensus,
+          autoResolved: shouldAutoResolve,
+        };
       });
       if (type === "confirm") await awardPoints(actor.uid, actor.role, 5, "verifyCount");
       await recordEvent({
@@ -1516,13 +1781,117 @@ async function startServer() {
         timestamp: nowIso,
         actor,
         source: "api",
-        payload: { verificationType: type },
+        payload: { verificationType: type, trust: responsePayload?.trust || null, autoResolved: responsePayload?.autoResolved === true },
       });
-      return res.json({ success: true });
+      await recordEvent({
+        issueRef,
+        actorType: "ai",
+        eventType: "trust_verification_audited",
+        message: "Community verification was audited and converted into a trust-weighted signal.",
+        timestamp: nowIso,
+        actor,
+        source: "agent",
+        payload: { verificationType: type, trust: responsePayload?.trust || null, consensus: responsePayload?.consensus || null },
+      });
+      if (responsePayload?.trust?.brigadingCollapsed) {
+        await recordEvent({
+          issueRef,
+          actorType: "ai",
+          eventType: "trust_brigading_collapsed",
+          message: "Brigading guard collapsed a suspicious or low-trust vote burst.",
+          timestamp: nowIso,
+          actor,
+          source: "agent",
+          severity: "warn",
+          payload: { verificationType: type, trust: responsePayload.trust },
+        });
+      }
+      if (responsePayload?.autoResolved) {
+        await recordEvent({
+          issueRef,
+          actorType: "ai",
+          eventType: "trust_consensus_resolved",
+          message: "Weighted community consensus auto-resolved this case.",
+          timestamp: nowIso,
+          actor,
+          source: "agent",
+          payload: { verificationType: type, consensus: responsePayload.consensus },
+        });
+      }
+      return res.json(responsePayload || { success: true });
     } catch (error: any) {
       if (error?.message === "NOT_FOUND") return sendApiError(res, 404, "Issue not found.");
       if (error?.message === "ALREADY_VERIFIED") return sendApiError(res, 409, "You have already verified or disputed this issue.");
       return sendApiError(res, 500, "Failed to submit verification.", error);
+    }
+  });
+
+  app.post("/api/issues/:issueId/trust-appeal", async (req: any, res) => {
+    if (!adminDb) return sendApiError(res, 503, "Server data layer unavailable.");
+    const actor = req.actor as RequestActor | undefined;
+    if (!actor) return sendApiError(res, 401, "Firebase ID token is required.");
+    const { issueId } = req.params;
+    if (!isSafeDocumentId(issueId)) return sendApiError(res, 400, "Invalid issue id.");
+    const reason = cleanText(req.body?.reason, "", 900);
+    if (reason.length < 12) return sendApiError(res, 400, "Appeal reason must be at least 12 characters.");
+    const issueRef = adminDb.collection("issues").doc(issueId);
+    const appealRef = issueRef.collection("trustAppeals").doc(actor.uid);
+    const nowIso = new Date().toISOString();
+
+    try {
+      let reopened = false;
+      await adminDb.runTransaction(async (tx: any) => {
+        const issueSnap = await tx.get(issueRef);
+        if (!issueSnap.exists) throw new Error("NOT_FOUND");
+        const issueData = issueSnap.data() || {};
+        const consensus = issueData.trustConsensus || {};
+        if (!consensus.autoResolvedAt) throw new Error("NOT_AUTO_RESOLVED");
+        const appeal = {
+          byUid: actor.uid,
+          byRole: actor.role,
+          reason,
+          status: "pending",
+          appealedAt: nowIso,
+        };
+        reopened = normalizeIssueStatus(issueData.status) === "resolved";
+        tx.set(appealRef, appeal, { merge: true });
+        tx.update(issueRef, {
+          status: reopened ? "in_progress" : issueData.status,
+          reopenedAt: reopened ? nowIso : issueData.reopenedAt || null,
+          verificationStatus: "trust_consensus_appealed",
+          trustAppeal: appeal,
+          trustConsensus: {
+            ...consensus,
+            appealedAt: nowIso,
+            appealStatus: "pending",
+            appealable: true,
+          },
+          updatedAt: nowIso,
+        });
+        tx.set(issueRef.collection("activity").doc(), {
+          actorType: "citizen",
+          eventType: "trust_consensus_appealed",
+          message: "A citizen appealed the weighted consensus decision.",
+          timestamp: nowIso,
+          byUid: actor.uid,
+          byRole: actor.role,
+        });
+      });
+      await recordEvent({
+        issueRef,
+        actorType: "citizen",
+        eventType: "trust_consensus_appealed",
+        message: "Weighted consensus auto-resolution was appealed for human review.",
+        timestamp: nowIso,
+        actor,
+        source: "api",
+        payload: { reopened },
+      });
+      return res.json({ success: true, reopened });
+    } catch (error: any) {
+      if (error?.message === "NOT_FOUND") return sendApiError(res, 404, "Issue not found.");
+      if (error?.message === "NOT_AUTO_RESOLVED") return sendApiError(res, 409, "This issue was not auto-resolved by trust consensus.");
+      return sendApiError(res, 500, "Failed to appeal trust consensus.", error);
     }
   });
 
@@ -4070,7 +4439,16 @@ Return STRICT JSON: { "action": "wait|escalate|request_evidence|ready_to_close",
       const snap = await adminDb.collection("profiles").orderBy("points", "desc").limit(10).get();
       const leaders = snap.docs.map((d: any, i: number) => {
         const p: any = d.data();
-        return { rank: i + 1, handle: p.handle || "Civic Hero", points: p.points || 0, level: p.level || 1, badges: p.badges || [], reportCount: p.reportCount || 0, verifyCount: p.verifyCount || 0 };
+        return {
+          rank: i + 1,
+          handle: p.handle || "Civic Hero",
+          points: p.points || 0,
+          level: p.level || 1,
+          badges: p.badges || [],
+          reportCount: p.reportCount || 0,
+          verifyCount: p.verifyCount || 0,
+          trustScore: typeof p.trustScore === "number" ? p.trustScore : computeTrustScore(p),
+        };
       });
       return res.json({ leaders });
     } catch (error) {
@@ -4086,6 +4464,7 @@ Return STRICT JSON: { "action": "wait|escalate|request_evidence|ready_to_close",
     try {
       const doc = await adminDb.collection("profiles").doc(actor.uid).get();
       const p: any = doc.exists ? doc.data() : { points: 0, level: 1, badges: [], reportCount: 0, supportCount: 0, verifyCount: 0 };
+      if (typeof p.trustScore !== "number") p.trustScore = computeTrustScore(p, actor.role);
       delete p.uid;
       return res.json({ profile: p });
     } catch (error) {

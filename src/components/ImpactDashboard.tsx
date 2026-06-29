@@ -351,7 +351,7 @@ export default function ImpactDashboard({
                 </span>
                 <div className="flex flex-col min-w-0">
                   <span className="text-sm font-bold text-ink truncate">{l.handle}</span>
-                  <span className="text-[13px] text-slate">Level {l.level} · {l.reportCount} reports · {l.verifyCount} verifications</span>
+                  <span className="text-[13px] text-slate">Level {l.level} · {l.reportCount} reports · {l.verifyCount} verifications · Trust {typeof l.trustScore === "number" ? Math.round(l.trustScore * 100) : 32}%</span>
                   {Array.isArray(l.badges) && l.badges.length > 0 && (
                     <div className="mt-1 flex flex-wrap gap-1">
                       {l.badges.map((b: string) => (

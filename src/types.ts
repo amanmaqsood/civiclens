@@ -63,6 +63,35 @@ export interface GhostForensics {
   durationMs?: number;
 }
 
+export interface TrustConsensus {
+  confirmWeight: number;
+  disputeWeight: number;
+  totalWeight: number;
+  confirmVotes: number;
+  disputeVotes: number;
+  collapsedVotes: number;
+  consensusRatio: number;
+  brigadingRisk: "low" | "watch" | "high";
+  autoResolveThreshold: number;
+  appealable: boolean;
+  publicExplanation: string;
+  autoResolvedAt?: string;
+  autoResolvedBy?: string;
+  appealedAt?: string;
+  appealStatus?: "pending" | "accepted" | "rejected";
+  lastVoteAt?: string;
+  updatedAt?: string;
+  version?: string;
+}
+
+export interface TrustAppeal {
+  byUid?: string;
+  byRole?: string;
+  reason: string;
+  status: "pending" | "accepted" | "rejected";
+  appealedAt: string;
+}
+
 export interface IssueReport {
   id: string;
   ticketId: string;
@@ -112,7 +141,11 @@ export interface IssueReport {
   priorityScore?: number;
   confirmCount?: number;
   disputeCount?: number;
+  weightedConfirmScore?: number;
+  weightedDisputeScore?: number;
   verificationStatus?: string;
+  trustConsensus?: TrustConsensus;
+  trustAppeal?: TrustAppeal;
   agentTrace?: AgentTraceEntry[];
   perceiveMeta?: any;
   resolutionPlan?: ResolutionPlan;

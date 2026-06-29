@@ -177,6 +177,21 @@ Phase 3.3 semantic auto-merge-on-create verification on 2026-06-30:
 - `.\node_modules\.bin\vitest.cmd run`: passed; 21 files passed, 2 skipped; 93 tests passed, 7 skipped.
 - `npm run build`: passed; Vite transformed 2141 modules and emitted no chunk over 500 kB. Largest JS chunk was `fb-firestore` at 475.16 kB.
 
+Phase 4.1 trust economy and brigading-guard verification on 2026-06-30:
+
+- Community verification now calculates a per-user `trustScore`, audits each confirm/dispute signal with Gemini, stores the vote's audit result and weight, and keeps raw `confirmCount`/`disputeCount` compatibility fields intact.
+- Issues now maintain a public `trustConsensus` object with weighted confirm/dispute scores, collapsed-vote count, brigading-risk state, public explanation, auto-resolution threshold, and appeal status.
+- Suspicious rapid low-trust vote bursts collapse to near-zero weight and emit `trust_brigading_collapsed`; high-trust weighted consensus can auto-resolve eligible `verified` or `in_progress` cases and emits `trust_consensus_resolved`.
+- Auto-resolved consensus decisions are appealable through `POST /api/issues/:issueId/trust-appeal`; a successful appeal reopens the case to `in_progress`, records `trustAppeal`, and emits `trust_consensus_appealed`.
+- The public issue detail verification panel now shows weighted consensus, brigading-risk status, collapsed signals, and an appeal control when applicable. The public leaderboard now includes anonymized trust score.
+- `.\node_modules\.bin\tsc.cmd --noEmit`: passed with 0 errors.
+- `.\node_modules\.bin\vitest.cmd run src\server\trust-economy.test.ts src\server\perimeter.test.ts src\server\events-spine.test.ts src\server\release-security.test.ts`: passed; 4 files passed, 22 tests passed.
+- Real Gemini emulator proof: `firebase emulators:exec --project demo-civiclens --only auth,firestore,storage "powershell -NoProfile -ExecutionPolicy Bypass -File scripts\verify-trust-economy-live.ps1"` passed and reported `TRUST_ECONOMY_LIVE status=in_progress auditModel=gemini-2.5-flash fallback=false confirmWeight=3 appeal=pending brigadeRisk=high collapsed=4`.
+- `.\node_modules\.bin\vitest.cmd run`: passed; 23 files passed, 3 skipped; 99 tests passed, 10 skipped.
+- `npm run build`: passed; Vite transformed 2141 modules, emitted `dist/server.cjs` at 223.4 kB, and kept the largest JS chunk at `fb-firestore` 475.16 kB.
+- `npm run test:rules`: passed; 1 emulator rules file passed, 3 tests passed.
+- `npm run test:concurrency`: passed; 1 emulator concurrency file passed, 4 tests passed.
+
 Phase 5.1 + 5.5 dark mode and celebration-removal verification on 2026-06-30:
 
 - The app now has a persistent `ThemeProvider` with a header icon toggle, stored `civiclens-theme` preference, system dark-mode default, root `dark` class, `data-theme`, and browser `color-scheme`.

@@ -167,6 +167,7 @@ export function classifyProtectedRoute(method: string, path: string): "health" |
     path === "/api/resolution-plan" ||
     path === "/api/verify-resolution" ||
     path.endsWith("/ghost-forensics") ||
+    path.endsWith("/verification") ||
     path === "/api/escalation" ||
     path === "/api/translate" ||
     path === "/api/agent/run"

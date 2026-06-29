@@ -210,8 +210,12 @@ function issueReportFromSnapshot(id: string, data: any): IssueReport {
     dedup: data.dedup || undefined,
     confirmCount: data.confirmCount || 0,
     disputeCount: data.disputeCount || 0,
+    weightedConfirmScore: data.weightedConfirmScore || 0,
+    weightedDisputeScore: data.weightedDisputeScore || 0,
     priorityScore: data.priorityScore,
     verificationStatus: data.verificationStatus || "unverified",
+    trustConsensus: data.trustConsensus || undefined,
+    trustAppeal: data.trustAppeal || undefined,
     agentTrace: data.agentTrace || [],
     resolutionPlan: data.resolutionPlan || undefined,
     closureAssessment: data.closureAssessment || undefined,
@@ -409,6 +413,13 @@ export async function findDuplicateCandidates(
           confidence: data.confidence,
           reportCount: data.reportCount || 1,
           dedup: data.dedup || undefined,
+          confirmCount: data.confirmCount || 0,
+          disputeCount: data.disputeCount || 0,
+          weightedConfirmScore: data.weightedConfirmScore || 0,
+          weightedDisputeScore: data.weightedDisputeScore || 0,
+          verificationStatus: data.verificationStatus || "unverified",
+          trustConsensus: data.trustConsensus || undefined,
+          trustAppeal: data.trustAppeal || undefined,
           agentTrace: data.agentTrace || [],
           resolutionPlan: data.resolutionPlan || undefined,
           closureAssessment: data.closureAssessment || undefined,
@@ -537,8 +548,9 @@ export async function submitEvidenceForIssue(
 // Submits verification (Confirm / Dispute)
 export async function submitVerification(
   issueId: string,
-  type: "confirm" | "dispute"
-): Promise<void> {
+  type: "confirm" | "dispute",
+  reason = ""
+): Promise<any> {
   const currentUser = auth.currentUser;
   if (!currentUser) {
     throw new Error("Authentication required to verify or dispute reports.");
@@ -546,12 +558,30 @@ export async function submitVerification(
 
   const response = await apiFetch(`/api/issues/${issueId}/verification`, {
     method: "POST",
-    body: JSON.stringify({ type }),
+    body: JSON.stringify({ type, reason }),
   });
   if (!response.ok) {
     const err = await response.json().catch(() => ({}));
     throw new Error(err.error || "Failed to submit verification.");
   }
+  return response.json().catch(() => ({ success: true }));
+}
+
+export async function appealTrustConsensus(issueId: string, reason: string): Promise<any> {
+  const currentUser = auth.currentUser;
+  if (!currentUser) {
+    throw new Error("Authentication required to appeal consensus decisions.");
+  }
+
+  const response = await apiFetch(`/api/issues/${issueId}/trust-appeal`, {
+    method: "POST",
+    body: JSON.stringify({ reason }),
+  });
+  if (!response.ok) {
+    const err = await response.json().catch(() => ({}));
+    throw new Error(err.error || "Failed to appeal consensus decision.");
+  }
+  return response.json().catch(() => ({ success: true }));
 }
 
 // Check user status for verification

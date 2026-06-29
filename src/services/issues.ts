@@ -10,7 +10,7 @@ import {
 } from "firebase/firestore";
 import { ref, uploadString, getDownloadURL } from "firebase/storage";
 import { db, auth, storage, handleFirestoreError, OperationType } from "../lib/firebase";
-import { IssueReport, AgentTraceEntry, ResolutionPlan, IssueActivity, ClosureAssessment } from "../types";
+import { IssueReport, AgentTraceEntry, ResolutionPlan, IssueActivity, ClosureAssessment, CivicEvent } from "../types";
 import { apiFetch } from "./api";
 import { IssueStatusKey, normalizeIssueStatus } from "../constants/status";
 
@@ -758,6 +758,37 @@ export async function fetchIssueActivities(issueId: string): Promise<IssueActivi
     return result;
   } catch (err) {
     handleFirestoreError(err, OperationType.LIST, `${COLLECTION_NAME}/${issueId}/activity`);
+    throw err;
+  }
+}
+
+// Fetch the server-owned append-only event ledger mirrored under an issue.
+export async function fetchIssueEvents(issueId: string): Promise<CivicEvent[]> {
+  const eventsCollectionRef = collection(db, COLLECTION_NAME, issueId, "events");
+  try {
+    const q = query(eventsCollectionRef, orderBy("timestamp", "asc"));
+    const snap = await getDocs(q);
+    const result: CivicEvent[] = [];
+    snap.forEach((doc) => {
+      const data = doc.data();
+      result.push({
+        id: data.id || doc.id,
+        issueId: data.issueId || issueId,
+        actorType: data.actorType || "system",
+        source: data.source || "system",
+        status: data.status || "succeeded",
+        severity: data.severity || "info",
+        eventType: data.eventType || "event",
+        message: data.message || "Case event recorded.",
+        timestamp: data.timestamp || data.createdAt || new Date(0).toISOString(),
+        createdAt: data.createdAt,
+        requestId: data.requestId || null,
+        idempotencyKey: data.idempotencyKey || null,
+      });
+    });
+    return result;
+  } catch (err) {
+    handleFirestoreError(err, OperationType.LIST, `${COLLECTION_NAME}/${issueId}/events`);
     throw err;
   }
 }

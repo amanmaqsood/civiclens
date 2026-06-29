@@ -205,6 +205,19 @@ Phase 4.5 multilingual voice-intake verification on 2026-06-30:
 - `npm run test:rules`: passed; 1 emulator rules file passed, 3 tests passed.
 - `npm run test:concurrency`: passed; 1 emulator concurrency file passed, 4 tests passed.
 
+Phase 4.6 citizen accountability-ledger verification on 2026-06-30:
+
+- Added a typed `CivicEvent` client model and `fetchIssueEvents(issueId)`, which reads the server-owned `issues/{issueId}/events` mirror ordered by timestamp.
+- Added the public `AccountabilityLedger` panel on issue detail pages with loading/error/empty states, actor/source/status labeling, compact event cards, and a tabular fallback.
+- The ledger remains read-only for clients: issue-scoped events are signed-in readable through Firestore Rules, while client create/update/delete and top-level event access remain denied.
+- `.\node_modules\.bin\tsc.cmd --noEmit`: passed with 0 errors.
+- `.\node_modules\.bin\vitest.cmd run src\server\accountability-ledger.test.ts src\server\events-spine.test.ts src\emulator-rules.test.ts`: passed; 2 files passed and 1 skipped outside emulator; 6 tests passed and 3 skipped.
+- Browser/emulator proof: `firebase emulators:exec --project demo-civiclens --only auth,firestore "powershell -NoProfile -ExecutionPolicy Bypass -File scripts\verify-accountability-ledger-live.ps1"` passed and reported `ACCOUNTABILITY_LEDGER_LIVE issueId=ledgerlive1782766385642 eventCount=1 firstEvent=created source=api rendered=true tableRows=1`.
+- `.\node_modules\.bin\vitest.cmd run`: passed; 25 files passed, 3 skipped; 105 tests passed, 10 skipped.
+- `npm run build`: passed; Vite transformed 2142 modules, emitted `dist/server.cjs` at 229.8 kB, and kept the largest JS chunk at `fb-firestore` 475.16 kB.
+- `npm run test:rules`: passed; 1 emulator rules file passed, 3 tests passed.
+- `npm run test:concurrency`: passed; 1 emulator concurrency file passed, 4 tests passed.
+
 Phase 5.1 + 5.5 dark mode and celebration-removal verification on 2026-06-30:
 
 - The app now has a persistent `ThemeProvider` with a header icon toggle, stored `civiclens-theme` preference, system dark-mode default, root `dark` class, `data-theme`, and browser `color-scheme`.

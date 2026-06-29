@@ -216,3 +216,18 @@ export interface IssueActivity {
   message: string;
   timestamp: string;
 }
+
+export interface CivicEvent {
+  id: string;
+  issueId?: string | null;
+  actorType: "citizen" | "operator" | "ai" | "worker" | "system";
+  source: "api" | "agent" | "worker" | "gemini" | "system";
+  status: "attempted" | "succeeded" | "failed";
+  severity: "debug" | "info" | "warn" | "error";
+  eventType: string;
+  message: string;
+  timestamp: string;
+  createdAt?: string;
+  requestId?: string | null;
+  idempotencyKey?: string | null;
+}

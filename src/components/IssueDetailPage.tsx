@@ -1,11 +1,12 @@
 import React, { useState, useEffect } from "react";
 import { ArrowLeft, ArrowUp, MapPin, ShieldAlert, Clock, RefreshCw, Sparkles } from "lucide-react";
-import { IssueReport, IssueActivity } from "../types";
-import { fetchIssueActivities } from "../services/issues";
+import { IssueReport, IssueActivity, CivicEvent } from "../types";
+import { fetchIssueActivities, fetchIssueEvents } from "../services/issues";
 import { useLanguage } from "../context/LanguageContext";
 import PriorityBreakdownWidget from "./PriorityBreakdownWidget";
 import VerificationPanel from "./VerificationPanel";
 import AgentTraceTimeline from "./AgentTraceTimeline";
+import AccountabilityLedger from "./AccountabilityLedger";
 import { humanizeCategory, humanizeUrgency } from "../utils/humanize";
 import { fetchLatestAgentRun } from "../services/api";
 import { ISSUE_STATUS_KEYS, issueStatusLabel } from "../constants/status";
@@ -78,6 +79,9 @@ export default function IssueDetailPage({
 
   const [activities, setActivities] = useState<IssueActivity[]>([]);
   const [loadingAct, setLoadingAct] = useState(true);
+  const [ledgerEvents, setLedgerEvents] = useState<CivicEvent[]>([]);
+  const [loadingLedger, setLoadingLedger] = useState(true);
+  const [ledgerError, setLedgerError] = useState<string | null>(null);
   
   const { language: lang, t } = useLanguage();
 
@@ -120,6 +124,30 @@ export default function IssueDetailPage({
       }
     }
     load();
+    return () => {
+      active = false;
+    };
+  }, [issue.id]);
+
+  useEffect(() => {
+    let active = true;
+    async function loadLedger() {
+      setLoadingLedger(true);
+      setLedgerError(null);
+      try {
+        const data = await fetchIssueEvents(issue.id);
+        if (active) setLedgerEvents(data);
+      } catch (err) {
+        console.error("Failed to load accountability ledger in detail page:", err);
+        if (active) {
+          setLedgerEvents([]);
+          setLedgerError("Ledger records are temporarily unavailable.");
+        }
+      } finally {
+        if (active) setLoadingLedger(false);
+      }
+    }
+    loadLedger();
     return () => {
       active = false;
     };
@@ -468,6 +496,8 @@ export default function IssueDetailPage({
           })}
         </div>
       </div>
+
+      <AccountabilityLedger events={ledgerEvents} loading={loadingLedger} error={ledgerError} />
 
       {/* Prototype activity trail list */}
       <div className="bg-white border border-hairline rounded-2xl p-4 flex flex-col gap-3.5 shadow-[0_4px_16px_-4px_rgba(14,26,43,0.05)]">

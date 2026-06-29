@@ -309,6 +309,22 @@ Phase 6.3 observability and grounding-citation verification on 2026-06-30:
 - `npm run test:e2e`: passed; 7 Chromium Playwright tests passed against local Firebase Auth, Firestore, and Storage emulators.
 - Hygiene scans found no prohibited attribution terms and no Google API-key prefix matches. `git diff --check` returned only line-ending normalization warnings, and generated observability verifier logs were removed before commit.
 
+Phase 6.4 deploy-smoke automation verification on 2026-06-30:
+
+- Added a job-secret protected `POST /api/smoke/deploy` endpoint that runs a readiness check, Firebase Admin Auth `listUsers(1)`, a real Gemini structured JSON call with usage/cost accounting, and a live Google Maps Platform call.
+- The Maps smoke prefers the Places autocomplete web-service endpoint. If the available key is HTTP-referrer restricted, it falls back to loading the Maps JavaScript endpoint with `libraries=places` and the configured `APP_URL` referrer.
+- Added `scripts/deploy-smoke.ps1`, `npm run smoke:deploy`, and `scripts/verify-deploy-smoke-live.ps1`. The script waits on `/readyz`, calls `/api/smoke/deploy`, fails closed on any service failure, and prints one secret-free `DEPLOY_SMOKE_LIVE` proof line.
+- Deployment docs now require the automated smoke before release-ready status and document `CIVICLENS_DEPLOY_SMOKE_URL`, `CIVICLENS_JOB_SECRET`, and the expected proof format.
+- `.\node_modules\.bin\tsc.cmd --noEmit`: passed with 0 errors.
+- `.\node_modules\.bin\vitest.cmd run src\server\deploy-smoke.test.ts src\server\perimeter.test.ts src\server\release-security.test.ts src\docs-readiness.test.ts`: passed; 4 files passed, 25 tests passed.
+- Real Gemini/Maps/Auth emulator proof: `firebase emulators:exec --project demo-civiclens --only auth,firestore "powershell -NoProfile -ExecutionPolicy Bypass -File scripts\verify-deploy-smoke-live.ps1"` passed and reported `DEPLOY_SMOKE_LIVE url=http://127.0.0.1:3025 ready=ready auth=ok gemini=ok maps=OK mapsApi=maps-javascript-places-bootstrap geminiTokens=97 mapsPredictions=0 durationMs=3042`.
+- `.\node_modules\.bin\vitest.cmd run`: passed; 29 files passed, 3 skipped; 119 tests passed, 10 skipped.
+- `npm run build`: passed; Vite transformed 2341 modules, emitted `dist/server.cjs` at 258.0 kB, and kept the largest JS chunk at `fb-firestore` 475.16 kB with no chunk over 500 kB.
+- `npm run test:rules`: passed; 1 emulator rules file passed, 3 tests passed.
+- `npm run test:concurrency`: passed; 1 emulator concurrency file passed, 4 tests passed.
+- `npm run test:e2e`: passed; 7 Chromium Playwright tests passed against local Firebase Auth, Firestore, and Storage emulators.
+- Hygiene scans found no prohibited attribution terms and no Google API-key prefix matches. `git diff --check` returned only line-ending normalization warnings, and deploy-smoke temp logs were removed before commit.
+
 Latest local validation after public documentation cleanup and current-tree internal artifact removal:
 
 - `npm ci`: passed; install audit reported 3 moderate dev-dependency issues while production audit remained clean.

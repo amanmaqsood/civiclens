@@ -520,9 +520,13 @@ async function startServer() {
     return String(req.originalUrl || req.url || "").split("?")[0];
   }
 
+  function isJobSecretRoute(path: string): boolean {
+    return path === "/api/jobs/run" || path === "/api/smoke/deploy";
+  }
+
   function hasValidJobSecret(req: any): boolean {
     const jobSecret = process.env.CIVICLENS_JOB_SECRET || "";
-    return apiPath(req) === "/api/jobs/run" && !!jobSecret && req.headers["x-civiclens-job-secret"] === jobSecret;
+    return isJobSecretRoute(apiPath(req)) && !!jobSecret && req.headers["x-civiclens-job-secret"] === jobSecret;
   }
 
   app.use("/api/*", (req: any, res, next) => {
@@ -790,6 +794,214 @@ async function startServer() {
   app.get("/api/readyz", (req, res) => {
     const payload = readinessPayload();
     res.status(payload.ready ? 200 : 503).json(payload);
+  });
+
+  type DeploySmokeCheck = {
+    ok: boolean;
+    name: string;
+    status: string;
+    durationMs?: number;
+    detail?: Record<string, unknown>;
+    error?: string;
+  };
+
+  async function runDeploySmokeChecks() {
+    const startedAt = Date.now();
+    const checks: Record<"readyz" | "auth" | "gemini" | "maps", DeploySmokeCheck> = {
+      readyz: {
+        name: "readyz",
+        ok: false,
+        status: "not_checked",
+      },
+      auth: {
+        name: "auth",
+        ok: false,
+        status: "not_checked",
+      },
+      gemini: {
+        name: "gemini",
+        ok: false,
+        status: "not_checked",
+      },
+      maps: {
+        name: "maps",
+        ok: false,
+        status: "not_checked",
+      },
+    };
+
+    const readiness = readinessPayload();
+    checks.readyz = {
+      name: "readyz",
+      ok: readiness.ready,
+      status: readiness.status,
+      detail: {
+        adminDb: readiness.checks.adminDb,
+        geminiConfigured: readiness.checks.geminiConfigured,
+        configValid: readiness.checks.configValid,
+      },
+    };
+
+    const authStartedAt = Date.now();
+    try {
+      const authResult = await getAdminAuth().listUsers(1);
+      checks.auth = {
+        name: "auth",
+        ok: true,
+        status: "ok",
+        durationMs: Date.now() - authStartedAt,
+        detail: {
+          userSampleCount: authResult.users.length,
+          nextPageTokenPresent: !!authResult.pageToken,
+        },
+      };
+    } catch (error: any) {
+      checks.auth = {
+        name: "auth",
+        ok: false,
+        status: "failed",
+        durationMs: Date.now() - authStartedAt,
+        error: safeLogText(error?.message || String(error)),
+      };
+    }
+
+    const smokeUsage = createGeminiUsageAccumulator();
+    const geminiStartedAt = Date.now();
+    try {
+      if (!geminiApiKey) {
+        throw new Error("Gemini API key is not configured.");
+      }
+      const result = await generateContentWithRetry(ai, {
+        model: "gemini-2.5-flash",
+        contents: "Return strict JSON proving this deploy smoke reached Gemini: {\"ok\":true,\"service\":\"gemini\"}.",
+        config: {
+          responseMimeType: "application/json",
+          responseSchema: {
+            type: Type.OBJECT,
+            properties: {
+              ok: { type: Type.BOOLEAN },
+              service: { type: Type.STRING },
+            },
+            required: ["ok", "service"],
+          },
+        },
+      }, { signal: AbortSignal.timeout(20_000), usageAccumulator: smokeUsage });
+      const responseText = (result.response.text || "").trim().replace(/^```(?:json)?\s*/i, "").replace(/```\s*$/, "").trim();
+      const parsed = JSON.parse(responseText);
+      checks.gemini = {
+        name: "gemini",
+        ok: parsed.ok === true,
+        status: parsed.ok === true ? "ok" : "unexpected_response",
+        durationMs: Date.now() - geminiStartedAt,
+        detail: {
+          service: safeLogText(parsed.service, "unknown", 80),
+          retried: result.retried,
+          totalTokenCount: result.usage.totalTokenCount,
+          estimatedCostUsd: result.usage.estimatedCostUsd,
+        },
+      };
+    } catch (error: any) {
+      checks.gemini = {
+        name: "gemini",
+        ok: false,
+        status: "failed",
+        durationMs: Date.now() - geminiStartedAt,
+        error: safeLogText(error?.message || String(error)),
+      };
+    }
+
+    const mapsStartedAt = Date.now();
+    try {
+      const mapsKey = process.env.GOOGLE_MAPS_PLATFORM_KEY || process.env.VITE_GOOGLE_MAPS_PLATFORM_KEY || "";
+      if (!mapsKey) {
+        throw new Error("Google Maps Platform key is not configured.");
+      }
+      const mapsUrl = new URL("https://maps.googleapis.com/maps/api/place/autocomplete/json");
+      mapsUrl.searchParams.set("input", "Indiranagar Metro Station Bengaluru");
+      mapsUrl.searchParams.set("components", "country:in");
+      mapsUrl.searchParams.set("key", mapsKey);
+      const mapsResponse = await fetch(mapsUrl, { signal: AbortSignal.timeout(12_000) });
+      const mapsJson: any = await mapsResponse.json().catch(() => ({}));
+      const predictions = Array.isArray(mapsJson.predictions) ? mapsJson.predictions : [];
+      const mapsOk = mapsResponse.ok && mapsJson.status === "OK" && predictions.length > 0;
+      if (mapsOk) {
+        checks.maps = {
+          name: "maps",
+          ok: true,
+          status: "OK",
+          durationMs: Date.now() - mapsStartedAt,
+          detail: {
+            api: "places-autocomplete-web-service",
+            httpStatus: mapsResponse.status,
+            predictionCount: predictions.length,
+            firstPrediction: safeLogText(predictions[0]?.description, "", 160) || null,
+          },
+        };
+      } else {
+        const webServiceError = safeLogText(mapsJson.error_message || mapsResponse.statusText || "Maps smoke did not return predictions.");
+        const appReferer = String(process.env.APP_URL || "").trim() || "http://localhost";
+        const mapsJsUrl = new URL("https://maps.googleapis.com/maps/api/js");
+        mapsJsUrl.searchParams.set("key", mapsKey);
+        mapsJsUrl.searchParams.set("libraries", "places");
+        mapsJsUrl.searchParams.set("v", "weekly");
+        mapsJsUrl.searchParams.set("callback", "__civiclensDeploySmoke");
+        const mapsJsResponse = await fetch(mapsJsUrl, {
+          headers: { Referer: appReferer.endsWith("/") ? appReferer : `${appReferer}/` },
+          signal: AbortSignal.timeout(12_000),
+        });
+        const mapsJsText = await mapsJsResponse.text();
+        const mapsJsError = /(?:InvalidKeyMapError|RefererNotAllowedMapError|ApiNotActivatedMapError|ClientBillingNotEnabledMapError|ApiTargetBlockedMapError)/.exec(mapsJsText)?.[0] || "";
+        const mapsJsOk = mapsJsResponse.ok && !mapsJsError && mapsJsText.includes("__civiclensDeploySmoke");
+        checks.maps = {
+          name: "maps",
+          ok: mapsJsOk,
+          status: mapsJsOk ? "OK" : safeLogText(mapsJson.status || mapsJsResponse.statusText || mapsJsResponse.status, "unknown", 80),
+          durationMs: Date.now() - mapsStartedAt,
+          detail: {
+            api: mapsJsOk ? "maps-javascript-places-bootstrap" : "places-autocomplete-web-service",
+            httpStatus: mapsJsResponse.status,
+            predictionCount: predictions.length,
+            firstPrediction: safeLogText(predictions[0]?.description, "", 160) || null,
+            placesLibraryRequested: true,
+            javascriptBytes: mapsJsText.length,
+          },
+          error: mapsJsOk ? undefined : safeLogText(mapsJsError || webServiceError || "Maps smoke did not load."),
+        };
+      }
+    } catch (error: any) {
+      checks.maps = {
+        name: "maps",
+        ok: false,
+        status: "failed",
+        durationMs: Date.now() - mapsStartedAt,
+        error: safeLogText(error?.message || String(error)),
+      };
+    }
+
+    const success = Object.values(checks).every((check) => check.ok);
+    return {
+      success,
+      generatedAt: new Date().toISOString(),
+      durationMs: Date.now() - startedAt,
+      checks,
+      geminiUsage: snapshotGeminiUsage(smokeUsage),
+    };
+  }
+
+  app.post("/api/smoke/deploy", async (req: any, res) => {
+    if (!hasValidJobSecret(req)) return sendApiError(res, 403, "Deploy smoke requires a valid job secret.");
+    const result = await runDeploySmokeChecks();
+    structuredLog(result.success ? "info" : "error", "deploy_smoke_completed", {
+      status: result.success ? "passed" : "failed",
+      durationMs: result.durationMs,
+      readyz: result.checks.readyz.status,
+      auth: result.checks.auth.status,
+      gemini: result.checks.gemini.status,
+      maps: result.checks.maps.status,
+      geminiTotalTokenCount: result.geminiUsage.geminiTotalTokenCount,
+      geminiEstimatedCostUsd: result.geminiUsage.geminiEstimatedCostUsd,
+    });
+    return res.status(result.success ? 200 : 503).json(result);
   });
 
   function cloudLoggingQueries() {

@@ -51,6 +51,8 @@ CIVICLENS_REQUIRE_APP_CHECK="false"
 CIVICLENS_OPERATOR_EMAILS=""
 CIVICLENS_LOCAL_APP_CHECK_BYPASS="false"
 CIVICLENS_DEMO_OPERATOR_ENABLED="false"
+CIVICLENS_JOB_SECRET=""
+CIVICLENS_DEPLOY_SMOKE_URL=""
 
 CIVICLENS_QUOTA_BACKEND="firestore"
 CIVICLENS_QUOTA_COLLECTION="rateLimitBuckets"
@@ -150,16 +152,42 @@ gcloud run deploy civiclens `
   --platform=managed `
   --allow-unauthenticated `
   --set-env-vars="NODE_ENV=production,FIREBASE_PROJECT_ID=$PROJECT_ID,FIRESTORE_DATABASE_ID=$env:FIRESTORE_DATABASE_ID,APP_URL=$env:APP_URL,GOOGLE_MAPS_PLATFORM_KEY=$env:GOOGLE_MAPS_PLATFORM_KEY,CIVICLENS_OPERATOR_EMAILS=$env:CIVICLENS_OPERATOR_EMAILS,CIVICLENS_LOCAL_APP_CHECK_BYPASS=false,CIVICLENS_DEMO_OPERATOR_ENABLED=false,CIVICLENS_REQUIRE_APP_CHECK=$env:CIVICLENS_REQUIRE_APP_CHECK,CIVICLENS_QUOTA_BACKEND=firestore,CIVICLENS_QUOTA_COLLECTION=rateLimitBuckets" `
-  --set-secrets="GEMINI_API_KEY=GEMINI_API_KEY:latest"
+  --set-secrets="GEMINI_API_KEY=GEMINI_API_KEY:latest,CIVICLENS_JOB_SECRET=CIVICLENS_JOB_SECRET:latest"
 ```
 
 Set `CIVICLENS_DEMO_OPERATOR_ENABLED=true` only for a deliberately public synthetic demo deployment. Demo mutations remain limited to `isDemoData == true` cases.
+
+## Automated Deploy Smoke
+
+Run the deploy smoke before calling a Cloud Run revision release-ready. The script waits for `/readyz`, then posts to `/api/smoke/deploy` with `x-civiclens-job-secret`. The server-side check proves Firebase Admin Auth with `listUsers(1)`, a real Gemini JSON call, and a Google Maps call without printing secrets. It prefers the Places autocomplete web service and falls back to a Maps JavaScript bootstrap with `libraries=places` when the available key is restricted by HTTP referrer.
+
+PowerShell:
+
+```powershell
+$env:CIVICLENS_DEPLOY_SMOKE_URL = $env:APP_URL
+$env:CIVICLENS_JOB_SECRET = "<Secret Manager value, not a resource name>"
+npm run smoke:deploy
+
+# Or pass values explicitly:
+powershell -NoProfile -ExecutionPolicy Bypass -File scripts\deploy-smoke.ps1 `
+  -BaseUrl "$env:APP_URL" `
+  -JobSecret "$env:CIVICLENS_JOB_SECRET"
+```
+
+Expected proof line:
+
+```text
+DEPLOY_SMOKE_LIVE url=https://... ready=ready auth=ok gemini=ok maps=OK mapsApi=... geminiTokens=... mapsPredictions=... durationMs=...
+```
+
+If the Maps check still returns `REQUEST_DENIED`, confirm `APP_URL` is set to the deployed origin and that the Maps key allows that origin.
 
 ## Required Smoke Tests After Deploy
 
 - Open the public app URL in a clean browser profile.
 - Verify `/health` returns 200.
 - Verify `/readyz` returns 200 before calling the deployment release-ready.
+- Run `npm run smoke:deploy` and save the `DEPLOY_SMOKE_LIVE` proof line.
 - If App Check is enforced, confirm browser API requests include `X-Firebase-AppCheck`.
 - Submit a synthetic report.
 - Run AI triage for the saved report.

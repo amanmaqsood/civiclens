@@ -51,6 +51,7 @@ Notes:
 - Set `CIVICLENS_REQUIRE_APP_CHECK=true` and `CIVICLENS_DEMO_OPERATOR_ENABLED=false` for the public production cut (keep demo on only for a judging demo instance).
 - `VITE_*` browser values are baked at build time (already wired in `cloudbuild.yaml`).
 - After deploy, smoke-check: `GET /readyz` should report `adminDb:true, geminiConfigured:true, configValid:true`.
+- Run `scripts\deploy-smoke.ps1` or `npm run smoke:deploy` against the deployed URL with `CIVICLENS_JOB_SECRET`; the proof line must include `DEPLOY_SMOKE_LIVE` with `auth=ok`, `gemini=ok`, `maps=OK`, and `mapsApi=...`.
 - Keep `CIVICLENS_QUOTA_BACKEND=firestore` in production so quota buckets are shared across Cloud Run instances. Development may use `memory`, but it is process-local.
 - Follow `docs/OBSERVABILITY.md` after the first smoke run to create logs-based metrics and import `docs/monitoring/civiclens-cloud-monitoring-dashboard.json`.
 

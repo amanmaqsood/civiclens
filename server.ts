@@ -2847,6 +2847,11 @@ Return STRICT JSON: { "action": "wait|escalate|request_evidence|ready_to_close",
               },
               required: ["action", "reason"]
             }
+          },
+          {
+            name: "get_local_context",
+            description: "Fetch real external context for this issue's location: live weather (Open-Meteo), nearby sensitive amenities like schools/hospitals (OpenStreetMap), and same-category recurrence within 1km. Use it to ground severity/priority (e.g. rain worsens flooding; a school nearby raises urgency).",
+            parameters: { type: Type.OBJECT, properties: {} }
           }
         ]
       }];
@@ -2855,6 +2860,9 @@ Return STRICT JSON: { "action": "wait|escalate|request_evidence|ready_to_close",
       async function execTool(name: string, args: any) {
         if (name === "search_nearby_cases") {
           return { candidates: safeCandidates, radiusM: args.radiusM || 250 };
+        }
+        if (name === "get_local_context") {
+          return await fetchExternalGrounding((issue as any).lat, (issue as any).lng, (issue as any).category, issueId);
         }
         if (name === "calculate_priority") {
           // Real work: derive inputs from canonical server data, not model args,
@@ -2965,6 +2973,7 @@ Goal: produce a defensible triage - detect duplicates, ground the priority, iden
 Decision guidance (branch on evidence; do NOT blindly run every tool):
 - ${safeCandidates.length} nearby candidate(s) are available. Call search_nearby_cases only if duplicate detection is warranted; if there are 0 candidates do NOT call compare_candidate_evidence.
 - If you find a confident duplicate, you may SKIP draft_action_packet and instead record_event routing it as a merge that needs human approval.
+- Call get_local_context to ground severity/priority in real-world conditions (live weather, nearby schools/hospitals, recurrence) before settling on a priority.
 - Call calculate_priority to ground the score in canonical server data.
 - Call find_responsible_authority when you need the department/contact for a non-duplicate issue.
 - Call draft_action_packet only for non-duplicate issues that need an outbound draft.

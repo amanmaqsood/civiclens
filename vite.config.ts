@@ -24,11 +24,19 @@ export default defineConfig(() => {
     build: {
       rollupOptions: {
         output: {
-          manualChunks: {
-            firebase: ['firebase/app', 'firebase/auth', 'firebase/firestore', 'firebase/storage'],
-            maps: ['@vis.gl/react-google-maps'],
-            motion: ['motion'],
-            icons: ['lucide-react'],
+          // Split heavy vendors into focused chunks so no single chunk dominates
+          // the initial load (Firestore is the largest Firebase module).
+          manualChunks(id: string) {
+            if (!id.includes('node_modules')) return undefined;
+            if (id.includes('firebase/firestore') || id.includes('@firebase/firestore')) return 'fb-firestore';
+            if (id.includes('firebase/auth') || id.includes('@firebase/auth')) return 'fb-auth';
+            if (id.includes('firebase/storage') || id.includes('@firebase/storage')) return 'fb-storage';
+            if (id.includes('firebase') || id.includes('@firebase') || id.includes('@grpc') || id.includes('protobufjs') || id.includes('idb')) return 'fb-core';
+            if (id.includes('@vis.gl/react-google-maps')) return 'maps';
+            if (id.includes('motion')) return 'motion';
+            if (id.includes('lucide-react')) return 'icons';
+            if (id.includes('react-dom') || id.includes('/react/') || id.includes('scheduler')) return 'react-vendor';
+            return undefined;
           },
         },
       },

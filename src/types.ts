@@ -89,6 +89,32 @@ export interface IssueReport {
   perceiveMeta?: any;
   resolutionPlan?: ResolutionPlan;
   closureAssessment?: ClosureAssessment;
+  slaDeadline?: string;
+  slaPolicy?: {
+    category: string;
+    severity: number;
+    urgency: "routine" | "priority" | "urgent";
+    slaHours: number;
+    slaDays: number;
+    matrixVersion: string;
+    source: string;
+    computedAt?: string;
+  };
+  slaLadder?: {
+    currentStage?: string;
+    nextStage?: string | null;
+    updatedAt?: string;
+    reminderAt?: string;
+    escalatedAt?: string;
+    rtiDraftedAt?: string;
+    firstAppealDraftedAt?: string;
+    deadlines?: {
+      reminderDueAt?: string;
+      escalationDueAt?: string;
+      rtiDueAt?: string;
+      firstAppealDueAt?: string;
+    };
+  };
   escalation?: {
     escalatedAt: string;
     escalationLetter: string;
@@ -96,6 +122,12 @@ export interface IssueReport {
     autoDraftedAt?: string;
     escalationLevel?: number;
     source?: string;
+    rtiPdfDataUri?: string;
+    rtiPdfFilename?: string;
+    rtiPdfGeneratedAt?: string;
+    rtiPdfBytes?: number;
+    firstAppealLetter?: string;
+    firstAppealDraftedAt?: string;
   };
   dispatch?: {
     deliveryId: string;

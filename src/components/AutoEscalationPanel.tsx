@@ -1,7 +1,7 @@
 import React, { useState } from "react";
 import { IssueReport } from "../types";
 import { triggerAutoEscalation, recordIssueActivity } from "../services/issues";
-import { ShieldAlert, Copy, Check, RefreshCw, Layers } from "lucide-react";
+import { ShieldAlert, Copy, Check, RefreshCw, Layers, Download, Clock } from "lucide-react";
 
 interface AutoEscalationPanelProps {
   issue: IssueReport;
@@ -14,8 +14,13 @@ export default function AutoEscalationPanel({ issue, onUpdated }: AutoEscalation
   const [copyError, setCopyError] = useState<string | null>(null);
   const [copiedEsc, setCopiedEsc] = useState(false);
   const [copiedRti, setCopiedRti] = useState(false);
+  const [copiedAppeal, setCopiedAppeal] = useState(false);
 
   const escalation = issue.escalation;
+  const ladder = issue.slaLadder;
+  const slaLabel = issue.slaPolicy
+    ? `${issue.slaPolicy.slaHours}h ${issue.slaPolicy.category}/S${issue.slaPolicy.severity}`
+    : null;
 
   const handleEscalate = async () => {
     setLoading(true);
@@ -76,6 +81,15 @@ export default function AutoEscalationPanel({ issue, onUpdated }: AutoEscalation
         </p>
       )}
 
+      {(issue.slaDeadline || slaLabel || ladder?.currentStage) && (
+        <div className="flex flex-wrap items-center gap-2 rounded-xl border border-hairline bg-paper px-3 py-2 text-sm font-semibold text-slate">
+          <Clock className="h-3.5 w-3.5 text-marigold" />
+          {slaLabel && <span>{slaLabel}</span>}
+          {issue.slaDeadline && <span>Due {new Date(issue.slaDeadline).toLocaleDateString()}</span>}
+          {ladder?.currentStage && ladder.currentStage !== "none" && <span>Stage {ladder.currentStage.replace(/_/g, " ")}</span>}
+        </div>
+      )}
+
       {escalation ? (
         <div className="flex flex-col gap-3.5">
           <div className="bg-paper border border-hairline p-3 rounded-xl text-sm text-slate font-medium leading-relaxed">
@@ -109,19 +123,52 @@ export default function AutoEscalationPanel({ issue, onUpdated }: AutoEscalation
                 <Layers className="w-3.5 h-3.5 text-marigold" />
                 (B) Section 6(1) RTI Application
               </span>
-              <button
-                type="button"
-                onClick={() => copyText(escalation.rtiRequest, setCopiedRti)}
-                className="flex min-h-[44px] items-center gap-1 rounded-lg px-2 text-sm font-bold text-slate hover:bg-white hover:text-ink"
-              >
-                {copiedRti ? <Check className="w-3.5 h-3.5 text-verify" /> : <Copy className="w-3.5 h-3.5" />}
-                <span>{copiedRti ? "Copied" : "Copy RTI"}</span>
-              </button>
+              <div className="flex items-center gap-1">
+                {escalation.rtiPdfDataUri && (
+                  <a
+                    href={escalation.rtiPdfDataUri}
+                    download={escalation.rtiPdfFilename || "CivicLens-RTI-draft.pdf"}
+                    className="flex min-h-[44px] items-center gap-1 rounded-lg px-2 text-sm font-bold text-slate hover:bg-white hover:text-ink"
+                  >
+                    <Download className="w-3.5 h-3.5" />
+                    <span>PDF</span>
+                  </a>
+                )}
+                <button
+                  type="button"
+                  onClick={() => copyText(escalation.rtiRequest || "", setCopiedRti)}
+                  className="flex min-h-[44px] items-center gap-1 rounded-lg px-2 text-sm font-bold text-slate hover:bg-white hover:text-ink"
+                >
+                  {copiedRti ? <Check className="w-3.5 h-3.5 text-verify" /> : <Copy className="w-3.5 h-3.5" />}
+                  <span>{copiedRti ? "Copied" : "Copy RTI"}</span>
+                </button>
+              </div>
             </div>
             <pre className="text-sm bg-paper p-3 rounded-xl max-h-36 overflow-y-auto font-mono text-ink/80 whitespace-pre-wrap border border-hairline leading-relaxed font-medium">
-              {escalation.rtiRequest}
+              {escalation.rtiRequest || "RTI draft pending the next SLA ladder step."}
             </pre>
           </div>
+
+          {escalation.firstAppealLetter && (
+            <div className="flex flex-col gap-1.5">
+              <div className="flex items-center justify-between">
+                <span className="text-sm font-mono font-bold text-slate">
+                  (C) First Appeal Draft
+                </span>
+                <button
+                  type="button"
+                  onClick={() => copyText(escalation.firstAppealLetter || "", setCopiedAppeal)}
+                  className="flex min-h-[44px] items-center gap-1 rounded-lg px-2 text-sm font-bold text-slate hover:bg-white hover:text-ink"
+                >
+                  {copiedAppeal ? <Check className="w-3.5 h-3.5 text-verify" /> : <Copy className="w-3.5 h-3.5" />}
+                  <span>{copiedAppeal ? "Copied" : "Copy appeal"}</span>
+                </button>
+              </div>
+              <pre className="text-sm bg-paper p-3 rounded-xl max-h-36 overflow-y-auto font-mono text-ink/80 whitespace-pre-wrap border border-hairline leading-relaxed font-medium">
+                {escalation.firstAppealLetter}
+              </pre>
+            </div>
+          )}
         </div>
       ) : (
         <div className="flex flex-col gap-3">

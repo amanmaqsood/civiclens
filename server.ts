@@ -542,6 +542,189 @@ async function startServer() {
     return Math.round(Math.min(100, severity * 12 + urgencyBonus + confirmBonus + reportBonus) * 10) / 10;
   }
 
+  const SLA_STAGE_ORDER = ["reminder", "escalation", "rti", "first_appeal"] as const;
+  type SlaStage = typeof SLA_STAGE_ORDER[number];
+  const SLA_MATRIX_HOURS: Record<string, number[]> = {
+    pothole: [336, 240, 168, 72, 24],
+    water_leak: [240, 168, 72, 24, 12],
+    streetlight: [240, 168, 120, 72, 24],
+    waste: [168, 120, 72, 48, 24],
+    drainage: [168, 96, 48, 24, 12],
+    road_damage: [336, 240, 120, 48, 24],
+    other: [336, 240, 168, 96, 48],
+  };
+
+  function resolveSlaPolicy(issue: any) {
+    const category = categoriesList.includes(issue?.category) ? issue.category : "other";
+    const severity = Math.round(cleanNumber(issue?.severity, 3, 1, 5));
+    const urgency = urgenciesList.includes(issue?.urgency) ? issue.urgency : "routine";
+    const baseHours = SLA_MATRIX_HOURS[category]?.[severity - 1] || SLA_MATRIX_HOURS.other[severity - 1] || 168;
+    const urgencyFactor = urgency === "urgent" ? 0.5 : urgency === "priority" ? 0.75 : 1;
+    const slaHours = Math.max(6, Math.round(baseHours * urgencyFactor));
+    return {
+      category,
+      severity,
+      urgency,
+      slaHours,
+      slaDays: Math.round((slaHours / 24) * 10) / 10,
+      matrixVersion: "category-severity-v1",
+      source: "category_severity_matrix",
+    };
+  }
+
+  function issueSlaStartMs(issue: any): number {
+    const parsed = Date.parse(issue?.createdAt || issue?.triagedAt || issue?.timestamp || "");
+    return Number.isFinite(parsed) ? parsed : Date.now();
+  }
+
+  function buildSlaSchedule(issue: any, policy = resolveSlaPolicy(issue), overrideThresholdHours?: number) {
+    const startMs = issueSlaStartMs(issue);
+    const forcedHours = Number.isFinite(overrideThresholdHours as number)
+      ? Math.max(0, overrideThresholdHours as number)
+      : null;
+    const reminderHours = forcedHours ?? Math.max(1, Math.round(policy.slaHours * 0.5));
+    const escalationHours = forcedHours ?? policy.slaHours;
+    const rtiHours = forcedHours ?? Math.max(policy.slaHours * 2, policy.slaHours + 72);
+    const firstAppealHours = forcedHours ?? Math.max(policy.slaHours * 4, policy.slaHours + 720);
+
+    return {
+      reminderDueAt: new Date(startMs + reminderHours * 3600000).toISOString(),
+      escalationDueAt: new Date(startMs + escalationHours * 3600000).toISOString(),
+      rtiDueAt: new Date(startMs + rtiHours * 3600000).toISOString(),
+      firstAppealDueAt: new Date(startMs + firstAppealHours * 3600000).toISOString(),
+    };
+  }
+
+  function nextStageAfter(stage: SlaStage): SlaStage | null {
+    const index = SLA_STAGE_ORDER.indexOf(stage);
+    return index >= 0 ? SLA_STAGE_ORDER[index + 1] || null : null;
+  }
+
+  function buildSlaIssueFields(issue: any, nowIso: string, overrideThresholdHours?: number) {
+    const policy = resolveSlaPolicy(issue);
+    const deadlines = buildSlaSchedule(issue, policy, overrideThresholdHours);
+    const ladder = issue?.slaLadder && typeof issue.slaLadder === "object" ? issue.slaLadder : {};
+    return {
+      slaPolicy: { ...policy, computedAt: nowIso },
+      slaDeadline: deadlines.escalationDueAt,
+      slaLadder: {
+        ...ladder,
+        deadlines,
+        currentStage: ladder.currentStage || "none",
+        nextStage: ladder.nextStage || "reminder",
+        updatedAt: nowIso,
+      },
+    };
+  }
+
+  function nextPendingSlaStage(issue: any, nowMs: number, overrideThresholdHours?: number): { stage: SlaStage; dueAt: string; policy: any; deadlines: any } | null {
+    const policy = resolveSlaPolicy(issue);
+    const deadlines = buildSlaSchedule(issue, policy, overrideThresholdHours);
+    const ladder = issue?.slaLadder || {};
+    const escalation = issue?.escalation || {};
+    const checks: Array<{ stage: SlaStage; dueAt: string; done: boolean }> = [
+      { stage: "reminder", dueAt: deadlines.reminderDueAt, done: !!ladder.reminderAt },
+      { stage: "escalation", dueAt: deadlines.escalationDueAt, done: !!ladder.escalatedAt || !!escalation.autoDraftedAt },
+      { stage: "rti", dueAt: deadlines.rtiDueAt, done: !!ladder.rtiDraftedAt || !!escalation.rtiPdfGeneratedAt },
+      { stage: "first_appeal", dueAt: deadlines.firstAppealDueAt, done: !!ladder.firstAppealDraftedAt || !!escalation.firstAppealDraftedAt },
+    ];
+    for (const check of checks) {
+      if (check.done) continue;
+      const dueMs = Date.parse(check.dueAt);
+      if (!Number.isFinite(dueMs) || nowMs >= dueMs) {
+        return { stage: check.stage, dueAt: check.dueAt, policy, deadlines };
+      }
+      return null;
+    }
+    return null;
+  }
+
+  function pdfEscape(value: string): string {
+    return value.replace(/\\/g, "\\\\").replace(/\(/g, "\\(").replace(/\)/g, "\\)").replace(/\r/g, "");
+  }
+
+  function wrapPdfLine(line: string, maxLength = 88): string[] {
+    const words = line.replace(/\s+/g, " ").trim().split(" ").filter(Boolean);
+    if (!words.length) return [""];
+    const lines: string[] = [];
+    let current = "";
+    for (const word of words) {
+      if (!current) {
+        current = word;
+      } else if (`${current} ${word}`.length <= maxLength) {
+        current = `${current} ${word}`;
+      } else {
+        lines.push(current);
+        current = word;
+      }
+    }
+    if (current) lines.push(current);
+    return lines;
+  }
+
+  function buildRtiPdfArtifact(issue: any, rtiRequest: string, generatedAt: string) {
+    const ticket = cleanText(issue?.ticketId || issue?.id, "civiclens-ticket", 80).replace(/[^a-zA-Z0-9_-]+/g, "-");
+    const headerLines = [
+      "CivicLens RTI Application Draft",
+      `Ticket: ${issue?.ticketId || issue?.id || "N/A"}`,
+      `Generated: ${generatedAt.slice(0, 10)}`,
+      `Location: ${cleanText(issue?.locationName, "Unspecified location", 160)}`,
+      "",
+      "Draft status: for human review only; not submitted by CivicLens.",
+      "",
+    ];
+    const bodyLines = cleanText(rtiRequest, "No RTI request text was available.", 5000)
+      .split("\n")
+      .flatMap((line) => wrapPdfLine(line));
+    const lines = [...headerLines, ...bodyLines].slice(0, 58);
+    if (bodyLines.length > 58 - headerLines.length) {
+      lines.push("...");
+      lines.push("Draft truncated for one-page PDF preview; use the text draft for the full copy.");
+    }
+
+    const textStream = [
+      "BT",
+      "/F1 10 Tf",
+      "50 790 Td",
+      "13 TL",
+      ...lines.map((line) => `(${pdfEscape(line)}) Tj T*`),
+      "ET",
+    ].join("\n");
+
+    const objects = [
+      "1 0 obj\n<< /Type /Catalog /Pages 2 0 R >>\nendobj\n",
+      "2 0 obj\n<< /Type /Pages /Kids [3 0 R] /Count 1 >>\nendobj\n",
+      "3 0 obj\n<< /Type /Page /Parent 2 0 R /MediaBox [0 0 612 842] /Resources << /Font << /F1 5 0 R >> >> /Contents 4 0 R >>\nendobj\n",
+      `4 0 obj\n<< /Length ${Buffer.byteLength(textStream, "utf8")} >>\nstream\n${textStream}\nendstream\nendobj\n`,
+      "5 0 obj\n<< /Type /Font /Subtype /Type1 /BaseFont /Helvetica >>\nendobj\n",
+    ];
+    let pdf = "%PDF-1.4\n";
+    const offsets = [0];
+    for (const object of objects) {
+      offsets.push(Buffer.byteLength(pdf, "utf8"));
+      pdf += object;
+    }
+    const xrefAt = Buffer.byteLength(pdf, "utf8");
+    pdf += `xref\n0 ${objects.length + 1}\n`;
+    pdf += "0000000000 65535 f \n";
+    for (const offset of offsets.slice(1)) {
+      pdf += `${String(offset).padStart(10, "0")} 00000 n \n`;
+    }
+    pdf += `trailer\n<< /Size ${objects.length + 1} /Root 1 0 R >>\nstartxref\n${xrefAt}\n%%EOF\n`;
+    const base64 = Buffer.from(pdf, "utf8").toString("base64");
+    return {
+      dataUri: `data:application/pdf;base64,${base64}`,
+      filename: `CivicLens-${ticket}-RTI-draft.pdf`,
+      byteLength: Buffer.byteLength(pdf, "utf8"),
+    };
+  }
+
+  function buildFirstAppealDraft(issue: any, generatedAt: string): string {
+    const ticketId = issue?.ticketId || issue?.id || "N/A";
+    const location = issue?.locationName || "the reported location";
+    return `To the First Appellate Authority,\n\nSubject: Draft first appeal for delayed RTI response related to CivicLens ticket ${ticketId}\n\nThis is a draft first appeal for human review. The underlying civic complaint concerns ${issue?.category || "a civic issue"} at ${location}. The draft asks the appellate authority to review delay or non-response to the related RTI application and to direct the Public Information Officer to provide status, responsible officer details, file notes, and expected action timelines.\n\nGenerated on ${generatedAt.slice(0, 10)} by CivicLens for manual review only. Nothing has been filed or submitted outside the app.`;
+  }
+
   function makeTicketId(): string {
     const datePart = new Date().toISOString().slice(2, 10).replace(/-/g, "");
     const randomPart = Math.random().toString(36).slice(2, 7).toUpperCase();
@@ -895,6 +1078,7 @@ async function startServer() {
       priorityScore: 0,
     };
     report.priorityScore = serverPriorityScore(report);
+    Object.assign(report, buildSlaIssueFields(report, nowIso));
 
     let createdNew = false;
     try {
@@ -1282,6 +1466,7 @@ Output ONLY valid JSON and nothing else.`;
       if (req.body?.draftResolutionPlan === true) {
         const planResult = await draftResolutionPlanFromIssue(issueData, issueId);
         updateData.resolutionPlan = planResult.data;
+        Object.assign(updateData, buildSlaIssueFields({ ...issueData, resolutionPlan: planResult.data }, updateData.updatedAt));
         updateData.agentTrace = [
           ...(Array.isArray(issueData.agentTrace) ? issueData.agentTrace : []),
           {
@@ -1374,17 +1559,26 @@ Output ONLY valid JSON and nothing else.`;
     try {
       const snap = await issueRef.get();
       if (!snap.exists) return sendApiError(res, 404, "Issue not found.");
-      if (!requireOperatorForIssue(snap.data(), actor, res)) return;
+      const issueData = snap.data();
+      if (!requireOperatorForIssue(issueData, actor, res)) return;
       const nowIso = new Date().toISOString();
+      const escalationLetter = cleanText(req.body?.escalationLetter, "", 8000);
+      const rtiRequest = cleanText(req.body?.rtiRequest, "", 8000);
+      const rtiPdf = buildRtiPdfArtifact({ id: issueId, ...issueData }, rtiRequest, nowIso);
       const escalation = {
         escalatedAt: nowIso,
-        escalationLetter: cleanText(req.body?.escalationLetter, "", 8000),
-        rtiRequest: cleanText(req.body?.rtiRequest, "", 8000),
+        escalationLetter,
+        rtiRequest,
+        rtiPdfDataUri: rtiPdf.dataUri,
+        rtiPdfFilename: rtiPdf.filename,
+        rtiPdfGeneratedAt: nowIso,
+        rtiPdfBytes: rtiPdf.byteLength,
+        source: "manual-gemini-draft",
       };
       await issueRef.update({
         escalation,
         agentTrace: [
-          ...(Array.isArray(snap.data().agentTrace) ? snap.data().agentTrace : []),
+          ...(Array.isArray(issueData.agentTrace) ? issueData.agentTrace : []),
           {
             step: "record_event",
             tool: "agent.record_event",
@@ -1441,6 +1635,7 @@ Output ONLY valid JSON and nothing else.`;
         routingApprovedAt: nowIso,
         routingApprovedBy: actor.uid,
         assignedAt: data.assignedAt || nowIso,
+        ...buildSlaIssueFields(data, nowIso),
         updatedAt: nowIso,
       });
       await addServerActivity(issueRef, {
@@ -1723,6 +1918,7 @@ Output ONLY valid JSON and nothing else.`;
           }],
           priorityScore: serverPriorityScore(template),
         };
+        Object.assign(report, buildSlaIssueFields(report, report.updatedAt));
         seededReports.push({ ref, report });
         batch.set(ref, report);
         batch.set(ref.collection("activity").doc(), {
@@ -2952,43 +3148,134 @@ Return STRICT JSON: { "escalationLetter": "string", "rtiRequest": "string" }`;
     }
   }
 
-  // Scans open issues and autonomously drafts escalation+RTI for those whose
-  // follow-up window has elapsed - idempotently (one auto-draft per issue).
-  async function runSlaEscalationWorker(opts: { thresholdHours?: number; limit?: number }) {
-    const thresholdHours = Number.isFinite(opts.thresholdHours as number) ? Math.max(0, opts.thresholdHours as number) : 168;
+  // Scans open issues and advances the idempotent SLA ladder one rung at a time:
+  // reminder -> escalation draft -> RTI PDF -> first appeal draft.
+  async function runSlaEscalationWorker(opts: { thresholdHours?: number; limit?: number; issueId?: string }) {
+    const thresholdHours = Number.isFinite(opts.thresholdHours as number) ? Math.max(0, opts.thresholdHours as number) : undefined;
     const limit = Math.min(50, Math.max(1, opts.limit || 25));
     const nowMs = Date.now();
-    const snap = await adminDb.collection("issues").where("status", "in", ["submitted", "verified", "in_progress"]).limit(limit).get();
+    let docs: any[] = [];
+    if (opts.issueId) {
+      const doc = await adminDb.collection("issues").doc(opts.issueId).get();
+      docs = doc.exists ? [doc] : [];
+    } else {
+      const snap = await adminDb.collection("issues").where("status", "in", ["submitted", "verified", "in_progress"]).limit(limit).get();
+      docs = snap.docs;
+    }
     const details: any[] = [];
+    let advanced = 0;
     let escalated = 0;
-    for (const doc of snap.docs) {
+    let rtiPdfs = 0;
+    let appeals = 0;
+    for (const doc of docs) {
       const issue: any = { id: doc.id, ...doc.data() };
-      if (issue.escalation?.autoDraftedAt) { details.push({ id: issue.id, action: "skip", reason: "already auto-escalated" }); continue; }
-      const createdMs = Date.parse(issue.createdAt || issue.triagedAt || "");
-      const ageHours = Number.isFinite(createdMs) ? (nowMs - createdMs) / 3600000 : Infinity;
-      if (ageHours < thresholdHours) { details.push({ id: issue.id, action: "skip", reason: `within SLA (${ageHours.toFixed(1)}h < ${thresholdHours}h)` }); continue; }
-      const draft = await generateEscalationAndRti(issue);
       const nowIso = new Date().toISOString();
-      const escalation = {
-        escalatedAt: nowIso,
-        autoDraftedAt: nowIso,
-        escalationLetter: draft.escalationLetter,
-        rtiRequest: draft.rtiRequest,
-        escalationLevel: (issue.escalation?.escalationLevel || 0) + 1,
-        source: "sla-worker",
-        aiFallback: draft.aiFallback,
-        reason: `Auto-drafted by the SLA worker: case open ${ageHours.toFixed(1)}h, exceeding the ${thresholdHours}h follow-up window.`,
+      const baseFields = buildSlaIssueFields(issue, nowIso);
+      const pending = nextPendingSlaStage({ ...issue, ...baseFields }, nowMs, thresholdHours);
+      if (!pending) {
+        if (!issue.slaDeadline || !issue.slaPolicy) {
+          await doc.ref.set(baseFields, { merge: true });
+        }
+        details.push({ id: issue.id, action: "skip", reason: "next SLA ladder stage not due", slaDeadline: baseFields.slaDeadline });
+        continue;
+      }
+
+      const ageHours = Math.max(0, Math.round(((nowMs - issueSlaStartMs(issue)) / 3600000) * 10) / 10);
+      const ladder = {
+        ...baseFields.slaLadder,
+        currentStage: pending.stage,
+        nextStage: nextStageAfter(pending.stage),
+        updatedAt: nowIso,
       };
-      await doc.ref.set({ escalation }, { merge: true });
+      const updateFields: any = {
+        ...baseFields,
+        slaLadder: ladder,
+        updatedAt: nowIso,
+      };
+      let eventType = "sla_ladder_reminder";
+      let message = `SLA worker recorded a reminder after ${ageHours}h open.`;
+      let outputSummary = "SLA reminder recorded";
+      let aiFallback: boolean | null = null;
+
+      if (pending.stage === "reminder") {
+        ladder.reminderAt = nowIso;
+      } else if (pending.stage === "escalation") {
+        const draft = await generateEscalationAndRti(issue);
+        const existing = issue.escalation || {};
+        updateFields.escalation = {
+          ...existing,
+          escalatedAt: existing.escalatedAt || nowIso,
+          autoDraftedAt: existing.autoDraftedAt || nowIso,
+          escalationLetter: draft.escalationLetter || existing.escalationLetter || "",
+          rtiRequest: draft.rtiRequest || existing.rtiRequest || "",
+          escalationLevel: Math.max(cleanNumber(existing.escalationLevel, 0, 0, 9), 2),
+          source: "sla-worker",
+          aiFallback: draft.aiFallback,
+          reason: `SLA ladder escalation: case open ${ageHours}h; policy ${pending.policy.slaHours}h for ${pending.policy.category}/severity ${pending.policy.severity}.`,
+        };
+        ladder.escalatedAt = nowIso;
+        eventType = "sla_ladder_escalated";
+        message = `SLA worker auto-drafted escalation and RTI text after ${ageHours}h open. Awaiting human review.`;
+        outputSummary = "Escalation and RTI text drafted";
+        aiFallback = draft.aiFallback;
+        escalated++;
+      } else if (pending.stage === "rti") {
+        const existing = issue.escalation || {};
+        let rtiRequest = cleanText(existing.rtiRequest, "", 8000);
+        aiFallback = typeof existing.aiFallback === "boolean" ? existing.aiFallback : null;
+        if (!rtiRequest) {
+          const draft = await generateEscalationAndRti(issue);
+          rtiRequest = draft.rtiRequest;
+          aiFallback = draft.aiFallback;
+        }
+        const rtiPdf = buildRtiPdfArtifact(issue, rtiRequest, nowIso);
+        updateFields.escalation = {
+          ...existing,
+          escalatedAt: existing.escalatedAt || nowIso,
+          autoDraftedAt: existing.autoDraftedAt || nowIso,
+          rtiRequest,
+          rtiPdfDataUri: rtiPdf.dataUri,
+          rtiPdfFilename: rtiPdf.filename,
+          rtiPdfGeneratedAt: nowIso,
+          rtiPdfBytes: rtiPdf.byteLength,
+          escalationLevel: Math.max(cleanNumber(existing.escalationLevel, 0, 0, 9), 3),
+          source: "sla-worker",
+          aiFallback: aiFallback === null ? false : aiFallback,
+          reason: existing.reason || `SLA ladder RTI draft: case open ${ageHours}h; policy ${pending.policy.slaHours}h.`,
+        };
+        ladder.rtiDraftedAt = nowIso;
+        eventType = "sla_ladder_rti_pdf";
+        message = `SLA worker generated a downloadable RTI PDF draft after ${ageHours}h open.`;
+        outputSummary = "RTI PDF draft generated";
+        rtiPdfs++;
+      } else if (pending.stage === "first_appeal") {
+        const existing = issue.escalation || {};
+        const firstAppealLetter = buildFirstAppealDraft(issue, nowIso);
+        updateFields.escalation = {
+          ...existing,
+          firstAppealLetter,
+          firstAppealDraftedAt: nowIso,
+          escalationLevel: Math.max(cleanNumber(existing.escalationLevel, 0, 0, 9), 4),
+          source: "sla-worker",
+          reason: existing.reason || `SLA ladder first appeal draft: case open ${ageHours}h; policy ${pending.policy.slaHours}h.`,
+        };
+        ladder.firstAppealDraftedAt = nowIso;
+        eventType = "sla_ladder_first_appeal";
+        message = `SLA worker drafted a first appeal text after ${ageHours}h open. Manual review is required before use.`;
+        outputSummary = "First appeal draft generated";
+        appeals++;
+      }
+
+      await doc.ref.set(updateFields, { merge: true });
       await addServerActivity(doc.ref, {
         actorType: "ai",
-        eventType: "sla_auto_escalation",
-        message: `SLA worker auto-drafted an escalation + RTI (level ${escalation.escalationLevel}) after ${Math.round(ageHours)}h open. Awaiting human finalize.`,
+        eventType,
+        message,
         timestamp: nowIso,
         byRole: "system",
       });
-      escalated++;
-      details.push({ id: issue.id, action: "escalated", ageHours: Math.round(ageHours), level: escalation.escalationLevel, aiFallback: draft.aiFallback });
+      advanced++;
+      details.push({ id: issue.id, action: "advanced", stage: pending.stage, ageHours, dueAt: pending.dueAt, outputSummary, aiFallback });
     }
     await recordEvent({
       actorType: "worker",
@@ -2996,9 +3283,9 @@ Return STRICT JSON: { "escalationLetter": "string", "rtiRequest": "string" }`;
       message: "SLA escalation worker completed.",
       source: "worker",
       byRole: "system",
-      payload: { scanned: snap.size, escalated, thresholdHours, detailCount: details.length },
+      payload: { scanned: docs.length, advanced, escalated, rtiPdfs, appeals, thresholdHours: thresholdHours ?? null, issueId: opts.issueId || null, detailCount: details.length },
     });
-    return { worker: "sla", scanned: snap.size, escalated, thresholdHours, details };
+    return { worker: "sla", scanned: docs.length, advanced, escalated: advanced, rtiPdfs, appeals, thresholdHours: thresholdHours ?? null, issueId: opts.issueId || null, details };
   }
 
   // Deterministic aggregates over all issues (math in code, never invented by the LLM).
@@ -3359,7 +3646,11 @@ Return STRICT JSON: { "action": "wait|escalate|request_evidence|ready_to_close",
     };
     try {
       if (worker === "sla") {
-        const result = await runSlaEscalationWorker({ thresholdHours: Number(req.body?.thresholdHours), limit: Number(req.body?.limit) });
+        const result = await runSlaEscalationWorker({
+          thresholdHours: Number(req.body?.thresholdHours),
+          limit: Number(req.body?.limit),
+          issueId: isSafeDocumentId(req.body?.issueId) ? req.body.issueId : undefined,
+        });
         return sendWorkerResult(result);
       }
       if (worker === "predict") {
@@ -3993,6 +4284,7 @@ Issue: ${JSON.stringify(issue)}` }]}];
       }
 
       const nowIso = new Date().toISOString();
+      Object.assign(agentIssueUpdates, buildSlaIssueFields({ ...issueForPlan, resolutionPlan }, nowIso));
       const run = {
         id: runRef.id,
         issueId,

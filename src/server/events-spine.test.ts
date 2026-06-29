@@ -47,6 +47,10 @@ describe("server event spine", () => {
     expect(server).toContain('eventType: "worker_job_requested"');
     expect(server).toContain('eventType: "worker_job_completed"');
     expect(server).toContain('eventType: "worker_sla_completed"');
+    expect(server).toContain('eventType = "sla_ladder_reminder"');
+    expect(server).toContain('eventType = "sla_ladder_escalated"');
+    expect(server).toContain('eventType = "sla_ladder_rti_pdf"');
+    expect(server).toContain('eventType = "sla_ladder_first_appeal"');
     expect(server).toContain('eventType: "worker_followup_completed"');
     expect(server).toContain('eventType: "worker_predictive_completed"');
     expect(server).toContain('eventType: "worker_embed_completed"');

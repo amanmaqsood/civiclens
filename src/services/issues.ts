@@ -214,6 +214,9 @@ function issueReportFromSnapshot(id: string, data: any): IssueReport {
     agentTrace: data.agentTrace || [],
     resolutionPlan: data.resolutionPlan || undefined,
     closureAssessment: data.closureAssessment || undefined,
+    slaDeadline: data.slaDeadline || undefined,
+    slaPolicy: data.slaPolicy || undefined,
+    slaLadder: data.slaLadder || undefined,
     escalation: data.escalation || undefined,
     dispatch: data.dispatch || undefined,
     followUp: data.followUp || undefined,
@@ -401,6 +404,9 @@ export async function findDuplicateCandidates(
           agentTrace: data.agentTrace || [],
           resolutionPlan: data.resolutionPlan || undefined,
           closureAssessment: data.closureAssessment || undefined,
+          slaDeadline: data.slaDeadline || undefined,
+          slaPolicy: data.slaPolicy || undefined,
+          slaLadder: data.slaLadder || undefined,
           escalation: data.escalation || undefined,
           dispatch: data.dispatch || undefined,
           followUp: data.followUp || undefined,
@@ -811,7 +817,8 @@ export async function triggerAutoEscalation(issue: IssueReport): Promise<any> {
     throw new Error(err.error || "Failed to save escalation draft.");
   }
 
-  return { escalatedAt, escalationLetter, rtiRequest };
+  const saved = await saveResponse.json().catch(() => null);
+  return saved?.data || { escalatedAt, escalationLetter, rtiRequest };
 }
 
 export async function seedDemoIssuesBengaluru(): Promise<boolean> {

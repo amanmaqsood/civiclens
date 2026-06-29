@@ -141,6 +141,17 @@ Phase 1.3 + 1.6 agent self-critique and timeout verification on 2026-06-30:
 - `npm run build`: passed; Vite transformed 2141 modules and emitted no chunk over 500 kB. Largest JS chunk was `fb-firestore` at 475.16 kB.
 - Hygiene scans after the change found no prohibited attribution terms and no Google API-key prefix matches.
 
+Phase 2.1 SLA ladder and RTI PDF verification on 2026-06-30:
+
+- Issues now receive a category/severity SLA policy, `slaDeadline`, and ladder due dates at report creation, demo seeding, server-generated action-packet drafting, agent-run persistence, and routing approval.
+- The SLA worker now advances one idempotent stage at a time: reminder, escalation/RTI text draft, downloadable RTI PDF artifact, then first appeal draft. Each stage writes issue activity and mirrored event-spine records.
+- The escalation panel now displays SLA policy/deadline status, exposes an RTI PDF download when generated, and shows the first-appeal draft only after the ladder creates it.
+- `.\node_modules\.bin\tsc.cmd --noEmit`: passed with 0 errors.
+- `.\node_modules\.bin\vitest.cmd run src/server/sla-ladder.test.ts src/server/events-spine.test.ts src/server/lifecycle.test.ts`: passed; 3 files passed, 9 tests passed.
+- Live emulator proof: `firebase emulators:exec --project demo-civiclens --only auth,firestore,storage "powershell -NoProfile -ExecutionPolicy Bypass -File scripts\verify-sla-ladder-live.ps1"` passed and reported `SLA_LADDER_LIVE stage=first_appeal slaHours=18 pdfBytes=3179 eventCount=5`.
+- `.\node_modules\.bin\vitest.cmd run`: passed; 20 files passed, 2 skipped; 90 tests passed, 7 skipped.
+- `npm run build`: passed; Vite transformed 2141 modules and emitted no chunk over 500 kB. Largest JS chunk was `fb-firestore` at 475.16 kB.
+
 Latest local validation after public documentation cleanup and current-tree internal artifact removal:
 
 - `npm ci`: passed; install audit reported 3 moderate dev-dependency issues while production audit remained clean.

@@ -192,6 +192,19 @@ Phase 4.1 trust economy and brigading-guard verification on 2026-06-30:
 - `npm run test:rules`: passed; 1 emulator rules file passed, 3 tests passed.
 - `npm run test:concurrency`: passed; 1 emulator concurrency file passed, 4 tests passed.
 
+Phase 4.5 multilingual voice-intake verification on 2026-06-30:
+
+- Added `POST /api/voice-intake`, a Gemini audio route that transcribes voice evidence, detects language, translates to English, classifies category/severity/urgency, creates a report draft, and returns readback text.
+- The report page now records audio with `MediaRecorder`, submits it to the server voice route, fills an English draft, surfaces transcript/translation/category confidence, and uses browser speech synthesis for readback.
+- The committed fixture `tests/fixtures/voice-intake-pothole.wav` preserves a repeatable mixed Hindi/English pothole report for live emulator verification.
+- `.\node_modules\.bin\tsc.cmd --noEmit`: passed with 0 errors.
+- `.\node_modules\.bin\vitest.cmd run src\server\voice-intake.test.ts src\server\perimeter.test.ts src\server\events-spine.test.ts`: passed; 3 files passed, 13 tests passed.
+- Real Gemini emulator proof: `firebase emulators:exec --project demo-civiclens --only auth,firestore "powershell -NoProfile -ExecutionPolicy Bypass -File scripts\verify-voice-intake-live.ps1"` passed and reported `VOICE_INTAKE_LIVE category=pothole language=hi transcriptChars=155 readbackChars=124 fallback=false eventCount=1`.
+- `.\node_modules\.bin\vitest.cmd run`: passed; 24 files passed, 3 skipped; 102 tests passed, 10 skipped.
+- `npm run build`: passed; Vite transformed 2141 modules, emitted `dist/server.cjs` at 229.8 kB, and kept the largest JS chunk at `fb-firestore` 475.16 kB.
+- `npm run test:rules`: passed; 1 emulator rules file passed, 3 tests passed.
+- `npm run test:concurrency`: passed; 1 emulator concurrency file passed, 4 tests passed.
+
 Phase 5.1 + 5.5 dark mode and celebration-removal verification on 2026-06-30:
 
 - The app now has a persistent `ThemeProvider` with a header icon toggle, stored `civiclens-theme` preference, system dark-mode default, root `dark` class, `data-theme`, and browser `color-scheme`.

@@ -592,6 +592,31 @@ async function startServer() {
     return null;
   }
 
+  function audioSourceToInlinePart(source: unknown, explicitMimeType?: unknown): any | null {
+    const value = cleanText(source, "", 6_000_000);
+    if (!value) return null;
+    const cleanMime = cleanText(explicitMimeType, "", 80);
+    const safeMime = /^audio\/[a-zA-Z0-9.+-]+$/.test(cleanMime) ? cleanMime : "audio/wav";
+    const dataUrlMatch = value.match(/^data:(audio\/[a-zA-Z0-9.+-]+);base64,(.+)$/);
+    if (dataUrlMatch) {
+      return {
+        inlineData: {
+          mimeType: dataUrlMatch[1],
+          data: dataUrlMatch[2],
+        },
+      };
+    }
+    if (/^[a-zA-Z0-9+/=\s]+$/.test(value) && value.replace(/\s+/g, "").length > 120) {
+      return {
+        inlineData: {
+          mimeType: safeMime,
+          data: value.replace(/\s+/g, ""),
+        },
+      };
+    }
+    return null;
+  }
+
   function serverPriorityScore(issue: any): number {
     const severity = cleanNumber(issue.severity, 1, 1, 5);
     const urgencyBonus = issue.urgency === "urgent" ? 10 : issue.urgency === "priority" ? 5 : 0;
@@ -2832,6 +2857,133 @@ Respond ONLY with the corrected, valid JSON object.`;
         payload: { error: error?.message || String(error) },
       });
       return sendApiError(res, 500, "An error occurred during Gemini multimodal analysis.");
+    }
+  });
+
+  app.post("/api/voice-intake", async (req, res) => {
+    const actor = (req as any).actor as RequestActor | undefined;
+    const audioPart = audioSourceToInlinePart(req.body?.audio || req.body?.audioBase64, req.body?.mimeType);
+    if (!audioPart) {
+      return res.status(400).json({ success: false, error: "Audio data URL or base64 audio payload is required." });
+    }
+
+    const localeHint = cleanText(req.body?.localeHint, "auto", 80);
+    const descriptionHint = cleanText(req.body?.descriptionHint, "", 1200);
+    const startTime = Date.now();
+    try {
+      const promptText = `You are CivicLens multilingual voice intake for a hyperlocal civic reporting app.
+Listen to the audio, detect the spoken language, transcribe it, translate the meaning to English, and extract a draft civic report in one pass.
+Use exactly one of these categories: ${categoriesList.join(", ")}.
+Use urgency exactly one of: ${urgenciesList.join(", ")}.
+Locale hint: ${localeHint}
+Existing typed context, if any: ${descriptionHint || "none"}
+Return strict JSON only with:
+{
+  "transcriptOriginal": "string in the spoken language or transliteration",
+  "detectedLanguage": "string",
+  "englishTranslation": "clear English translation",
+  "category": "pothole|water_leak|streetlight|waste|drainage|road_damage|other",
+  "title": "short civic title",
+  "summary": "one or two sentence report summary",
+  "severity": number 1 to 5,
+  "urgency": "routine|priority|urgent",
+  "readbackText": "short confirmation sentence for text-to-speech readback",
+  "confidence": number 0 to 1
+}`;
+
+      const result = await generateContentWithRetry(ai, {
+        model: "gemini-2.5-flash",
+        contents: [
+          audioPart,
+          { text: promptText },
+        ],
+        config: {
+          responseMimeType: "application/json",
+          responseSchema: {
+            type: Type.OBJECT,
+            properties: {
+              transcriptOriginal: { type: Type.STRING },
+              detectedLanguage: { type: Type.STRING },
+              englishTranslation: { type: Type.STRING },
+              category: { type: Type.STRING, enum: categoriesList },
+              title: { type: Type.STRING },
+              summary: { type: Type.STRING },
+              severity: { type: Type.INTEGER },
+              urgency: { type: Type.STRING, enum: urgenciesList },
+              readbackText: { type: Type.STRING },
+              confidence: { type: Type.NUMBER },
+            },
+            required: ["transcriptOriginal", "detectedLanguage", "englishTranslation", "category", "title", "summary", "severity", "urgency", "readbackText", "confidence"],
+          },
+        },
+      }, { signal: AbortSignal.timeout(20_000) });
+
+      const responseText = (result.response.text || "").trim().replace(/^```(?:json)?\s*/i, "").replace(/```\s*$/, "").trim();
+      const parsed = JSON.parse(responseText);
+      const category = categoriesList.includes(parsed.category) ? parsed.category : "other";
+      const urgency = urgenciesList.includes(parsed.urgency) ? parsed.urgency : "routine";
+      const normalized = {
+        transcriptOriginal: cleanText(parsed.transcriptOriginal, "", 1800),
+        detectedLanguage: cleanText(parsed.detectedLanguage, "unknown", 80),
+        englishTranslation: cleanText(parsed.englishTranslation, descriptionHint, 1800),
+        category,
+        title: cleanText(parsed.title, "Voice-described civic issue", 140),
+        summary: cleanText(parsed.summary, parsed.englishTranslation || descriptionHint || "Voice-described civic issue.", 700),
+        severity: Math.round(cleanNumber(parsed.severity, 3, 1, 5)),
+        urgency,
+        readbackText: cleanText(parsed.readbackText, `Drafted ${category.replace("_", " ")} report.`, 400),
+        confidence: cleanNumber(parsed.confidence, 0.6, 0, 1),
+        model: "gemini-2.5-flash",
+        retried: result.retried,
+        durationMs: Date.now() - startTime,
+        aiFallback: false,
+      };
+
+      await recordEvent({
+        actorType: "ai",
+        eventType: "ai_voice_intake",
+        message: "Gemini multilingual voice intake completed.",
+        actor,
+        source: "gemini",
+        status: "succeeded",
+        payload: {
+          category: normalized.category,
+          detectedLanguage: normalized.detectedLanguage,
+          confidence: normalized.confidence,
+          durationMs: normalized.durationMs,
+          retried: normalized.retried,
+        },
+      });
+
+      return res.json({ success: true, data: normalized });
+    } catch (error: any) {
+      const fallback = {
+        transcriptOriginal: "",
+        detectedLanguage: "unknown",
+        englishTranslation: descriptionHint,
+        category: "other",
+        title: "Voice intake needs typed confirmation",
+        summary: descriptionHint || "Voice audio could not be transcribed. Please type the report details.",
+        severity: 3,
+        urgency: "routine",
+        readbackText: "Voice intake needs typed confirmation before saving.",
+        confidence: 0,
+        model: "deterministic-fallback",
+        retried: false,
+        durationMs: Date.now() - startTime,
+        aiFallback: true,
+      };
+      await recordEvent({
+        actorType: "ai",
+        eventType: "ai_voice_intake",
+        message: "Gemini multilingual voice intake failed and returned an honest fallback.",
+        actor,
+        source: "gemini",
+        status: "failed",
+        severity: "warn",
+        payload: { error: error?.message || String(error), durationMs: fallback.durationMs },
+      });
+      return res.json({ success: false, fallback: true, data: fallback, error: "Voice intake could not be transcribed automatically." });
     }
   });
 

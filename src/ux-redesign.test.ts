@@ -178,7 +178,8 @@ describe("UX redesign contract", () => {
     expect(header).toContain('id="lang-hi-btn"');
     expect(header).toContain('setLanguage("hi")');
     expect(detail).not.toContain("Hindi coming soon");
-    expect(report).toContain('t("report.englishActive")');
+    expect(report).toContain('t("report.voiceReady")');
+    expect(report).toContain('t("report.voiceReadback")');
     expect(report).not.toContain("Hindi active");
     expect(i18n).toContain("hi: {");
     expect(i18n).toContain("app.subtitle");

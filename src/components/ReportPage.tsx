@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useMemo, useRef } from "react";
-import { Camera, ImagePlus, MapPin, MapPinned, Trash2, CheckCircle2, ChevronRight, Loader2, Mic, MicOff, ArrowLeft } from "lucide-react";
+import { Camera, ImagePlus, MapPin, MapPinned, Trash2, CheckCircle2, ChevronRight, Loader2, Mic, MicOff, ArrowLeft, Volume2 } from "lucide-react";
 import { IssueReport } from "../types";
 import { getCurrentLocation, LocationData } from "../utils/location";
 import { useLanguage } from "../context/LanguageContext";
@@ -114,8 +114,14 @@ export default function ReportPage({ onBack, onSubmit, prefilledLocation, prefil
   const [manualAddress, setManualAddress] = useState(prefilledData?.locationName || "");
 
   const [isListening, setIsListening] = useState(false);
-  const [speechSupported, setSpeechSupported] = useState(false);
+  const [voiceSupported, setVoiceSupported] = useState(false);
+  const [voiceLoading, setVoiceLoading] = useState(false);
+  const [voiceError, setVoiceError] = useState<string | null>(null);
+  const [voiceDraft, setVoiceDraft] = useState<any>(null);
   const recognitionRef = useRef<any>(null);
+  const mediaRecorderRef = useRef<MediaRecorder | null>(null);
+  const audioChunksRef = useRef<Blob[]>([]);
+  const audioStreamRef = useRef<MediaStream | null>(null);
 
   const [isAnalyzing, setIsAnalyzing] = useState(false);
   const [currentStageIndex, setCurrentStageIndex] = useState(0);
@@ -141,21 +147,22 @@ export default function ReportPage({ onBack, onSubmit, prefilledLocation, prefil
 
   useEffect(() => {
     if (recognitionRef.current) {
-      recognitionRef.current.lang = "en-IN";
+      recognitionRef.current.lang = language === "hi" ? "hi-IN" : "en-IN";
     }
-  }, []);
+  }, [language]);
 
   useEffect(() => {
     if (!prefilledLocation) {
       handleFetchLocation();
     }
     const SpeechRec = (window as any).SpeechRecognition || (window as any).webkitSpeechRecognition;
+    const mediaOk = !!navigator.mediaDevices?.getUserMedia && typeof MediaRecorder !== "undefined";
+    setVoiceSupported(mediaOk || !!SpeechRec);
     if (SpeechRec) {
-      setSpeechSupported(true);
       const rec = new SpeechRec();
       rec.continuous = false;
       rec.interimResults = false;
-      rec.lang = "en-IN";
+      rec.lang = language === "hi" ? "hi-IN" : "en-IN";
       rec.onstart = () => setIsListening(true);
       rec.onend = () => setIsListening(false);
       rec.onresult = (e: any) => {
@@ -164,6 +171,9 @@ export default function ReportPage({ onBack, onSubmit, prefilledLocation, prefil
       };
       recognitionRef.current = rec;
     }
+    return () => {
+      audioStreamRef.current?.getTracks().forEach((track) => track.stop());
+    };
   }, []);
 
   const handleFetchLocation = () => {
@@ -249,6 +259,95 @@ export default function ReportPage({ onBack, onSubmit, prefilledLocation, prefil
       } catch (e) {
         console.warn("Speech recognition failed to start:", e);
       }
+    }
+  };
+
+  const speakReadback = (text: string) => {
+    if (!text || !("speechSynthesis" in window)) return;
+    window.speechSynthesis.cancel();
+    const utterance = new SpeechSynthesisUtterance(text);
+    utterance.lang = language === "hi" ? "hi-IN" : "en-IN";
+    window.speechSynthesis.speak(utterance);
+  };
+
+  const blobToDataUrl = (blob: Blob) => new Promise<string>((resolve, reject) => {
+    const reader = new FileReader();
+    reader.onload = () => resolve(String(reader.result || ""));
+    reader.onerror = () => reject(reader.error || new Error("Failed to read audio."));
+    reader.readAsDataURL(blob);
+  });
+
+  const submitVoiceAudio = async (audioBlob: Blob) => {
+    setVoiceLoading(true);
+    setVoiceError(null);
+    try {
+      const audio = await blobToDataUrl(audioBlob);
+      const response = await apiFetch("/api/voice-intake", {
+        method: "POST",
+        body: JSON.stringify({
+          audio,
+          mimeType: audioBlob.type || "audio/webm",
+          localeHint: language,
+          descriptionHint: description,
+        }),
+      });
+      const result = await response.json();
+      if (!response.ok || !result?.success || !result.data || result.data.aiFallback) {
+        throw new Error(result?.error || "Voice intake needs typed confirmation.");
+      }
+      const draft = result.data;
+      setVoiceDraft(draft);
+      setDescription(draft.englishTranslation || draft.summary || description);
+      speakReadback(draft.readbackText || draft.summary || draft.englishTranslation);
+    } catch (err: any) {
+      setVoiceError(err.message || "Voice intake failed. Please type the report details.");
+    } finally {
+      setVoiceLoading(false);
+    }
+  };
+
+  const startMediaRecording = async () => {
+    setVoiceError(null);
+    const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
+    audioStreamRef.current = stream;
+    audioChunksRef.current = [];
+    const preferredType = typeof MediaRecorder !== "undefined" && MediaRecorder.isTypeSupported("audio/webm")
+      ? "audio/webm"
+      : "";
+    const recorder = new MediaRecorder(stream, preferredType ? { mimeType: preferredType } : undefined);
+    mediaRecorderRef.current = recorder;
+    recorder.ondataavailable = (event) => {
+      if (event.data.size > 0) audioChunksRef.current.push(event.data);
+    };
+    recorder.onstop = () => {
+      setIsListening(false);
+      const blob = new Blob(audioChunksRef.current, { type: recorder.mimeType || "audio/webm" });
+      stream.getTracks().forEach((track) => track.stop());
+      audioStreamRef.current = null;
+      if (blob.size > 0) {
+        void submitVoiceAudio(blob);
+      }
+    };
+    recorder.start();
+    setIsListening(true);
+  };
+
+  const toggleVoiceInput = async () => {
+    if (voiceLoading) return;
+    const canRecordAudio = !!navigator.mediaDevices?.getUserMedia && typeof MediaRecorder !== "undefined";
+    if (!canRecordAudio) {
+      toggleListening();
+      return;
+    }
+    if (isListening && mediaRecorderRef.current?.state === "recording") {
+      mediaRecorderRef.current.stop();
+      return;
+    }
+    try {
+      await startMediaRecording();
+    } catch (err: any) {
+      setIsListening(false);
+      setVoiceError(err.message || "Microphone permission is unavailable.");
     }
   };
 
@@ -628,7 +727,7 @@ export default function ReportPage({ onBack, onSubmit, prefilledLocation, prefil
       </div>
 
       {/* Voice Input Block */}
-      {speechSupported && (
+      {voiceSupported && (
         <div className="bg-paper border border-hairline p-4 rounded-xl flex flex-col gap-2 shadow-3xs animate-fade-in select-none">
           <div className="flex items-center justify-between">
           <span className="text-sm font-mono text-ink-2 block">
@@ -636,7 +735,9 @@ export default function ReportPage({ onBack, onSubmit, prefilledLocation, prefil
             </span>
             <div className="flex items-center gap-1.5">
               <span className="w-1.5 h-1.5 rounded-full bg-marigold animate-ping" />
-              <span className="text-sm font-mono text-ink-2 font-bold">{t("report.englishActive")}</span>
+              <span className="text-sm font-mono text-ink-2 font-bold">
+                {voiceLoading ? t("report.voiceProcessing") : voiceDraft ? t("report.voiceDraftReady") : t("report.voiceReady")}
+              </span>
             </div>
           </div>
           
@@ -646,14 +747,20 @@ export default function ReportPage({ onBack, onSubmit, prefilledLocation, prefil
 
           <button
             type="button"
-            onClick={toggleListening}
+            onClick={toggleVoiceInput}
+            disabled={voiceLoading}
             className={`w-full flex min-h-[44px] items-center justify-center gap-2 border py-2.5 px-4 rounded-xl text-base font-semibold cursor-pointer transition-all ${
               isListening
                 ? "bg-alert text-white border-alert/20 animate-pulse"
-                : "bg-white text-ink border-hairline hover:bg-slate-50 shadow-2xs"
+                : "bg-white text-ink border-hairline hover:bg-slate-50 shadow-2xs disabled:opacity-60"
             }`}
           >
-            {isListening ? (
+            {voiceLoading ? (
+              <>
+                <Loader2 className="w-4 h-4 text-marigold animate-spin" />
+                <span>{t("report.voiceProcessing")}</span>
+              </>
+            ) : isListening ? (
               <>
                 <MicOff className="w-4 h-4 text-white animate-spin" />
                 <span>{t("report.stopRecording")}</span>
@@ -665,6 +772,49 @@ export default function ReportPage({ onBack, onSubmit, prefilledLocation, prefil
               </>
             )}
           </button>
+
+          {voiceError && (
+            <p role="alert" className="rounded-lg border border-alert/20 bg-alert/10 p-2 text-sm font-semibold text-alert">
+              {voiceError}
+            </p>
+          )}
+
+          {voiceDraft && (
+            <div id="voice-intake-draft" className="rounded-xl border border-hairline bg-white p-3">
+              <div className="flex items-center justify-between gap-2">
+                <span className="text-sm font-mono text-slate">{t("report.voiceDraftReady")}</span>
+                <button
+                  type="button"
+                  onClick={() => speakReadback(voiceDraft.readbackText || voiceDraft.summary || voiceDraft.englishTranslation)}
+                  className="inline-flex min-h-[36px] items-center gap-1.5 rounded-lg border border-hairline bg-paper px-2 text-sm font-bold text-ink"
+                >
+                  <Volume2 className="h-3.5 w-3.5 text-marigold" />
+                  <span>{t("report.voiceReadback")}</span>
+                </button>
+              </div>
+              <div className="mt-2 grid gap-2 text-sm sm:grid-cols-2">
+                <div className="rounded-lg border border-hairline bg-paper p-2">
+                  <span className="block font-mono text-slate">{t("report.voiceTranscript")}</span>
+                  <span className="font-semibold text-ink">{voiceDraft.transcriptOriginal}</span>
+                </div>
+                <div className="rounded-lg border border-hairline bg-paper p-2">
+                  <span className="block font-mono text-slate">{t("report.voiceTranslation")}</span>
+                  <span className="font-semibold text-ink">{voiceDraft.englishTranslation}</span>
+                </div>
+              </div>
+              <div className="mt-2 flex flex-wrap gap-2 text-sm">
+                <span className="rounded-lg border border-verify/20 bg-verify/10 px-2 py-1 font-bold text-verify">
+                  {categoryMap[voiceDraft.category] || voiceDraft.category}
+                </span>
+                <span className="rounded-lg border border-marigold/20 bg-marigold/10 px-2 py-1 font-bold text-marigold-ink">
+                  Severity {voiceDraft.severity}/5
+                </span>
+                <span className="rounded-lg border border-hairline bg-paper px-2 py-1 font-bold text-slate">
+                  {voiceDraft.detectedLanguage}
+                </span>
+              </div>
+            </div>
+          )}
         </div>
       )}
 

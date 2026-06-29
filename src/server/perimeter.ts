@@ -126,7 +126,7 @@ export function findOversizedStringField(
 ): string | null {
   if (typeof value === "string") {
     const key = path.split(".").pop() || "";
-    const maxLength = ["image", "afterImage", "beforeImage", "auditImage", "fieldAuditImage", "imageUrl", "beforeImageUrl", "auditImageUrl", "fieldAuditImageUrl"].includes(key)
+    const maxLength = ["image", "afterImage", "beforeImage", "auditImage", "fieldAuditImage", "imageUrl", "beforeImageUrl", "auditImageUrl", "fieldAuditImageUrl", "audio", "audioBase64", "audioData", "voiceAudio"].includes(key)
       ? options.maxImageLength
       : options.maxTextLength;
     return value.length > maxLength ? path : null;
@@ -163,6 +163,7 @@ export function classifyProtectedRoute(method: string, path: string): "health" |
   if (path === "/api/session") return "session";
   if (
     path === "/api/analyze-report" ||
+    path === "/api/voice-intake" ||
     path === "/api/check-duplicate" ||
     path === "/api/resolution-plan" ||
     path === "/api/verify-resolution" ||

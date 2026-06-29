@@ -167,10 +167,12 @@ Set `CIVICLENS_DEMO_OPERATOR_ENABLED=true` only for a deliberately public synthe
 - Open operator desk with an authorized account.
 - Approve routing/action packet.
 - Upload closure evidence and confirm resolve requires human action.
+- As an operator, call `/api/ops/observability?hours=1` and verify recent event counts plus Cloud Logging query templates.
 - Test mobile width around 360 px, tablet, and desktop.
 - Restrict the Maps browser key to the verified public origin.
 
 Record the deployed URL, Cloud Run revision, smoke results, screenshots, and any warnings in `docs/FINAL_EVIDENCE_REPORT.md`.
+After the first smoke test emits logs, use `docs/OBSERVABILITY.md` to create logs-based metrics and import the Cloud Monitoring dashboard template.
 
 ## Rollback
 

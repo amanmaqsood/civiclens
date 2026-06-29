@@ -58,7 +58,8 @@ describe("persisted server agent workflow", () => {
     expect(server).toContain("CIVICLENS_AGENT_TIMEOUT_MS");
     expect(server).toContain("AbortSignal.timeout(agentTimeoutMs)");
     expect(server).toContain("generateContentWithRetry(ai, {");
-    expect(server).toContain("{ signal: agentSignal }");
+    expect(server).toContain("signal: agentSignal");
+    expect(server).toContain("usageAccumulator: agentGeminiUsage");
     expect(server).toContain("agent_run_timed_out");
     expect(server).toContain("Agent run timed out before completing.");
   });

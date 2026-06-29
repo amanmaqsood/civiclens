@@ -166,13 +166,17 @@ export default function ResolutionPlanWidget({ issue, onRefresh, lang = "en" }: 
 
           {/* Research footnotes */}
           {plan.groundingSources && plan.groundingSources.length > 0 && (
-            <div className="border-t border-hairline pt-3 flex flex-col gap-1.5">
-              <span className="text-sm font-mono font-bold text-slate">Grounding reference links</span>
-              <div className="flex flex-wrap gap-1.5">
+            <div id="grounding-reference-links" className="border-t border-hairline pt-3 flex flex-col gap-2">
+              <div className="flex items-center justify-between gap-2">
+                <span className="text-sm font-mono font-bold text-slate">Grounding reference links</span>
+                <span className="text-xs font-mono text-slate">{plan.groundingSources.length} source{plan.groundingSources.length === 1 ? "" : "s"}</span>
+              </div>
+              <div className="grid grid-cols-1 gap-2">
                 {plan.groundingSources.map((src, i) => {
                   const sourceUrl = typeof src === "string" ? src : src.url;
                   const sourceTitle = typeof src === "string" ? "" : src.title;
                   const sourceClaim = typeof src === "string" ? "" : src.claimSupported;
+                  const sourceType = typeof src === "string" ? "sourced" : src.sourceType;
                   let domain = "Reference link";
                   try {
                     domain = new URL(sourceUrl).hostname.replace("www.", "");
@@ -183,11 +187,19 @@ export default function ResolutionPlanWidget({ issue, onRefresh, lang = "en" }: 
                       href={sourceUrl || "#"}
                       target="_blank"
                       rel="noopener noreferrer"
+                      aria-label={`Open grounding source: ${sourceTitle || domain}`}
                       title={sourceClaim || sourceTitle || domain}
-                      className="flex items-center gap-1 text-sm font-mono text-slate hover:text-ink underline transition-colors cursor-pointer"
+                      className="flex items-start justify-between gap-3 rounded-lg border border-hairline bg-paper px-3 py-2 text-sm text-ink hover:bg-white transition-colors cursor-pointer"
                     >
-                      <span>{sourceTitle || domain}</span>
-                      <ExternalLink className="w-2.5 h-2.5 shrink-0" />
+                      <span className="min-w-0">
+                        <span className="block font-semibold truncate">{sourceTitle || domain}</span>
+                        <span className="block font-mono text-xs text-slate truncate">{domain}</span>
+                        {sourceClaim && <span className="block text-xs text-slate mt-1 leading-snug">{sourceClaim}</span>}
+                      </span>
+                      <span className="shrink-0 flex items-center gap-1 text-xs font-mono text-slate">
+                        {sourceType}
+                        <ExternalLink className="w-3 h-3" />
+                      </span>
                     </a>
                   )
                 })}

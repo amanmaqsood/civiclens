@@ -1,0 +1,68 @@
+{
+  "displayName": "CivicLens Operations",
+  "mosaicLayout": {
+    "columns": 12,
+    "tiles": [
+      {
+        "xPos": 0,
+        "yPos": 0,
+        "width": 6,
+        "height": 4,
+        "widget": {
+          "title": "API Requests",
+          "logsPanel": {
+            "filter": "jsonPayload.service=\"civiclens\" AND jsonPayload.event=\"api_request\""
+          }
+        }
+      },
+      {
+        "xPos": 6,
+        "yPos": 0,
+        "width": 6,
+        "height": 4,
+        "widget": {
+          "title": "Gemini Calls",
+          "logsPanel": {
+            "filter": "jsonPayload.service=\"civiclens\" AND (jsonPayload.event=\"gemini_call_completed\" OR jsonPayload.event=\"gemini_call_failed\" OR jsonPayload.event=\"gemini_retry\")"
+          }
+        }
+      },
+      {
+        "xPos": 0,
+        "yPos": 4,
+        "width": 6,
+        "height": 4,
+        "widget": {
+          "title": "Agent Runs",
+          "logsPanel": {
+            "filter": "jsonPayload.service=\"civiclens\" AND jsonPayload.event=\"agent_run_metric\""
+          }
+        }
+      },
+      {
+        "xPos": 6,
+        "yPos": 4,
+        "width": 6,
+        "height": 4,
+        "widget": {
+          "title": "Operational Snapshots",
+          "logsPanel": {
+            "filter": "jsonPayload.service=\"civiclens\" AND jsonPayload.event=\"observability_snapshot\""
+          }
+        }
+      },
+      {
+        "xPos": 0,
+        "yPos": 8,
+        "width": 12,
+        "height": 4,
+        "widget": {
+          "title": "Gemini Usage and Cost",
+          "logsPanel": {
+            "filter": "jsonPayload.service=\"civiclens\" AND jsonPayload.event=\"gemini_call_completed\" AND jsonPayload.totalTokenCount>0"
+          }
+        }
+      }
+    ]
+  }
+}

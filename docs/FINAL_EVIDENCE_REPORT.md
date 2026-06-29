@@ -290,6 +290,25 @@ Phase 6.2 distributed quota verification on 2026-06-30:
 - `npm run test:e2e`: passed; 7 Chromium Playwright tests passed against local Firebase Auth, Firestore, and Storage emulators.
 - Hygiene scans found no prohibited attribution terms and no Google API-key prefix matches. `git diff --check` returned only line-ending normalization warnings, and generated distributed-quota verifier logs were removed before commit.
 
+Phase 6.3 observability and grounding-citation verification on 2026-06-30:
+
+- Structured logs now include Cloud Logging-ready `api_request`, `gemini_call_completed`, `gemini_call_failed`, `gemini_retry`, `agent_run_metric`, and `observability_snapshot` events.
+- Gemini completion logs include model, API surface, duration, attempts, retry state, Google Search grounding flag, structured-response flag, token counts, redacted errors, and configurable estimated USD cost.
+- Agent-run metrics aggregate per-run Gemini call count, token totals, estimated cost, step count, duration, timeout, duplicate state, actor role, and failure/timeout errors.
+- Added operator-only `GET /api/ops/observability?hours=24` with recent event aggregates, recent agent-run aggregates, Cloud Logging query templates, and the dashboard template path.
+- Added `docs/OBSERVABILITY.md` plus `docs/monitoring/civiclens-cloud-monitoring-dashboard.json` with query panels for API requests, Gemini calls, agent runs, operational snapshots, and Gemini usage/cost.
+- Resolution-plan citations now normalize `generateContent` grounding chunks; when those chunks are absent, a narrow Interactions API Google Search call extracts `url_citation` annotations into the same `groundingSources` UI model.
+- Operator detail now mounts `ResolutionPlanWidget`, and the widget renders visible grounding source cards with source count, title/domain, claim, `sourced`/`estimated` label, and accessible external links.
+- `.\node_modules\.bin\tsc.cmd --noEmit`: passed with 0 errors.
+- `.\node_modules\.bin\vitest.cmd run src\server\observability-citations.test.ts src\docs-readiness.test.ts src\server\release-security.test.ts`: passed; 3 files passed, 18 tests passed.
+- Real Gemini/Search emulator proof: `firebase emulators:exec --project demo-civiclens --only auth,firestore "powershell -NoProfile -ExecutionPolicy Bypass -File scripts\verify-observability-citations-live.ps1"` passed and reported `OBSERVABILITY_CITATIONS_LIVE issueId=obscite1782771609659 events=2 realGroundingSources=3 citationLinks=4 monitoringQueries=4 consoleErrors=0`.
+- `.\node_modules\.bin\vitest.cmd run`: passed; 28 files passed, 3 skipped; 116 tests passed, 10 skipped.
+- `npm run build`: passed; Vite transformed 2341 modules, emitted `dist/server.cjs` at 250.4 kB, and kept the largest JS chunk at `fb-firestore` 475.16 kB with no chunk over 500 kB.
+- `npm run test:rules`: passed; 1 emulator rules file passed, 3 tests passed.
+- `npm run test:concurrency`: passed; 1 emulator concurrency file passed, 4 tests passed.
+- `npm run test:e2e`: passed; 7 Chromium Playwright tests passed against local Firebase Auth, Firestore, and Storage emulators.
+- Hygiene scans found no prohibited attribution terms and no Google API-key prefix matches. `git diff --check` returned only line-ending normalization warnings, and generated observability verifier logs were removed before commit.
+
 Latest local validation after public documentation cleanup and current-tree internal artifact removal:
 
 - `npm ci`: passed; install audit reported 3 moderate dev-dependency issues while production audit remained clean.

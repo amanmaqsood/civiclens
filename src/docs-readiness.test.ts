@@ -20,6 +20,8 @@ describe("documentation release readiness", () => {
       "docs/DEMO_SCRIPT.md",
       "docs/GOOGLE_DOC_DRAFT.md",
       "docs/FINAL_EVIDENCE_REPORT.md",
+      "docs/OBSERVABILITY.md",
+      "docs/monitoring/civiclens-cloud-monitoring-dashboard.json",
       "Dockerfile",
       "cloudbuild.yaml",
     ];

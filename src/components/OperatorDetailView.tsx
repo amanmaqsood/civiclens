@@ -8,6 +8,7 @@ import AutoEscalationPanel from "./AutoEscalationPanel";
 import AgentTraceTimeline from "./AgentTraceTimeline";
 import { IssueStatusKey, issueStatusLabel } from "../constants/status";
 import LifecycleStatusBadge from "./LifecycleStatusBadge";
+import ResolutionPlanWidget from "./ResolutionPlanWidget";
 
 interface OperatorDetailViewProps {
   issue: IssueReport;
@@ -383,6 +384,8 @@ export default function OperatorDetailView({ issue, onBack, onRefresh, demoOpera
         </div>
 
         <aside className="flex flex-col gap-4">
+          <ResolutionPlanWidget issue={issue} onRefresh={onRefresh} />
+
           {(issue.resolutionPlan || issue.escalation) && (
             <div className="bg-white border rounded-2xl p-4 shadow-3xs flex flex-col gap-3">
           <h3 className="text-base font-extrabold text-slate-800 border-b pb-2">

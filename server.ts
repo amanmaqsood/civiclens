@@ -197,9 +197,200 @@ async function startServer() {
     );
   }
 
-  async function generateContentWithRetry(aiClient: any, args: any, options: { signal?: AbortSignal } = {}): Promise<{ response: any; retried: boolean }> {
+  function safeLogText(value: unknown, fallback = "unknown", maxLength = 300): string {
+    const raw = String(value || fallback);
+    const googleWebKeyPattern = new RegExp(`${["A", "Iza"].join("")}[0-9A-Za-z_-]{20,}`, "g");
+    return raw
+      .replace(googleWebKeyPattern, "[redacted-google-key]")
+      .replace(/sk-[0-9A-Za-z_-]{20,}/g, "[redacted-key]")
+      .slice(0, maxLength);
+  }
+
+  function hasGoogleSearchTool(args: any): boolean {
+    const tools = args?.config?.tools;
+    return Array.isArray(tools) && tools.some((tool) => !!tool?.googleSearch);
+  }
+
+  function hasInteractionGoogleSearchTool(args: any): boolean {
+    const tools = args?.tools;
+    return Array.isArray(tools) && tools.some((tool) => tool?.type === "google_search");
+  }
+
+  type GeminiUsageAccumulator = {
+    callCount: number;
+    pricedCallCount: number;
+    unpricedCallCount: number;
+    promptTokenCount: number;
+    candidatesTokenCount: number;
+    totalTokenCount: number;
+    inputTokenCount: number;
+    outputTokenCount: number;
+    estimatedCostUsd: number;
+  };
+
+  type GeminiCallUsage = {
+    promptTokenCount: number;
+    candidatesTokenCount: number;
+    thoughtsTokenCount: number;
+    toolUsePromptTokenCount: number;
+    cachedContentTokenCount: number;
+    totalTokenCount: number;
+    inputTokenCount: number;
+    outputTokenCount: number;
+    estimatedCostUsd: number | null;
+    costPricingSource: "env" | "unconfigured" | "usage-metadata-unavailable";
+  };
+
+  type GeminiGenerateOptions = {
+    signal?: AbortSignal;
+    usageAccumulator?: GeminiUsageAccumulator;
+  };
+
+  const geminiInputUsdPerMillionTokens = parseNonNegativeFloatEnv(process.env.CIVICLENS_GEMINI_INPUT_USD_PER_MILLION_TOKENS);
+  const geminiOutputUsdPerMillionTokens = parseNonNegativeFloatEnv(process.env.CIVICLENS_GEMINI_OUTPUT_USD_PER_MILLION_TOKENS);
+
+  function parseNonNegativeFloatEnv(value: string | undefined): number | null {
+    if (value === undefined || value === "") return null;
+    const parsed = Number(value);
+    return Number.isFinite(parsed) && parsed >= 0 ? parsed : null;
+  }
+
+  function cleanTokenCount(value: unknown): number {
+    const parsed = Number(value);
+    return Number.isFinite(parsed) && parsed > 0 ? Math.round(parsed) : 0;
+  }
+
+  function roundCostUsd(value: number): number {
+    return Math.round(value * 1_000_000) / 1_000_000;
+  }
+
+  function summarizeGeminiUsage(response: any): GeminiCallUsage {
+    const interactionUsage = response?.usage;
+    if (interactionUsage) {
+      const inputTokenCount = cleanTokenCount(interactionUsage.total_input_tokens);
+      const outputTokenCount = cleanTokenCount(interactionUsage.total_output_tokens) + cleanTokenCount(interactionUsage.total_thought_tokens);
+      const toolUsePromptTokenCount = cleanTokenCount(interactionUsage.total_tool_use_tokens);
+      const cachedContentTokenCount = cleanTokenCount(interactionUsage.total_cached_tokens);
+      const totalTokenCount = cleanTokenCount(interactionUsage.total_tokens) || inputTokenCount + outputTokenCount + toolUsePromptTokenCount;
+      const pricingConfigured = geminiInputUsdPerMillionTokens !== null && geminiOutputUsdPerMillionTokens !== null;
+      return {
+        promptTokenCount: inputTokenCount,
+        candidatesTokenCount: cleanTokenCount(interactionUsage.total_output_tokens),
+        thoughtsTokenCount: cleanTokenCount(interactionUsage.total_thought_tokens),
+        toolUsePromptTokenCount,
+        cachedContentTokenCount,
+        totalTokenCount,
+        inputTokenCount: inputTokenCount + toolUsePromptTokenCount,
+        outputTokenCount,
+        estimatedCostUsd: pricingConfigured
+          ? roundCostUsd(
+              ((inputTokenCount + toolUsePromptTokenCount) / 1_000_000) * geminiInputUsdPerMillionTokens +
+              (outputTokenCount / 1_000_000) * geminiOutputUsdPerMillionTokens
+            )
+          : null,
+        costPricingSource: pricingConfigured ? "env" : "unconfigured",
+      };
+    }
+
+    const metadata = response?.usageMetadata || {};
+    const promptTokenCount = cleanTokenCount(metadata.promptTokenCount);
+    const candidatesTokenCount = cleanTokenCount(metadata.candidatesTokenCount);
+    const thoughtsTokenCount = cleanTokenCount(metadata.thoughtsTokenCount);
+    const toolUsePromptTokenCount = cleanTokenCount(metadata.toolUsePromptTokenCount);
+    const cachedContentTokenCount = cleanTokenCount(metadata.cachedContentTokenCount);
+    const derivedTotal = promptTokenCount + candidatesTokenCount + thoughtsTokenCount + toolUsePromptTokenCount;
+    const totalTokenCount = cleanTokenCount(metadata.totalTokenCount) || derivedTotal;
+    const hasUsageMetadata = !!metadata && (
+      promptTokenCount > 0 ||
+      candidatesTokenCount > 0 ||
+      thoughtsTokenCount > 0 ||
+      toolUsePromptTokenCount > 0 ||
+      totalTokenCount > 0
+    );
+    const inputTokenCount = promptTokenCount + toolUsePromptTokenCount;
+    const outputTokenCount = candidatesTokenCount + thoughtsTokenCount;
+    const pricingConfigured = geminiInputUsdPerMillionTokens !== null && geminiOutputUsdPerMillionTokens !== null;
+    const estimatedCostUsd = hasUsageMetadata && pricingConfigured
+      ? roundCostUsd(
+          (inputTokenCount / 1_000_000) * geminiInputUsdPerMillionTokens +
+          (outputTokenCount / 1_000_000) * geminiOutputUsdPerMillionTokens
+        )
+      : null;
+    return {
+      promptTokenCount,
+      candidatesTokenCount,
+      thoughtsTokenCount,
+      toolUsePromptTokenCount,
+      cachedContentTokenCount,
+      totalTokenCount,
+      inputTokenCount,
+      outputTokenCount,
+      estimatedCostUsd,
+      costPricingSource: hasUsageMetadata ? (pricingConfigured ? "env" : "unconfigured") : "usage-metadata-unavailable",
+    };
+  }
+
+  function geminiUsageLogFields(usage: GeminiCallUsage) {
+    return {
+      promptTokenCount: usage.promptTokenCount,
+      candidatesTokenCount: usage.candidatesTokenCount,
+      totalTokenCount: usage.totalTokenCount,
+      inputTokenCount: usage.inputTokenCount,
+      outputTokenCount: usage.outputTokenCount,
+      estimatedCostUsd: usage.estimatedCostUsd,
+      costPricingSource: usage.costPricingSource,
+    };
+  }
+
+  function createGeminiUsageAccumulator(): GeminiUsageAccumulator {
+    return {
+      callCount: 0,
+      pricedCallCount: 0,
+      unpricedCallCount: 0,
+      promptTokenCount: 0,
+      candidatesTokenCount: 0,
+      totalTokenCount: 0,
+      inputTokenCount: 0,
+      outputTokenCount: 0,
+      estimatedCostUsd: 0,
+    };
+  }
+
+  function recordGeminiUsage(accumulator: GeminiUsageAccumulator | undefined, usage: GeminiCallUsage) {
+    if (!accumulator) return;
+    accumulator.callCount += 1;
+    accumulator.promptTokenCount += usage.promptTokenCount;
+    accumulator.candidatesTokenCount += usage.candidatesTokenCount;
+    accumulator.totalTokenCount += usage.totalTokenCount;
+    accumulator.inputTokenCount += usage.inputTokenCount;
+    accumulator.outputTokenCount += usage.outputTokenCount;
+    if (typeof usage.estimatedCostUsd === "number") {
+      accumulator.pricedCallCount += 1;
+      accumulator.estimatedCostUsd += usage.estimatedCostUsd;
+    } else {
+      accumulator.unpricedCallCount += 1;
+    }
+  }
+
+  function snapshotGeminiUsage(accumulator: GeminiUsageAccumulator) {
+    return {
+      geminiCallCount: accumulator.callCount,
+      geminiPricedCallCount: accumulator.pricedCallCount,
+      geminiUnpricedCallCount: accumulator.unpricedCallCount,
+      geminiPromptTokenCount: accumulator.promptTokenCount,
+      geminiCandidatesTokenCount: accumulator.candidatesTokenCount,
+      geminiTotalTokenCount: accumulator.totalTokenCount,
+      geminiInputTokenCount: accumulator.inputTokenCount,
+      geminiOutputTokenCount: accumulator.outputTokenCount,
+      geminiEstimatedCostUsd: accumulator.pricedCallCount > 0 ? roundCostUsd(accumulator.estimatedCostUsd) : null,
+    };
+  }
+
+  async function generateContentWithRetry(aiClient: any, args: any, options: GeminiGenerateOptions = {}): Promise<{ response: any; retried: boolean; usage: GeminiCallUsage }> {
     const delays = [1500, 3000, 6000];
     let attempt = 0;
+    const startedAt = Date.now();
+    const model = safeLogText(args?.model, "unknown-model", 120);
     while (true) {
       try {
         throwIfAborted(options.signal);
@@ -207,7 +398,18 @@ async function startServer() {
           ? { ...args, config: { ...(args.config || {}), abortSignal: options.signal } }
           : args;
         const response = await withAbort(aiClient.models.generateContent(callArgs), options.signal);
-        return { response, retried: attempt > 0 };
+        const usage = summarizeGeminiUsage(response);
+        recordGeminiUsage(options.usageAccumulator, usage);
+        structuredLog("info", "gemini_call_completed", {
+          model,
+          durationMs: Date.now() - startedAt,
+          attempts: attempt + 1,
+          retried: attempt > 0,
+          googleSearchGrounding: hasGoogleSearchTool(args),
+          structuredResponse: !!args?.config?.responseSchema,
+          ...geminiUsageLogFields(usage),
+        });
+        return { response, retried: attempt > 0, usage };
       } catch (error: any) {
         if (isAbortError(error)) {
           throw error;
@@ -218,11 +420,80 @@ async function startServer() {
             attempt: attempt + 1,
             maxAttempts: delays.length + 1,
             delayMs: delayTime,
-            error: error?.message || String(error),
+            model,
+            error: safeLogText(error?.message || String(error)),
           });
           await sleepWithAbort(delayTime, options.signal);
           attempt++;
         } else {
+          structuredLog("error", "gemini_call_failed", {
+            model,
+            durationMs: Date.now() - startedAt,
+            attempts: attempt + 1,
+            retryable: isRetryableError(error),
+            googleSearchGrounding: hasGoogleSearchTool(args),
+            structuredResponse: !!args?.config?.responseSchema,
+            estimatedCostUsd: null,
+            costPricingSource: "usage-metadata-unavailable",
+            error: safeLogText(error?.message || String(error)),
+          });
+          throw error;
+        }
+      }
+    }
+  }
+
+  async function createInteractionWithRetry(aiClient: any, args: any, options: GeminiGenerateOptions = {}): Promise<{ interaction: any; retried: boolean; usage: GeminiCallUsage }> {
+    const delays = [1500, 3000, 6000];
+    let attempt = 0;
+    const startedAt = Date.now();
+    const model = safeLogText(args?.model, "unknown-model", 120);
+    while (true) {
+      try {
+        throwIfAborted(options.signal);
+        const interaction = await withAbort(aiClient.interactions.create(args), options.signal);
+        const usage = summarizeGeminiUsage(interaction);
+        recordGeminiUsage(options.usageAccumulator, usage);
+        structuredLog("info", "gemini_call_completed", {
+          model,
+          apiSurface: "interactions",
+          durationMs: Date.now() - startedAt,
+          attempts: attempt + 1,
+          retried: attempt > 0,
+          googleSearchGrounding: hasInteractionGoogleSearchTool(args),
+          structuredResponse: !!args?.response_format,
+          ...geminiUsageLogFields(usage),
+        });
+        return { interaction, retried: attempt > 0, usage };
+      } catch (error: any) {
+        if (isAbortError(error)) {
+          throw error;
+        }
+        if (attempt < delays.length && isRetryableError(error)) {
+          const delayTime = delays[attempt];
+          structuredLog("warn", "gemini_retry", {
+            attempt: attempt + 1,
+            maxAttempts: delays.length + 1,
+            delayMs: delayTime,
+            model,
+            apiSurface: "interactions",
+            error: safeLogText(error?.message || String(error)),
+          });
+          await sleepWithAbort(delayTime, options.signal);
+          attempt++;
+        } else {
+          structuredLog("error", "gemini_call_failed", {
+            model,
+            apiSurface: "interactions",
+            durationMs: Date.now() - startedAt,
+            attempts: attempt + 1,
+            retryable: isRetryableError(error),
+            googleSearchGrounding: hasInteractionGoogleSearchTool(args),
+            structuredResponse: !!args?.response_format,
+            estimatedCostUsd: null,
+            costPricingSource: "usage-metadata-unavailable",
+            error: safeLogText(error?.message || String(error)),
+          });
           throw error;
         }
       }
@@ -521,6 +792,101 @@ async function startServer() {
     res.status(payload.ready ? 200 : 503).json(payload);
   });
 
+  function cloudLoggingQueries() {
+    return [
+      {
+        name: "Gemini call latency and retries",
+        filter: 'jsonPayload.service="civiclens" AND jsonPayload.event="gemini_call_completed"',
+      },
+      {
+        name: "Gemini failures",
+        filter: 'jsonPayload.service="civiclens" AND jsonPayload.event="gemini_call_failed"',
+      },
+      {
+        name: "Agent run completion",
+        filter: 'jsonPayload.service="civiclens" AND jsonPayload.event="agent_run_metric"',
+      },
+      {
+        name: "API request latency and status",
+        filter: 'jsonPayload.service="civiclens" AND jsonPayload.event="api_request"',
+      },
+    ];
+  }
+
+  function incrementCount(counts: Record<string, number>, key: unknown) {
+    const normalized = safeLogText(key || "unknown", "unknown", 80);
+    counts[normalized] = (counts[normalized] || 0) + 1;
+  }
+
+  app.get("/api/ops/observability", async (req: any, res) => {
+    if (!adminDb) return sendApiError(res, 503, "Server data layer unavailable.");
+    const actor = req.actor as RequestActor | undefined;
+    if (!actor?.isRealOperator && !actor?.isDemoOperator) {
+      return sendApiError(res, 403, "Operator authorization is required.");
+    }
+
+    const sinceHours = Math.min(168, parsePositiveInt(req.query?.hours, 24));
+    const sinceIso = new Date(Date.now() - sinceHours * 60 * 60 * 1000).toISOString();
+    try {
+      const [eventsSnap, runsSnap] = await Promise.all([
+        adminDb.collection("events").where("timestamp", ">=", sinceIso).limit(250).get(),
+        adminDb.collection("agentRuns").where("completedAt", ">=", sinceIso).limit(100).get(),
+      ]);
+
+      const byStatus: Record<string, number> = {};
+      const bySource: Record<string, number> = {};
+      const byEventType: Record<string, number> = {};
+      eventsSnap.docs.forEach((doc: any) => {
+        const data = doc.data() || {};
+        incrementCount(byStatus, data.status);
+        incrementCount(bySource, data.source);
+        incrementCount(byEventType, data.eventType);
+      });
+
+      const completedRuns = runsSnap.docs
+        .map((doc: any) => doc.data() || {})
+        .filter((run: any) => run.status === "completed");
+      const durations = completedRuns
+        .map((run: any) => Date.parse(run.completedAt || "") - Date.parse(run.startedAt || ""))
+        .filter((duration: number) => Number.isFinite(duration) && duration >= 0);
+      const stepCounts = completedRuns
+        .map((run: any) => Number(run.stepCount || 0))
+        .filter((count: number) => Number.isFinite(count) && count > 0);
+      const average = (values: number[]) => values.length
+        ? Math.round(values.reduce((sum, value) => sum + value, 0) / values.length)
+        : null;
+
+      structuredLog("info", "observability_snapshot", {
+        sinceHours,
+        eventCount: eventsSnap.size,
+        agentRunCount: runsSnap.size,
+        actorRole: actor.role,
+      });
+
+      return res.json({
+        success: true,
+        generatedAt: new Date().toISOString(),
+        window: { sinceHours, sinceIso },
+        eventCounts: {
+          total: eventsSnap.size,
+          byStatus,
+          bySource,
+          byEventType,
+        },
+        agentRuns: {
+          total: runsSnap.size,
+          completed: completedRuns.length,
+          averageDurationMs: average(durations),
+          averageStepCount: average(stepCounts),
+        },
+        cloudLoggingQueries: cloudLoggingQueries(),
+        dashboardTemplate: "docs/monitoring/civiclens-cloud-monitoring-dashboard.json",
+      });
+    } catch (error) {
+      return sendApiError(res, 500, "Failed to load observability snapshot.", error);
+    }
+  });
+
   app.get("/api/session", (req: any, res) => {
     const actor = req.actor as RequestActor | undefined;
     if (!actor) {
@@ -639,6 +1005,74 @@ async function startServer() {
     const parsed = typeof value === "number" ? value : Number(value);
     if (!Number.isFinite(parsed)) return fallback;
     return Math.max(min, Math.min(max, parsed));
+  }
+
+  function extractGroundingSources(response: any, claimSupported: string) {
+    const searchChunks = response?.candidates?.[0]?.groundingMetadata?.groundingChunks || [];
+    const seenSources = new Set<string>();
+    return searchChunks
+      .map((chunk: any) => ({
+        title: cleanText(chunk.web?.title, "Grounding source", 180),
+        url: cleanText(chunk.web?.uri, "", 2000),
+        claimSupported,
+        sourceType: "sourced",
+      }))
+      .filter((source: any) => {
+        if (!source.url || seenSources.has(source.url)) return false;
+        seenSources.add(source.url);
+        return true;
+      });
+  }
+
+  function extractInteractionCitationSources(interaction: any, claimSupported: string) {
+    const seenSources = new Set<string>();
+    const sources: Array<{ title: string; url: string; claimSupported: string; sourceType: string }> = [];
+    const steps = Array.isArray(interaction?.steps) ? interaction.steps : [];
+    for (const step of steps) {
+      const contentBlocks = Array.isArray(step?.content) ? step.content : [];
+      for (const block of contentBlocks) {
+        const annotations = Array.isArray(block?.annotations) ? block.annotations : [];
+        for (const annotation of annotations) {
+          if (annotation?.type !== "url_citation") continue;
+          const url = cleanText(annotation.url, "", 2000);
+          if (!url || seenSources.has(url)) continue;
+          seenSources.add(url);
+          sources.push({
+            title: cleanText(annotation.title, "Grounding source", 180),
+            url,
+            claimSupported,
+            sourceType: "sourced",
+          });
+        }
+      }
+    }
+    return sources;
+  }
+
+  async function findGroundingCitationSources(aiClient: any, input: {
+    category: string;
+    title: string;
+    summary: string;
+    locationName?: string;
+    lat?: unknown;
+    lng?: unknown;
+  }, options: GeminiGenerateOptions = {}) {
+    const prompt = `Use Google Search to identify official or highly reliable public references for this Indian civic issue. Return one short sentence with citations.
+Category: ${input.category}
+Title: ${input.title}
+Summary: ${input.summary}
+Location: ${input.locationName || "India"}
+Coordinates: lat ${input.lat || "unknown"}, lng ${input.lng || "unknown"}`;
+    const result = await createInteractionWithRetry(aiClient, {
+      model: "gemini-2.5-flash",
+      input: prompt,
+      tools: [{ type: "google_search" }],
+      store: false,
+    }, options);
+    return extractInteractionCitationSources(
+      result.interaction,
+      "Suggested authority/contact reference returned by Google Search grounding."
+    );
   }
 
   async function imageSourceToInlinePart(source: unknown, label: string): Promise<any | null> {
@@ -2140,20 +2574,21 @@ Output ONLY valid JSON and nothing else.`;
       parsedData = JSON.parse(jsonMatch[0]);
     }
 
-    const searchChunks = response.candidates?.[0]?.groundingMetadata?.groundingChunks || [];
-    const seenSources = new Set<string>();
-    parsedData.groundingSources = searchChunks
-      .map((chunk: any) => ({
-        title: cleanText(chunk.web?.title, "Grounding source", 180),
-        url: cleanText(chunk.web?.uri, "", 2000),
-        claimSupported: "Suggested authority/contact reference for a draft action packet.",
-        sourceType: "sourced",
-      }))
-      .filter((source: any) => {
-        if (!source.url || seenSources.has(source.url)) return false;
-        seenSources.add(source.url);
-        return true;
+    let groundingSources = extractGroundingSources(
+      response,
+      "Suggested authority/contact reference for a draft action packet."
+    );
+    if (groundingSources.length === 0) {
+      groundingSources = await findGroundingCitationSources(ai, {
+        category: cleanText(issueData?.category, "civic issue", 80),
+        title: cleanText(issueData?.title, "Civic issue", 180),
+        summary: cleanText(issueData?.summary || issueData?.description, "", 600),
+        locationName: cleanText(issueData?.locationName, "", 240),
+        lat: issueData?.lat,
+        lng: issueData?.lng,
       });
+    }
+    parsedData.groundingSources = groundingSources;
 
     return {
       success: true,
@@ -3283,15 +3718,20 @@ Output ONLY valid JSON and nothing else.`;
         }
       }
 
-      // Extract search grounding metadata sources
-      const searchChunks = response.candidates?.[0]?.groundingMetadata?.groundingChunks || [];
-      const groundingSources: string[] = searchChunks
-        .map((chunk: any) => chunk.web?.uri)
-        .filter(Boolean);
-
-      const uniqueSources = Array.from(new Set(groundingSources));
-
-      // Append sources to parsed data
+      let uniqueSources = extractGroundingSources(
+        response,
+        "Suggested authority/contact reference for a draft action packet."
+      );
+      if (uniqueSources.length === 0) {
+        uniqueSources = await findGroundingCitationSources(ai, {
+          category,
+          title,
+          summary,
+          locationName,
+          lat,
+          lng,
+        });
+      }
       parsedData.groundingSources = uniqueSources;
 
       const inputDigest = `${category}: "${title}"`;
@@ -3916,7 +4356,7 @@ Output ONLY valid JSON and nothing else.`;
   });
 
   // Helper to generate the structured action packet & native Hindi translations
-  async function generateActionPacket(aiClient: any, issue: any, authority: string, channel: string, slaDays: number, options: { signal?: AbortSignal } = {}): Promise<any> {
+  async function generateActionPacket(aiClient: any, issue: any, authority: string, channel: string, slaDays: number, options: GeminiGenerateOptions = {}): Promise<any> {
     const todayStr = new Date().toLocaleDateString("en-US", { year: "numeric", month: "long", day: "numeric" });
     const promptText = `Draft a complaint packet for human review for this reported civic issue in India.
 Responsible Authority: ${authority}
@@ -3972,7 +4412,7 @@ Output ONLY valid JSON and nothing else.`;
     return JSON.parse(clean);
   }
 
-  async function runAgentSelfCritique(aiClient: any, issue: any, steps: any[], final: any, options: { signal?: AbortSignal } = {}) {
+  async function runAgentSelfCritique(aiClient: any, issue: any, steps: any[], final: any, options: GeminiGenerateOptions = {}) {
     const originalCategory = categoriesList.includes(issue.category) ? issue.category : "other";
     const originalSeverity = Math.round(cleanNumber(issue.severity, 1, 1, 5));
     const originalUrgency = urgenciesList.includes(issue.urgency) ? issue.urgency : "routine";
@@ -4874,6 +5314,8 @@ Return STRICT JSON: { "action": "wait|escalate|request_evidence|ready_to_close",
       ? Math.max(15_000, Math.min(180_000, configuredAgentTimeoutMs))
       : 90_000;
     const agentSignal = AbortSignal.timeout(agentTimeoutMs);
+    const agentRunStartedAt = Date.now();
+    const agentGeminiUsage = createGeminiUsageAccumulator();
 
     try {
       const existingRun = await runRef.get();
@@ -5074,7 +5516,7 @@ Return STRICT JSON: { "action": "wait|escalate|request_evidence|ready_to_close",
               config: {
                 tools: [{ googleSearch: {} }]
               }
-            }, { signal: agentSignal });
+            }, { signal: agentSignal, usageAccumulator: agentGeminiUsage });
 
             const responseText = (searchRes.response.text || "").trim();
             let cleanText = responseText;
@@ -5179,7 +5621,7 @@ Issue: ${JSON.stringify(issue)}` }]}];
           model: "gemini-2.5-flash",
           contents,
           config: { tools: agentTools }
-        }, { signal: agentSignal });
+        }, { signal: agentSignal, usageAccumulator: agentGeminiUsage });
         const turnReasoning = (response.text || "").trim();
         const calls = response.functionCalls || [];
         if (!calls.length) break;
@@ -5243,7 +5685,7 @@ Issue: ${JSON.stringify(issue)}` }]}];
       // "skipped" rows. Two different issues produce two different, real traces.
 
       try {
-        selfCritique = await runAgentSelfCritique(ai, issueForPlan, steps, final, { signal: agentSignal });
+        selfCritique = await runAgentSelfCritique(ai, issueForPlan, steps, final, { signal: agentSignal, usageAccumulator: agentGeminiUsage });
         const critiqueTs = new Date().toISOString();
         steps.push({
           id: `${runRef.id}_${steps.length + 1}_self_critique`,
@@ -5354,7 +5796,7 @@ Issue: ${JSON.stringify(issue)}` }]}];
       // Generate the final rich resolution plan
       let resolutionPlan = null;
       try {
-        const actionPacket = await generateActionPacket(ai, issueForPlan, authority, channel, slaDays, { signal: agentSignal });
+        const actionPacket = await generateActionPacket(ai, issueForPlan, authority, channel, slaDays, { signal: agentSignal, usageAccumulator: agentGeminiUsage });
         resolutionPlan = {
           recommendedAuthority: authority,
           contactChannel: channel,
@@ -5395,6 +5837,7 @@ Issue: ${JSON.stringify(issue)}` }]}];
 
       const nowIso = new Date().toISOString();
       Object.assign(agentIssueUpdates, buildSlaIssueFields({ ...issueForPlan, resolutionPlan }, nowIso));
+      const geminiUsage = snapshotGeminiUsage(agentGeminiUsage);
       const run = {
         id: runRef.id,
         issueId,
@@ -5412,6 +5855,7 @@ Issue: ${JSON.stringify(issue)}` }]}];
         resolutionPlan,
         stepCount: steps.length,
         timeoutMs: agentTimeoutMs,
+        geminiUsage,
       };
 
       await persistAgentRun(issueRef, runRef, run, steps, resolutionPlan, final, agentIssueUpdates);
@@ -5431,7 +5875,20 @@ Issue: ${JSON.stringify(issue)}` }]}];
           duplicateSimilarity,
           priorityScore: typeof final?.priorityScore === "number" ? cleanNumber(final.priorityScore, 0, 0, 100) : null,
           finalRouteTo: cleanText(final?.routeTo, "", 160) || null,
+          geminiCallCount: geminiUsage.geminiCallCount,
+          geminiEstimatedCostUsd: geminiUsage.geminiEstimatedCostUsd,
         },
+      });
+      structuredLog("info", "agent_run_metric", {
+        runId: runRef.id,
+        issueId,
+        status: "completed",
+        durationMs: Date.now() - agentRunStartedAt,
+        stepCount: steps.length,
+        duplicateDetected: !!duplicateCandidateId,
+        timeoutMs: agentTimeoutMs,
+        actorRole: actor.role,
+        ...geminiUsage,
       });
 
       return res.json({
@@ -5447,6 +5904,7 @@ Issue: ${JSON.stringify(issue)}` }]}];
     } catch (error: any) {
       console.error("Agent run error:", error);
       const timedOut = isAbortError(error);
+      const geminiUsage = snapshotGeminiUsage(agentGeminiUsage);
       await recordEvent({
         issueRef,
         actorType: "ai",
@@ -5457,7 +5915,22 @@ Issue: ${JSON.stringify(issue)}` }]}];
         status: "failed",
         severity: timedOut ? "warn" : "error",
         idempotencyKey,
-        payload: { error: error?.message || String(error), timeoutMs: agentTimeoutMs },
+        payload: {
+          error: error?.message || String(error),
+          timeoutMs: agentTimeoutMs,
+          geminiCallCount: geminiUsage.geminiCallCount,
+          geminiEstimatedCostUsd: geminiUsage.geminiEstimatedCostUsd,
+        },
+      });
+      structuredLog(timedOut ? "warn" : "error", "agent_run_metric", {
+        runId: runRef.id,
+        issueId,
+        status: timedOut ? "timed_out" : "failed",
+        durationMs: Date.now() - agentRunStartedAt,
+        timeoutMs: agentTimeoutMs,
+        actorRole: actor.role,
+        ...geminiUsage,
+        error: safeLogText(error?.message || String(error)),
       });
       return sendApiError(res, timedOut ? 504 : 500, timedOut ? "Agent run timed out before completing." : "An unexpected error occurred during the agent triage run.");
     }

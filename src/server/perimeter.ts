@@ -152,6 +152,8 @@ export function findOversizedStringField(
 
 export function classifyProtectedRoute(method: string, path: string): "health" | "gemini" | "mutation" | "session" {
   if (method === "GET" && (path === "/api/health" || path === "/health" || path === "/api/readyz" || path === "/readyz")) return "health";
+  // Open311 GeoReport v2 is open civic data - publicly readable, no token required.
+  if (method === "GET" && (path === "/api/export/open311" || path.endsWith("/open311"))) return "health";
   if (path === "/api/session") return "session";
   if (
     path === "/api/analyze-report" ||

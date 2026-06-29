@@ -2321,6 +2321,60 @@ Return STRICT JSON: { "escalationLetter": "string", "rtiRequest": "string" }`;
     }
   });
 
+  // ---- Phase 4: Open311 GeoReport v2 export (municipal interoperability) ----
+  const OPEN311_SERVICE_CODES: Record<string, { code: string; name: string }> = {
+    pothole: { code: "POTHOLE", name: "Pothole / Road Damage" },
+    water_leak: { code: "WATER_LEAK", name: "Water Leak / Pipeline" },
+    streetlight: { code: "STREETLIGHT", name: "Street Light Outage" },
+    waste: { code: "SANITATION", name: "Garbage / Sanitation" },
+    garbage: { code: "SANITATION", name: "Garbage / Sanitation" },
+    drainage: { code: "DRAIN_SEWER", name: "Drain / Sewerage" },
+  };
+  function toOpen311(issue: any) {
+    const key = String(issue.category || "").toLowerCase().trim();
+    const map = OPEN311_SERVICE_CODES[key] || { code: "OTHER", name: key ? key.replace(/_/g, " ").replace(/\b\w/g, (c) => c.toUpperCase()) : "Other Civic Issue" };
+    const req: any = {
+      service_request_id: issue.id,
+      status: issue.status === "resolved" ? "closed" : "open",
+      service_name: map.name,
+      service_code: map.code,
+      description: issue.summary || issue.description || issue.title || "",
+      requested_datetime: issue.createdAt || undefined,
+      updated_datetime: issue.resolvedAt || issue.workStartedAt || issue.triagedAt || issue.createdAt || undefined,
+      address: issue.locationName || undefined,
+      lat: typeof issue.lat === "number" ? issue.lat : undefined,
+      long: typeof issue.lng === "number" ? issue.lng : undefined,
+      agency_responsible: issue.resolutionPlan?.recommendedAuthority || undefined,
+      priority_score: typeof issue.priorityScore === "number" ? issue.priorityScore : undefined,
+    };
+    Object.keys(req).forEach((k) => req[k] === undefined && delete req[k]);
+    return req;
+  }
+  // Bulk open-data export in Open311 GeoReport v2 shape (publicly readable civic data).
+  app.get("/api/export/open311", async (_req: any, res) => {
+    if (!adminDb) return sendApiError(res, 503, "Server data layer unavailable.");
+    try {
+      const snap = await adminDb.collection("issues").limit(500).get();
+      const out = snap.docs.map((d: any) => toOpen311({ id: d.id, ...d.data() }));
+      return res.json({ service_requests: out, count: out.length, format: "open311-georeport-v2" });
+    } catch (error) {
+      return sendApiError(res, 500, "Open311 export failed.", error);
+    }
+  });
+  // Single-issue Open311 export.
+  app.get("/api/issues/:issueId/open311", async (req: any, res) => {
+    if (!adminDb) return sendApiError(res, 503, "Server data layer unavailable.");
+    const { issueId } = req.params;
+    if (!isSafeDocumentId(issueId)) return sendApiError(res, 400, "Invalid issue id.");
+    try {
+      const doc = await adminDb.collection("issues").doc(issueId).get();
+      if (!doc.exists) return sendApiError(res, 404, "Issue not found.");
+      return res.json({ service_requests: [toOpen311({ id: doc.id, ...doc.data() })] });
+    } catch (error) {
+      return sendApiError(res, 500, "Open311 export failed.", error);
+    }
+  });
+
   // Real Gemini Function-Calling Agentic Triage Loop
   app.post("/api/agent/run", async (req: any, res) => {
     if (!adminDb) return sendApiError(res, 503, "Server data layer unavailable.");

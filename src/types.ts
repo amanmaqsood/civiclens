@@ -81,6 +81,16 @@ export interface IssueReport {
   privacyFlags?: string[];
   confidence?: number;
   reportCount?: number;
+  autoMerged?: boolean;
+  duplicateSimilarity?: number | null;
+  duplicateDistanceM?: number | null;
+  dedup?: {
+    lastAutoMergedAt?: string;
+    lastAutoMergedBy?: string;
+    lastSimilarity?: number;
+    lastDistanceM?: number;
+    method?: string;
+  };
   priorityScore?: number;
   confirmCount?: number;
   disputeCount?: number;

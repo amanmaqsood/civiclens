@@ -282,6 +282,9 @@ export default function App() {
       privacyFlags: reportData.privacyFlags,
       confidence: reportData.confidence,
     });
+    if ((savedReport as any).autoMerged) {
+      setDedupConfirmedMerged(true);
+    }
     setLatestReport(savedReport);
     setCurrentView("success");
   };

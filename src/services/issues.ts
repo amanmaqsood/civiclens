@@ -207,6 +207,7 @@ function issueReportFromSnapshot(id: string, data: any): IssueReport {
     privacyFlags: data.privacyFlags,
     confidence: data.confidence,
     reportCount: data.reportCount || 1,
+    dedup: data.dedup || undefined,
     confirmCount: data.confirmCount || 0,
     disputeCount: data.disputeCount || 0,
     priorityScore: data.priorityScore,
@@ -333,7 +334,12 @@ export async function submitIssueReport(
     throw new Error(err.error || "Failed to create issue report.");
   }
   const result = await response.json();
-  return result.data as IssueReport;
+  return {
+    ...result.data,
+    autoMerged: !!result.autoMerged,
+    duplicateSimilarity: result.duplicateSimilarity ?? null,
+    duplicateDistanceM: result.duplicateDistanceM ?? null,
+  } as IssueReport;
 }
 
 // Distance calculator using Haversine formula
@@ -401,6 +407,7 @@ export async function findDuplicateCandidates(
           privacyFlags: data.privacyFlags,
           confidence: data.confidence,
           reportCount: data.reportCount || 1,
+          dedup: data.dedup || undefined,
           agentTrace: data.agentTrace || [],
           resolutionPlan: data.resolutionPlan || undefined,
           closureAssessment: data.closureAssessment || undefined,

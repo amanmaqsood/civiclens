@@ -152,6 +152,17 @@ Phase 2.1 SLA ladder and RTI PDF verification on 2026-06-30:
 - `.\node_modules\.bin\vitest.cmd run`: passed; 20 files passed, 2 skipped; 90 tests passed, 7 skipped.
 - `npm run build`: passed; Vite transformed 2141 modules and emitted no chunk over 500 kB. Largest JS chunk was `fb-firestore` at 475.16 kB.
 
+Phase 3.3 semantic auto-merge-on-create verification on 2026-06-30:
+
+- `POST /api/issues/create` now embeds the incoming report before persistence, applies a geohash-7 neighborhood prefilter, requires cosine similarity >=0.85 and distance <=50m, then transactionally either creates a new canonical case or auto-merges the report as evidence into the existing canonical case.
+- Auto-merge increments canonical `reportCount`, recomputes server priority so duplicate volume affects urgency, writes durable `issueCreateResults` idempotency markers, records `dedup` metadata, and emits `auto_merged_on_create` activity/event records.
+- The client create wrapper now preserves the server `autoMerged`, similarity, and distance response fields so the existing success flow can show that the report was merged into a canonical case.
+- `.\node_modules\.bin\tsc.cmd --noEmit`: passed with 0 errors.
+- `.\node_modules\.bin\vitest.cmd run src/server/semantic-auto-merge.test.ts src/server/events-spine.test.ts src/release-golden-path.test.ts`: passed; 3 files passed, 9 tests passed.
+- Real Gemini embedding emulator proof: `firebase emulators:exec --project demo-civiclens --only auth,firestore,storage "powershell -NoProfile -ExecutionPolicy Bypass -File scripts\verify-semantic-auto-merge-live.ps1"` passed and reported `SEMANTIC_AUTO_MERGE_LIVE similarity=0.991 distanceM=14 reportCount=2 eventCount=1`.
+- `.\node_modules\.bin\vitest.cmd run`: passed; 21 files passed, 2 skipped; 93 tests passed, 7 skipped.
+- `npm run build`: passed; Vite transformed 2141 modules and emitted no chunk over 500 kB. Largest JS chunk was `fb-firestore` at 475.16 kB.
+
 Latest local validation after public documentation cleanup and current-tree internal artifact removal:
 
 - `npm ci`: passed; install audit reported 3 moderate dev-dependency issues while production audit remained clean.

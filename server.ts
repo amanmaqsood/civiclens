@@ -732,7 +732,8 @@ async function startServer() {
   }
 
   function publicIssueFromDoc(id: string, data: any) {
-    return { id, ...data };
+    const { embedding, ...publicData } = data || {};
+    return { id, ...publicData };
   }
 
   type EventActorType = "citizen" | "operator" | "ai" | "worker" | "system";
@@ -1080,18 +1081,147 @@ async function startServer() {
     report.priorityScore = serverPriorityScore(report);
     Object.assign(report, buildSlaIssueFields(report, nowIso));
 
-    let createdNew = false;
+    const queryEmbedding = await embedText(issueEmbeddingText(report));
+    if (queryEmbedding) {
+      (report as any).embedding = queryEmbedding;
+    }
+    const reportGeohash7 = geoHash7(report.lat, report.lng);
+    if (reportGeohash7) {
+      (report as any).geohash7 = reportGeohash7;
+    }
+
     try {
-      const saved = await adminDb.runTransaction(async (tx: any) => {
+      const mergeCandidate = queryEmbedding ? await findAutoMergeCandidate(report, queryEmbedding, issueRef.id) : null;
+      const createResultRef = adminDb.collection("issueCreateResults").doc(idempotencyKey);
+      const outcome = await adminDb.runTransaction(async (tx: any) => {
+        const markerSnap = await tx.get(createResultRef);
+        if (markerSnap.exists) {
+          const marker = markerSnap.data() || {};
+          const canonicalIssueId = cleanText(marker.canonicalIssueId, "", 128);
+          if (!isSafeDocumentId(canonicalIssueId)) throw new Error("CREATE_MARKER_INVALID");
+          const canonicalRef = adminDb.collection("issues").doc(canonicalIssueId);
+          const canonicalSnap = await tx.get(canonicalRef);
+          if (!canonicalSnap.exists) throw new Error("CREATE_MARKER_TARGET_MISSING");
+          return {
+            canonicalIssueId,
+            data: canonicalSnap.data(),
+            autoMerged: marker.status === "auto_merged",
+            duplicateSimilarity: typeof marker.duplicateSimilarity === "number" ? marker.duplicateSimilarity : null,
+            duplicateDistanceM: typeof marker.duplicateDistanceM === "number" ? marker.duplicateDistanceM : null,
+            contributionCreated: false,
+            createdNew: false,
+          };
+        }
+
         const existing = await tx.get(issueRef);
         if (existing.exists) {
           const existingData = existing.data();
           if (existingData.userId !== actor.uid) {
             throw new Error("IDEMPOTENCY_CONFLICT");
           }
-          return existingData;
+          tx.set(createResultRef, {
+            status: "created",
+            canonicalIssueId: issueRef.id,
+            requestedIssueId: issueRef.id,
+            createdAt: nowIso,
+            byUid: actor.uid,
+          });
+          return {
+            canonicalIssueId: issueRef.id,
+            data: existingData,
+            autoMerged: false,
+            duplicateSimilarity: null,
+            duplicateDistanceM: null,
+            contributionCreated: false,
+            createdNew: false,
+          };
         }
-        createdNew = true;
+
+        let candidateRef: any = null;
+        let evidenceRef: any = null;
+        let candidateSnap: any = null;
+        let evidenceSnap: any = null;
+        if (mergeCandidate?.id && isSafeDocumentId(mergeCandidate.id)) {
+          candidateRef = adminDb.collection("issues").doc(mergeCandidate.id);
+          evidenceRef = candidateRef.collection("evidence").doc(idempotencyKey);
+          candidateSnap = await tx.get(candidateRef);
+          evidenceSnap = await tx.get(evidenceRef);
+        }
+
+        if (candidateRef && candidateSnap?.exists) {
+          const candidateData = candidateSnap.data() || {};
+          const evidenceCreated = !evidenceSnap?.exists;
+          const nextReportCount = evidenceCreated ? cleanNumber(candidateData.reportCount, 1, 1, 999) + 1 : cleanNumber(candidateData.reportCount, 1, 1, 999);
+          const nextPriorityScore = serverPriorityScore({ ...candidateData, reportCount: nextReportCount });
+          const updatedCandidate = {
+            ...candidateData,
+            reportCount: nextReportCount,
+            priorityScore: nextPriorityScore,
+            updatedAt: nowIso,
+            geohash7: cleanText(candidateData.geohash7, "", 16) || mergeCandidate.geohash7,
+            dedup: {
+              ...(candidateData.dedup || {}),
+              lastAutoMergedAt: nowIso,
+              lastAutoMergedBy: actor.uid,
+              lastSimilarity: mergeCandidate.similarity,
+              lastDistanceM: mergeCandidate.distanceM,
+              method: "geohash7_embedding_cosine",
+            },
+          };
+          if (evidenceCreated) {
+            tx.set(evidenceRef, {
+              imageUrl: imageValue,
+              description: report.description || report.summary || "Co-supporting evidence auto-merged by server.",
+              lat: report.lat,
+              lng: report.lng,
+              severity: report.severity,
+              submittedBy: actor.uid,
+              timestamp: nowIso,
+              source: "auto_merge_on_create",
+              requestedIssueId: issueRef.id,
+              duplicateSimilarity: mergeCandidate.similarity,
+              duplicateDistanceM: mergeCandidate.distanceM,
+              category: report.category,
+              title: report.title,
+              summary: report.summary,
+            });
+            tx.update(candidateRef, {
+              reportCount: nextReportCount,
+              priorityScore: nextPriorityScore,
+              updatedAt: nowIso,
+              geohash7: updatedCandidate.geohash7,
+              dedup: updatedCandidate.dedup,
+            });
+            tx.set(candidateRef.collection("activity").doc(), {
+              actorType: "citizen",
+              eventType: "auto_merged_on_create",
+              message: `Server auto-merged a near-identical report (${Math.round(mergeCandidate.distanceM)}m, cosine ${mergeCandidate.similarity}).`,
+              timestamp: nowIso,
+              byUid: actor.uid,
+              byRole: actor.role,
+            });
+          }
+          tx.set(createResultRef, {
+            status: "auto_merged",
+            canonicalIssueId: candidateRef.id,
+            requestedIssueId: issueRef.id,
+            createdAt: nowIso,
+            byUid: actor.uid,
+            duplicateSimilarity: mergeCandidate.similarity,
+            duplicateDistanceM: mergeCandidate.distanceM,
+            evidenceId: idempotencyKey,
+          });
+          return {
+            canonicalIssueId: candidateRef.id,
+            data: updatedCandidate,
+            autoMerged: true,
+            duplicateSimilarity: mergeCandidate.similarity,
+            duplicateDistanceM: mergeCandidate.distanceM,
+            contributionCreated: evidenceCreated,
+            createdNew: false,
+          };
+        }
+
         tx.set(issueRef, report);
         const activityRef = issueRef.collection("activity").doc();
         tx.set(activityRef, {
@@ -1102,12 +1232,28 @@ async function startServer() {
           byUid: actor.uid,
           byRole: actor.role,
         });
-        return report;
+        tx.set(createResultRef, {
+          status: "created",
+          canonicalIssueId: issueRef.id,
+          requestedIssueId: issueRef.id,
+          createdAt: nowIso,
+          byUid: actor.uid,
+          embeddingAvailable: !!queryEmbedding,
+          geohash7: reportGeohash7,
+        });
+        return {
+          canonicalIssueId: issueRef.id,
+          data: report,
+          autoMerged: false,
+          duplicateSimilarity: null,
+          duplicateDistanceM: null,
+          contributionCreated: true,
+          createdNew: true,
+        };
       });
 
-      if (createdNew) await awardPoints(actor.uid, actor.role, 10, "reportCount");
-      if (createdNew) { const ev = await embedText(issueEmbeddingText(saved)); if (ev) await issueRef.set({ embedding: ev }, { merge: true }); }
-      if (createdNew) {
+      if (outcome.contributionCreated) await awardPoints(actor.uid, actor.role, 10, "reportCount");
+      if (outcome.createdNew) {
         await recordEvent({
           issueRef,
           actorType: "citizen",
@@ -1118,13 +1264,41 @@ async function startServer() {
           source: "api",
           idempotencyKey,
           payload: {
-            ticketId: saved?.ticketId || null,
-            category: saved?.category || null,
-            priorityScore: saved?.priorityScore || null,
+            ticketId: outcome.data?.ticketId || null,
+            category: outcome.data?.category || null,
+            priorityScore: outcome.data?.priorityScore || null,
+            embeddingAvailable: !!queryEmbedding,
+            geohash7: reportGeohash7,
+          },
+        });
+      } else if (outcome.autoMerged && outcome.contributionCreated) {
+        const canonicalRef = adminDb.collection("issues").doc(outcome.canonicalIssueId);
+        await recordEvent({
+          issueRef: canonicalRef,
+          actorType: "citizen",
+          eventType: "auto_merged_on_create",
+          message: "Server auto-merged a near-identical report into this canonical case.",
+          timestamp: nowIso,
+          actor,
+          source: "api",
+          idempotencyKey,
+          payload: {
+            requestedIssueId: issueRef.id,
+            canonicalIssueId: outcome.canonicalIssueId,
+            duplicateSimilarity: outcome.duplicateSimilarity,
+            duplicateDistanceM: outcome.duplicateDistanceM,
+            reportCount: outcome.data?.reportCount || null,
           },
         });
       }
-      return res.json({ success: true, data: publicIssueFromDoc(issueRef.id, saved) });
+      return res.json({
+        success: true,
+        data: publicIssueFromDoc(outcome.canonicalIssueId, outcome.data),
+        autoMerged: outcome.autoMerged,
+        canonicalIssueId: outcome.canonicalIssueId,
+        duplicateSimilarity: outcome.duplicateSimilarity,
+        duplicateDistanceM: outcome.duplicateDistanceM,
+      });
     } catch (error: any) {
       if (error?.message === "IDEMPOTENCY_CONFLICT") {
         return sendApiError(res, 409, "Idempotency key already belongs to another user.");
@@ -3516,6 +3690,71 @@ Return STRICT JSON: { "action": "wait|escalate|request_evidence|ready_to_close",
     const a = Math.sin(dLa / 2) ** 2 + Math.cos(toR(la1)) * Math.cos(toR(la2)) * Math.sin(dLo / 2) ** 2;
     return 2 * R * Math.asin(Math.sqrt(a));
   }
+  function geoHash7(lat: unknown, lng: unknown): string | null {
+    if (typeof lat !== "number" || typeof lng !== "number" || !Number.isFinite(lat) || !Number.isFinite(lng)) return null;
+    const base32 = "0123456789bcdefghjkmnpqrstuvwxyz";
+    let idx = 0, bit = 0, evenBit = true;
+    let geohash = "";
+    let latMin = -90, latMax = 90, lngMin = -180, lngMax = 180;
+    while (geohash.length < 7) {
+      if (evenBit) {
+        const mid = (lngMin + lngMax) / 2;
+        if (lng >= mid) { idx = idx * 2 + 1; lngMin = mid; } else { idx *= 2; lngMax = mid; }
+      } else {
+        const mid = (latMin + latMax) / 2;
+        if (lat >= mid) { idx = idx * 2 + 1; latMin = mid; } else { idx *= 2; latMax = mid; }
+      }
+      evenBit = !evenBit;
+      if (++bit === 5) {
+        geohash += base32.charAt(idx);
+        bit = 0;
+        idx = 0;
+      }
+    }
+    return geohash;
+  }
+  function nearbyGeoHash7Set(lat: number, lng: number): Set<string> {
+    const delta = 0.00045; // roughly 50m latitude; enough to include adjacent geohash-7 cells near boundaries.
+    const hashes = new Set<string>();
+    for (const latDelta of [-delta, 0, delta]) {
+      for (const lngDelta of [-delta, 0, delta]) {
+        const hash = geoHash7(lat + latDelta, lng + lngDelta);
+        if (hash) hashes.add(hash);
+      }
+    }
+    return hashes;
+  }
+  async function findAutoMergeCandidate(issue: any, queryEmbedding: number[], excludeIssueId: string) {
+    if (typeof issue.lat !== "number" || typeof issue.lng !== "number") return null;
+    const candidateHashes = nearbyGeoHash7Set(issue.lat, issue.lng);
+    const snap = await adminDb.collection("issues").limit(500).get();
+    let best: any = null;
+    for (const doc of snap.docs) {
+      if (doc.id === excludeIssueId) continue;
+      const candidate = doc.data();
+      const status = normalizeIssueStatus(candidate.status);
+      if (!["submitted", "verified", "in_progress", "reopened"].includes(status)) continue;
+      if (!Array.isArray(candidate.embedding)) continue;
+      if (typeof candidate.lat !== "number" || typeof candidate.lng !== "number") continue;
+      const candidateHash = cleanText(candidate.geohash7, "", 16) || geoHash7(candidate.lat, candidate.lng);
+      if (!candidateHash || !candidateHashes.has(candidateHash)) continue;
+      const distanceM = Math.round(havMeters(issue.lat, issue.lng, candidate.lat, candidate.lng));
+      if (distanceM > 50) continue;
+      const similarity = Math.round(cosineSim(queryEmbedding, candidate.embedding) * 1000) / 1000;
+      const categoryCompatible = candidate.category === issue.category || candidate.category === "other" || issue.category === "other";
+      if (similarity < 0.85 || (!categoryCompatible && similarity < 0.93)) continue;
+      if (!best || similarity > best.similarity || (similarity === best.similarity && distanceM < best.distanceM)) {
+        best = {
+          id: doc.id,
+          data: candidate,
+          similarity,
+          distanceM,
+          geohash7: candidateHash,
+        };
+      }
+    }
+    return best;
+  }
   // Backfill embeddings for issues missing them.
   async function runEmbedBackfill(opts: { limit?: number }) {
     const limit = Math.min(100, Math.max(1, opts.limit || 50));
@@ -3546,7 +3785,9 @@ Return STRICT JSON: { "action": "wait|escalate|request_evidence|ready_to_close",
     const text = cleanText(req.body?.text, "", 1000);
     const lat = typeof req.body?.lat === "number" ? req.body.lat : null;
     const lng = typeof req.body?.lng === "number" ? req.body.lng : null;
-    const threshold = typeof req.body?.threshold === "number" ? req.body.threshold : 0.82;
+    const threshold = typeof req.body?.threshold === "number" ? req.body.threshold : 0.85;
+    const maxDistanceM = typeof req.body?.maxDistanceM === "number" ? Math.max(1, Math.min(250, req.body.maxDistanceM)) : 50;
+    const geohashes = lat != null && lng != null ? nearbyGeoHash7Set(lat, lng) : null;
     if (!text) return sendApiError(res, 400, "text is required.");
     const qv = await embedText(text);
     if (!qv) return sendApiError(res, 502, "Embedding service unavailable.");
@@ -3556,14 +3797,16 @@ Return STRICT JSON: { "action": "wait|escalate|request_evidence|ready_to_close",
       snap.docs.forEach((doc: any) => {
         const i = doc.data();
         if (!Array.isArray(i.embedding)) return;
+        const candidateHash = cleanText(i.geohash7, "", 16) || geoHash7(i.lat, i.lng);
+        if (geohashes && (!candidateHash || !geohashes.has(candidateHash))) return;
         const similarity = Math.round(cosineSim(qv, i.embedding) * 1000) / 1000;
         let distanceM: number | null = null;
         if (lat != null && lng != null && typeof i.lat === "number" && typeof i.lng === "number") distanceM = Math.round(havMeters(lat, lng, i.lat, i.lng));
-        matches.push({ id: doc.id, title: i.title, category: i.category, similarity, distanceM });
+        matches.push({ id: doc.id, title: i.title, category: i.category, similarity, distanceM, geohash7: candidateHash || null });
       });
       matches.sort((a, b) => b.similarity - a.similarity);
-      const duplicates = matches.filter((m) => m.similarity >= threshold && (m.distanceM == null || m.distanceM <= 100));
-      return res.json({ query: text, threshold, topMatches: matches.slice(0, 5), duplicates });
+      const duplicates = matches.filter((m) => m.similarity >= threshold && (m.distanceM == null || m.distanceM <= maxDistanceM));
+      return res.json({ query: text, threshold, maxDistanceM, topMatches: matches.slice(0, 5), duplicates });
     } catch (error) {
       return sendApiError(res, 500, "Semantic dedup failed.", error);
     }

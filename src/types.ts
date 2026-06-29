@@ -43,6 +43,24 @@ export interface ClosureAssessment {
   recommendation: "resolve" | "request_more_evidence" | "reopen";
   explanation: string;
   afterImage?: string;
+  ghostFlaggedAt?: string;
+  ghostRecommendation?: string;
+}
+
+export interface GhostForensics {
+  ghostClosureLikely: boolean;
+  confidence: number;
+  signals: string[];
+  recommendation: "keep_resolved" | "request_more_evidence" | "reopen";
+  explanation: string;
+  checkedAt?: string;
+  auditImage?: string | null;
+  autoReopened?: boolean;
+  officerId?: string;
+  officerPenaltyPoints?: number;
+  model?: string;
+  retried?: boolean;
+  durationMs?: number;
 }
 
 export interface IssueReport {
@@ -99,6 +117,7 @@ export interface IssueReport {
   perceiveMeta?: any;
   resolutionPlan?: ResolutionPlan;
   closureAssessment?: ClosureAssessment;
+  ghostForensics?: GhostForensics;
   slaDeadline?: string;
   slaPolicy?: {
     category: string;

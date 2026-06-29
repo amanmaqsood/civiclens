@@ -152,6 +152,20 @@ Phase 2.1 SLA ladder and RTI PDF verification on 2026-06-30:
 - `.\node_modules\.bin\vitest.cmd run`: passed; 20 files passed, 2 skipped; 90 tests passed, 7 skipped.
 - `npm run build`: passed; Vite transformed 2141 modules and emitted no chunk over 500 kB. Largest JS chunk was `fb-firestore` at 475.16 kB.
 
+Phase 2.3 ghost-closure forensics verification on 2026-06-30:
+
+- Added `POST /api/issues/:issueId/ghost-forensics`, an operator-authorized Gemini route that compares three images in order: original report, claimed closure evidence, and fresh audit evidence.
+- The route writes a persisted `ghostForensics` result, records `ghost_closure_reopened` or `ghost_closure_checked` activity/events, and records an `ai_ghost_forensics` event-spine entry.
+- High-confidence fake-closure findings (`reopen` with confidence >=0.65) auto-reopen a resolved issue to `in_progress`, set `verificationStatus: "ghost_closure_flagged"`, stamp `reopenedAt`, and increment `officerAccountability/{officerId}` ghost closure count and penalty points.
+- Shared API body validation now treats `auditImage` and `fieldAuditImage` as image payload fields. The image loader accepts data URLs/raw base64 and only fetches remote before/closure images from Firebase Storage URLs.
+- `ghostForensics` now maps into the client issue model and appears on the public issue detail page as a compact forensics card with recommendation, confidence, signals, and penalty state.
+- `.\node_modules\.bin\tsc.cmd --noEmit`: passed with 0 errors.
+- `.\node_modules\.bin\vitest.cmd run src\server\ghost-forensics.test.ts src\server\perimeter.test.ts src\server\events-spine.test.ts src\server\release-security.test.ts`: passed; 4 files passed, 22 tests passed.
+- Real Gemini emulator proof: `firebase emulators:exec --project demo-civiclens --only auth,firestore,storage "powershell -NoProfile -ExecutionPolicy Bypass -File scripts\verify-ghost-forensics-live.ps1"` passed and reported `GHOST_FORENSICS_LIVE status=in_progress recommendation=reopen confidence=1 penalty=20 eventCount=2`.
+- `.\node_modules\.bin\vitest.cmd run`: passed; 22 files passed, 3 skipped; 96 tests passed, 10 skipped.
+- `npm run build`: passed; Vite transformed 2141 modules, emitted `dist/server.cjs` at 206.5 kB, and kept the largest JS chunk at `fb-firestore` 475.16 kB.
+- Hygiene scans found no prohibited attribution terms and no Google API-key prefix matches.
+
 Phase 3.3 semantic auto-merge-on-create verification on 2026-06-30:
 
 - `POST /api/issues/create` now embeds the incoming report before persistence, applies a geohash-7 neighborhood prefilter, requires cosine similarity >=0.85 and distance <=50m, then transactionally either creates a new canonical case or auto-merges the report as evidence into the existing canonical case.

@@ -73,6 +73,7 @@ export default function IssueDetailPage({
   const currentStatusIndex = STATUS_STEPS.indexOf(issue.status as any);
   const confidence = finiteNumber(issue.confidence);
   const closureConfidence = finiteNumber(issue.closureAssessment?.confidence);
+  const ghostConfidence = finiteNumber(issue.ghostForensics?.confidence);
   const hasCoordinates = finiteNumber(issue.lat) !== null && finiteNumber(issue.lng) !== null;
 
   const [activities, setActivities] = useState<IssueActivity[]>([]);
@@ -340,6 +341,48 @@ export default function IssueDetailPage({
               "{issue.closureAssessment.explanation}"
             </div>
           </div>
+        </div>
+      )}
+
+      {issue.ghostForensics && (
+        <div id="ghost-forensics-card" className="p-4 bg-white border border-hairline rounded-2xl shadow-[0_4px_16px_-4px_rgba(14,26,43,0.05)] flex flex-col gap-3">
+          <div className="flex items-center justify-between border-b border-hairline pb-2.5">
+            <h3 className="text-xl font-display font-black text-ink flex items-center gap-2">
+              <ShieldAlert className="w-4 h-4 text-alert" />
+              Ghost Closure Forensics
+            </h3>
+            <span className={`text-sm font-mono font-semibold px-2 py-1 rounded-lg border ${
+              issue.ghostForensics.autoReopened
+                ? "bg-alert/10 text-alert border-alert/20"
+                : "bg-verify/10 text-verify border-verify/20"
+            }`}>
+              {issue.ghostForensics.autoReopened ? "auto reopened" : "checked"}
+            </span>
+          </div>
+          <div className="grid gap-2 sm:grid-cols-3">
+            <div className="rounded-xl border border-hairline bg-paper p-2.5">
+              <span className="block text-sm font-mono text-slate">Recommendation</span>
+              <span className="text-base font-black uppercase text-ink">{issue.ghostForensics.recommendation.replace("_", " ")}</span>
+            </div>
+            <div className="rounded-xl border border-hairline bg-paper p-2.5">
+              <span className="block text-sm font-mono text-slate">Confidence</span>
+              <span className="text-base font-black text-marigold">{ghostConfidence !== null ? `${Math.round(ghostConfidence * 100)}%` : "Not recorded"}</span>
+            </div>
+            <div className="rounded-xl border border-hairline bg-paper p-2.5">
+              <span className="block text-sm font-mono text-slate">Penalty</span>
+              <span className="text-base font-black text-alert">{issue.ghostForensics.officerPenaltyPoints || 0} pts</span>
+            </div>
+          </div>
+          {(issue.ghostForensics.signals || []).length > 0 && (
+            <ul className="list-disc pl-5 text-sm font-semibold text-slate">
+              {(issue.ghostForensics.signals || []).slice(0, 4).map((signal) => (
+                <li key={signal}>{signal}</li>
+              ))}
+            </ul>
+          )}
+          <p className="rounded-xl border border-hairline bg-paper p-3 text-sm font-semibold leading-relaxed text-slate italic">
+            "{issue.ghostForensics.explanation}"
+          </p>
         </div>
       )}
 

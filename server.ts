@@ -545,6 +545,53 @@ async function startServer() {
     return Math.max(min, Math.min(max, parsed));
   }
 
+  async function imageSourceToInlinePart(source: unknown, label: string): Promise<any | null> {
+    const value = cleanText(source, "", 1_200_000);
+    if (!value) return null;
+
+    const dataUrlMatch = value.match(/^data:(image\/[a-zA-Z0-9.+-]+);base64,(.+)$/);
+    if (dataUrlMatch) {
+      return {
+        inlineData: {
+          mimeType: dataUrlMatch[1],
+          data: dataUrlMatch[2],
+        },
+      };
+    }
+
+    if (/^[A-Za-z0-9+/=]+$/.test(value) && value.length > 80) {
+      return {
+        inlineData: {
+          mimeType: "image/jpeg",
+          data: value,
+        },
+      };
+    }
+
+    if (/^https:\/\/firebasestorage\.googleapis\.com\//.test(value)) {
+      try {
+        const fetchRes = await fetch(value, { signal: AbortSignal.timeout(8000) });
+        if (!fetchRes.ok) return null;
+        const contentType = fetchRes.headers.get("content-type") || "";
+        if (!contentType.startsWith("image/")) {
+          console.warn(`SSRF protection: ignored non-image content type for ${label}:`, contentType);
+          return null;
+        }
+        const buffer = await fetchRes.arrayBuffer();
+        return {
+          inlineData: {
+            mimeType: contentType,
+            data: Buffer.from(buffer).toString("base64"),
+          },
+        };
+      } catch (error: any) {
+        console.warn(`Failed to fetch ${label} image for Gemini:`, error?.message || error);
+      }
+    }
+
+    return null;
+  }
+
   function serverPriorityScore(issue: any): number {
     const severity = cleanNumber(issue.severity, 1, 1, 5);
     const urgencyBonus = issue.urgency === "urgent" ? 10 : issue.urgency === "priority" ? 5 : 0;
@@ -2707,30 +2754,8 @@ Output ONLY valid JSON and nothing else.`;
       const contentsList: any[] = [];
 
       // 1. Process beforeImageUrl (with SSRF protection checking host safety)
-      if (beforeImageUrl && /^https:\/\/firebasestorage\.googleapis\.com\//.test(beforeImageUrl)) {
-        try {
-          const fetchRes = await fetch(beforeImageUrl, {
-            signal: AbortSignal.timeout(8000),
-          });
-          if (fetchRes.ok) {
-            const contentType = fetchRes.headers.get("content-type") || "";
-            if (contentType.startsWith("image/")) {
-              const buffer = await fetchRes.arrayBuffer();
-              const base64 = Buffer.from(buffer).toString("base64");
-              contentsList.push({
-                inlineData: {
-                  mimeType: contentType,
-                  data: base64,
-                },
-              });
-            } else {
-              console.warn("SSRF protection: ignored non-image content type:", contentType);
-            }
-          }
-        } catch (fetchErr) {
-          console.warn("Failed to fetch beforeImageUrl to base64, proceeding without it:", fetchErr);
-        }
-      }
+      const beforePart = await imageSourceToInlinePart(beforeImageUrl, "beforeImageUrl");
+      if (beforePart) contentsList.push(beforePart);
 
       // 2. Process afterImage (base64)
       const afterMime = afterImage.match(/data:([^;]+);/)?.[1] || "image/jpeg";
@@ -2883,6 +2908,210 @@ Return a STRICT JSON response adhering precisely to this schema. Do not include 
         payload: { error: error?.message || String(error) },
       });
       return sendApiError(res, 500, "An error occurred during Gemini multimodal verification.");
+    }
+  });
+
+  app.post("/api/issues/:issueId/ghost-forensics", async (req: any, res) => {
+    if (!adminDb) return sendApiError(res, 503, "Server data layer unavailable.");
+    const actor = req.actor as RequestActor | undefined;
+    const { issueId } = req.params;
+    if (!actor || !isSafeDocumentId(issueId)) return sendApiError(res, 400, "Invalid ghost-forensics request.");
+
+    const auditImage = cleanText(req.body?.auditImage || req.body?.fieldAuditImage, "", 1_200_000);
+    const auditImageUrl = cleanText(req.body?.auditImageUrl || req.body?.fieldAuditImageUrl, "", 2000);
+    const fieldAuditSummary = cleanText(req.body?.fieldAuditSummary, "", 1500);
+    if (!auditImage) return sendApiError(res, 400, "Fresh audit image is required.");
+
+    const issueRef = adminDb.collection("issues").doc(issueId);
+    let issueData: any = null;
+    try {
+      const issueSnap = await issueRef.get();
+      if (!issueSnap.exists) return sendApiError(res, 404, "Issue not found.");
+      issueData = issueSnap.data() || {};
+      if (!requireOperatorForIssue(issueData, actor, res)) return;
+
+      const beforePart = await imageSourceToInlinePart(issueData.image, "ghost-before-image");
+      const closureAfterImage = cleanText(req.body?.closureAfterImage || issueData.closureAssessment?.afterImage, "", 1_200_000);
+      const closurePart = await imageSourceToInlinePart(closureAfterImage, "ghost-closure-image");
+      const auditPart = await imageSourceToInlinePart(auditImage, "ghost-audit-image");
+      if (!beforePart || !closurePart || !auditPart) {
+        return sendApiError(res, 400, "Ghost forensics requires original, closure, and fresh audit images.");
+      }
+
+      const promptText = `You are CivicLens's ghost-closure forensics auditor.
+Compare exactly these three images in order:
+1. Original citizen report before repair.
+2. Claimed closure or officer after-repair image.
+3. Fresh field audit image captured after the closure claim.
+
+Issue context: ${JSON.stringify({
+        title: issueData.title || null,
+        summary: issueData.summary || issueData.description || null,
+        category: issueData.category || null,
+        status: issueData.status || null,
+        closureRecommendation: issueData.closureAssessment?.recommendation || null,
+        fieldAuditSummary,
+      })}
+
+Decide whether this is a ghost/fake closure: the claimed closure image looks resolved, but the fresh audit image still shows the original hazard or no durable repair.
+Only recommend "reopen" when the fresh audit image materially contradicts the closure claim. Penalize only on strong evidence.
+Return STRICT JSON with:
+{
+  "ghostClosureLikely": boolean,
+  "confidence": number from 0 to 1,
+  "signals": string[],
+  "recommendation": "keep_resolved" | "request_more_evidence" | "reopen",
+  "explanation": string,
+  "officerPenaltyPoints": number from 0 to 25
+}`;
+
+      const startTime = Date.now();
+      const result = await generateContentWithRetry(ai, {
+        model: "gemini-2.5-flash",
+        contents: [
+          { text: "Image 1: original report before repair." },
+          beforePart,
+          { text: "Image 2: claimed closure or after-repair evidence." },
+          closurePart,
+          { text: "Image 3: fresh field audit evidence after the closure claim." },
+          auditPart,
+          { text: promptText },
+        ],
+        config: {
+          responseMimeType: "application/json",
+          responseSchema: {
+            type: Type.OBJECT,
+            properties: {
+              ghostClosureLikely: { type: Type.BOOLEAN },
+              confidence: { type: Type.NUMBER },
+              signals: { type: Type.ARRAY, items: { type: Type.STRING } },
+              recommendation: { type: Type.STRING, enum: ["keep_resolved", "request_more_evidence", "reopen"] },
+              explanation: { type: Type.STRING },
+              officerPenaltyPoints: { type: Type.NUMBER },
+            },
+            required: ["ghostClosureLikely", "confidence", "signals", "recommendation", "explanation", "officerPenaltyPoints"],
+          },
+        },
+      });
+      const durationMs = Date.now() - startTime;
+      const responseText = (result.response.text || "").trim().replace(/^```(?:json)?\s*/i, "").replace(/```\s*$/, "").trim();
+      const parsed = JSON.parse(responseText);
+      const recommendation = ["keep_resolved", "request_more_evidence", "reopen"].includes(parsed.recommendation)
+        ? parsed.recommendation
+        : "request_more_evidence";
+      const confidence = cleanNumber(parsed.confidence, 0, 0, 1);
+      const ghostClosureLikely = parsed.ghostClosureLikely === true || recommendation === "reopen";
+      const officerId = cleanText(
+        issueData.assignedOfficerId ||
+          issueData.assignedOperatorUid ||
+          issueData.closureAssessment?.byUid ||
+          issueData.closureSubmittedByUid ||
+          "unassigned",
+        "unassigned",
+        128
+      );
+      const shouldReopen = ghostClosureLikely && recommendation === "reopen" && confidence >= 0.65;
+      const penaltyPoints = shouldReopen ? cleanNumber(parsed.officerPenaltyPoints, 10, 0, 25) : 0;
+      const nowIso = new Date().toISOString();
+      const ghostForensics = {
+        ghostClosureLikely,
+        confidence,
+        signals: cleanStringArray(parsed.signals, 8, 240),
+        recommendation,
+        explanation: cleanText(parsed.explanation, "Ghost-closure forensics completed.", 1600),
+        checkedAt: nowIso,
+        auditImage: auditImageUrl || null,
+        autoReopened: shouldReopen,
+        officerId,
+        officerPenaltyPoints: penaltyPoints,
+        model: "gemini-2.5-flash",
+        retried: result.retried,
+        durationMs,
+      };
+
+      await adminDb.runTransaction(async (tx: any) => {
+        const freshSnap = await tx.get(issueRef);
+        if (!freshSnap.exists) throw new Error("NOT_FOUND");
+        const freshIssue = freshSnap.data() || {};
+        const currentStatus = normalizeIssueStatus(freshIssue.status);
+        const agentTrace = Array.isArray(freshIssue.agentTrace) ? freshIssue.agentTrace : [];
+        const updates: any = {
+          ghostForensics,
+          updatedAt: nowIso,
+          agentTrace: [
+            ...agentTrace,
+            {
+              step: "ghost_forensics",
+              tool: "agent.ghost_forensics",
+              status: shouldReopen ? "failed" : "done",
+              rationale: ghostForensics.explanation,
+              ts: nowIso,
+              confidence,
+              durationMs,
+              inputDigest: "Compared original, closure, and fresh audit images",
+              outputSummary: `${recommendation} (${Math.round(confidence * 100)}% confidence)`,
+              retried: result.retried,
+            },
+          ].slice(-30),
+        };
+        if (shouldReopen) {
+          updates.status = currentStatus === "resolved" ? "in_progress" : currentStatus;
+          updates.reopenedAt = nowIso;
+          updates.verificationStatus = "ghost_closure_flagged";
+          updates.closureAssessment = {
+            ...(freshIssue.closureAssessment || {}),
+            ghostFlaggedAt: nowIso,
+            ghostRecommendation: recommendation,
+          };
+        }
+        tx.update(issueRef, updates);
+        if (shouldReopen && officerId !== "unassigned") {
+          tx.set(adminDb.collection("officerAccountability").doc(officerId), {
+            officerId,
+            ghostClosureCount: FieldValue.increment(1),
+            ghostPenaltyPoints: FieldValue.increment(penaltyPoints),
+            lastGhostClosureAt: nowIso,
+            updatedAt: nowIso,
+          }, { merge: true });
+        }
+      });
+
+      await addServerActivity(issueRef, {
+        actorType: "ai",
+        eventType: shouldReopen ? "ghost_closure_reopened" : "ghost_closure_checked",
+        message: shouldReopen
+          ? `Ghost-closure forensics reopened the case and assigned ${penaltyPoints} accountability penalty point(s).`
+          : "Ghost-closure forensics completed without an automatic reopen.",
+        timestamp: nowIso,
+        byUid: actor.uid,
+        byRole: actor.role,
+      });
+      await recordEvent({
+        issueRef,
+        actorType: "ai",
+        eventType: "ai_ghost_forensics",
+        message: "Gemini ghost-closure forensics completed.",
+        actor,
+        source: "gemini",
+        status: "succeeded",
+        payload: ghostForensics,
+      });
+
+      return res.json({ success: true, data: ghostForensics });
+    } catch (error: any) {
+      await recordEvent({
+        issueRef,
+        actorType: "ai",
+        eventType: "ai_ghost_forensics",
+        message: "Gemini ghost-closure forensics failed.",
+        actor,
+        source: "gemini",
+        status: "failed",
+        severity: "error",
+        payload: { error: error?.message || String(error) },
+      });
+      if (error?.message === "NOT_FOUND") return sendApiError(res, 404, "Issue not found.");
+      return sendApiError(res, 500, "Ghost-closure forensics failed.", error);
     }
   });
 

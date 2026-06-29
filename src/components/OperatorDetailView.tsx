@@ -7,6 +7,7 @@ import ClosureVerificationPanel from "./ClosureVerificationPanel";
 import AutoEscalationPanel from "./AutoEscalationPanel";
 import AgentTraceTimeline from "./AgentTraceTimeline";
 import { IssueStatusKey, issueStatusLabel } from "../constants/status";
+import LifecycleStatusBadge from "./LifecycleStatusBadge";
 
 interface OperatorDetailViewProps {
   issue: IssueReport;
@@ -204,13 +205,16 @@ export default function OperatorDetailView({ issue, onBack, onRefresh, demoOpera
             Prototype Ticket: {issue.ticketId}
           </span>
           <h2 className="text-2xl font-black text-slate-900 line-clamp-2">Command center case: {issue.title || "Civic Incident"}</h2>
+          <div className="mt-2">
+            <LifecycleStatusBadge status={issue.status} size="md" showDescription />
+          </div>
         </div>
       </div>
 
       <div className="grid gap-4 xl:grid-cols-[minmax(0,1fr)_minmax(320px,420px)] xl:items-start">
         <div className="flex flex-col gap-4">
           {actionError && (
-            <div role="alert" className="rounded-xl border border-alert/20 bg-alert/10 p-3 text-base font-semibold leading-relaxed text-alert">
+            <div role="alert" className="rounded-xl border border-alert/20 bg-alert/10 p-3 text-base font-semibold leading-relaxed text-status-overdue-ink">
               {actionError}
             </div>
           )}
@@ -233,7 +237,7 @@ export default function OperatorDetailView({ issue, onBack, onRefresh, demoOpera
               <h3 className="flex items-center gap-1.5 text-sm font-bold text-ink">
                 <MapPin className="w-4 h-4 text-marigold" aria-hidden="true" />
                 Live local context
-                <span className="ml-1 text-[13px] font-medium text-slate">(grounds AI severity & priority)</span>
+                <span className="ml-1 text-[13px] font-medium text-ink-2">(grounds AI severity & priority)</span>
               </h3>
               <div className="grid grid-cols-1 sm:grid-cols-3 gap-2">
                 <div className="flex items-center gap-2 rounded-lg bg-paper p-2">
@@ -256,7 +260,7 @@ export default function OperatorDetailView({ issue, onBack, onRefresh, demoOpera
                 </div>
               </div>
               {grounding.sources?.length > 0 && (
-                <span className="text-[13px] text-slate">Sources: {grounding.sources.join(", ")}</span>
+                <span className="text-[13px] text-ink-2">Sources: {grounding.sources.join(", ")}</span>
               )}
             </div>
           )}
@@ -283,7 +287,7 @@ export default function OperatorDetailView({ issue, onBack, onRefresh, demoOpera
               </div>
 
               {agentError && (
-                <div role="alert" className="rounded-xl border border-alert/20 bg-alert/10 p-3 text-sm font-bold text-alert">
+                <div role="alert" className="rounded-xl border border-alert/20 bg-alert/10 p-3 text-sm font-bold text-status-overdue-ink">
                   {agentError}
                 </div>
               )}
@@ -315,14 +319,17 @@ export default function OperatorDetailView({ issue, onBack, onRefresh, demoOpera
         </h3>
 
         {isResolved ? (
-          <div className="bg-emerald-50 text-emerald-800 border p-3 rounded-xl text-center text-sm font-bold flex items-center justify-center gap-1.5">
-            <Lock className="w-3.5 h-3.5" /> Prototype lifecycle marked resolved.
+          <div className="bg-status-resolved/10 text-status-resolved-ink border border-status-resolved/30 p-3 rounded-xl text-center text-sm font-bold flex flex-wrap items-center justify-center gap-2">
+            <Lock className="w-3.5 h-3.5" aria-hidden="true" />
+            <span>Prototype lifecycle marked resolved.</span>
+            <LifecycleStatusBadge status="resolved" size="sm" />
           </div>
         ) : (
           <div className="flex flex-col gap-3">
-            <span className="text-sm text-slate-500 font-bold block">
-              Current prototype step: <span className="text-indigo-600 font-extrabold">{issueStatusLabel(issue.status)}</span>
-            </span>
+            <div className="flex flex-wrap items-center gap-2 text-sm text-slate-500 font-bold">
+              <span>Current prototype step:</span>
+              <LifecycleStatusBadge status={issue.status} size="sm" />
+            </div>
 
             <div className="grid grid-cols-1 gap-2 text-sm">
               <button
@@ -331,7 +338,7 @@ export default function OperatorDetailView({ issue, onBack, onRefresh, demoOpera
                 className="w-full min-h-[44px] text-left bg-slate-50 disabled:opacity-40 hover:bg-slate-100/50 cursor-pointer border py-2.5 px-3 rounded-xl flex items-center justify-between font-semibold"
               >
                 <span>1. Acknowledge Draft</span>
-                <span className="text-sm bg-sky-100 text-sky-800 px-2 py-1 rounded-lg">To Verified</span>
+                <LifecycleStatusBadge status="verified" size="sm" className="shrink-0" />
               </button>
 
               <button
@@ -340,7 +347,7 @@ export default function OperatorDetailView({ issue, onBack, onRefresh, demoOpera
                 className="w-full min-h-[44px] text-left bg-slate-50 disabled:opacity-40 hover:bg-slate-100/50 cursor-pointer border py-2.5 px-3 rounded-xl flex items-center justify-between font-semibold"
               >
                 <span>2. Mark In Progress</span>
-                <span className="text-sm bg-violet-100 text-violet-800 px-2 py-1 rounded-lg">To In Progress</span>
+                <LifecycleStatusBadge status="in_progress" size="sm" className="shrink-0" />
               </button>
 
               <div className="flex flex-col gap-2">
@@ -350,7 +357,7 @@ export default function OperatorDetailView({ issue, onBack, onRefresh, demoOpera
                   className="w-full min-h-[44px] text-left bg-emerald-50 disabled:opacity-40 hover:bg-emerald-100/50 hover:border-emerald-300 disabled:bg-slate-50 cursor-pointer border py-2.5 px-3 rounded-xl flex items-center justify-between font-semibold text-emerald-950"
                 >
                   <span>3. Mark Resolved</span>
-                  <span className="text-sm bg-emerald-100 text-emerald-800 px-2 py-1 rounded-lg">To Resolved</span>
+                  <LifecycleStatusBadge status="resolved" size="sm" className="shrink-0" />
                 </button>
 
                 {issue.status === "in_progress" && !isAiVerified && (
@@ -415,7 +422,7 @@ export default function OperatorDetailView({ issue, onBack, onRefresh, demoOpera
             </button>
           )}
           {dispatchResult?.status === "delivered" && (
-            <p className="flex items-center gap-1.5 text-[13px] text-verify font-medium px-1">
+            <p className="flex items-center gap-1.5 text-[13px] text-status-resolved-ink font-medium px-1">
               <CheckCircle2 className="w-4 h-4" aria-hidden="true" />
               Delivered to {dispatchResult.endpoint} (HTTP {dispatchResult.httpStatus}) · receipt {String(dispatchResult.deliveryId).slice(-12)}
             </p>

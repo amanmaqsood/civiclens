@@ -3,7 +3,7 @@ import { IssueReport } from "../types";
 import { ShieldCheck, Eye, RefreshCw, Layers, Database } from "lucide-react";
 import { seedDemoIssuesBengaluru, clearDemoIssues } from "../services/issues";
 import { humanizeCategory } from "../utils/humanize";
-import { issueStatusLabel, issueStatusToneClass } from "../constants/status";
+import LifecycleStatusBadge from "./LifecycleStatusBadge";
 
 interface OperatorQueueProps {
   issues: IssueReport[];
@@ -227,9 +227,7 @@ export default function OperatorQueue({
                         Demo
                       </span>
                     )}
-                    <span className={`text-sm font-mono font-bold px-2 py-1 rounded-lg border ${issueStatusToneClass(issue.status)}`}>
-                      {issueStatusLabel(issue.status)}
-                    </span>
+                    <LifecycleStatusBadge status={issue.status} size="sm" />
                     <div className="w-5 h-5 rounded border border-hairline bg-white flex items-center justify-center text-slate">
                       <Eye className="w-2.5 h-2.5" />
                     </div>

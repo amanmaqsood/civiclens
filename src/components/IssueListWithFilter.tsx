@@ -4,7 +4,8 @@ import { motion } from "motion/react";
 import { IssueReport } from "../types";
 import { humanizeCategory } from "../utils/humanize";
 import { useLanguage } from "../context/LanguageContext";
-import { ISSUE_STATUS_KEYS, IssueStatusKey, issueStatusLabel, issueStatusToneClass } from "../constants/status";
+import { ISSUE_STATUS_KEYS, IssueStatusKey, issueStatusLabel } from "../constants/status";
+import LifecycleStatusBadge from "./LifecycleStatusBadge";
 
 interface IssueListWithFilterProps {
   issues: IssueReport[];
@@ -141,9 +142,7 @@ export default function IssueListWithFilter({
                       DEMO
                     </span>
                   )}
-                  <span className={`rounded-lg border px-2 py-1 text-sm font-semibold ${issueStatusToneClass(issue.status)}`}>
-                    {issueStatusLabel(issue.status)}
-                  </span>
+                  <LifecycleStatusBadge status={issue.status} size="sm" />
                 </div>
               </div>
 

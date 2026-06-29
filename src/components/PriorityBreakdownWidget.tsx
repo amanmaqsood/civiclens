@@ -27,7 +27,7 @@ export default function PriorityBreakdownWidget({ issue }: PriorityBreakdownWidg
           <Award className="h-4 w-4 text-marigold" />
           <span className="font-display text-base font-bold text-ink">Priority score</span>
         </div>
-        <span className="rounded-full border border-hairline bg-paper px-2 py-1 font-mono text-sm text-slate">
+        <span className="rounded-full border border-hairline bg-paper px-2 py-1 font-mono text-sm text-ink-2">
           Calculated
         </span>
       </div>
@@ -57,13 +57,13 @@ export default function PriorityBreakdownWidget({ issue }: PriorityBreakdownWidg
             <span className="font-display text-xl font-[800] leading-none text-ink">
               {Math.round(breakdown.score)}
             </span>
-            <span className="mt-0.5 font-mono text-sm text-slate">points</span>
+            <span className="mt-0.5 font-mono text-sm text-ink-2">points</span>
           </div>
         </div>
 
         <div className="flex flex-1 flex-col gap-1.5 text-sm">
           <p className="font-sans text-base font-semibold leading-tight text-ink">Case priority score</p>
-          <p className="text-sm leading-snug text-slate">
+          <p className="text-sm leading-snug text-ink-2">
             Calculated from stored severity, report age, community feedback, duplicate count, and disputes in this pilot dataset.
           </p>
         </div>
@@ -71,54 +71,54 @@ export default function PriorityBreakdownWidget({ issue }: PriorityBreakdownWidg
 
       <div className="flex flex-col gap-2 border-t border-hairline pt-3 text-sm">
         <div className="flex items-center justify-between text-ink/80">
-          <span className="text-slate">Base severity weight</span>
+          <span className="text-ink-2">Base severity weight</span>
           <span className="font-mono text-xs text-ink">
-            +{breakdown.severityComponent} <span className="text-xs text-slate/60">({issue.severity || 1} x 12)</span>
+            +{breakdown.severityComponent} <span className="text-xs text-ink-2">({issue.severity || 1} x 12)</span>
           </span>
         </div>
 
         <div className="flex items-center justify-between text-ink/80">
-          <span className="text-slate">Urgency bonus</span>
+          <span className="text-ink-2">Urgency bonus</span>
           <span className="font-mono text-xs text-ink">
-            +{breakdown.urgencyComponent} <span className="text-xs text-slate/60">({humanizeUrgency(issue.urgency)})</span>
+            +{breakdown.urgencyComponent} <span className="text-xs text-ink-2">({humanizeUrgency(issue.urgency)})</span>
           </span>
         </div>
 
         <div className="flex items-center justify-between text-ink/80">
-          <span className="text-slate">Age acceleration rate</span>
+          <span className="text-ink-2">Age acceleration rate</span>
           <span className="font-mono text-xs text-ink">
             +{breakdown.timeComponent.toFixed(1)}{" "}
-            <span className="text-xs text-slate/60">({breakdown.hoursSinceReported.toFixed(0)}h log)</span>
+            <span className="text-xs text-ink-2">({breakdown.hoursSinceReported.toFixed(0)}h log)</span>
           </span>
         </div>
 
         <div className="flex items-center justify-between text-ink/80">
-          <span className="text-slate">Community endorsement</span>
-          <span className="font-mono text-xs font-semibold text-verify">
+          <span className="text-ink-2">Community endorsement</span>
+          <span className="font-mono text-xs font-semibold text-status-resolved-ink">
             +{breakdown.confirmComponent}{" "}
-            <span className="text-xs font-normal text-slate/60">({issue.confirmCount || 0} votes)</span>
+            <span className="text-xs font-normal text-ink-2">({issue.confirmCount || 0} votes)</span>
           </span>
         </div>
 
         <div className="flex items-center justify-between text-ink/80">
-          <span className="text-slate">Multi-report duplications</span>
+          <span className="text-ink-2">Multi-report duplications</span>
           <span className="font-mono text-ink">
-            +{breakdown.reportComponent} <span className="text-xs text-slate/60">({issue.reportCount || 1} cases)</span>
+            +{breakdown.reportComponent} <span className="text-xs text-ink-2">({issue.reportCount || 1} cases)</span>
           </span>
         </div>
 
         <div className="flex items-center justify-between text-ink/80">
-          <span className="text-slate">Disputed report adjustment</span>
-          <span className="font-mono font-semibold text-alert">
+          <span className="text-ink-2">Disputed report adjustment</span>
+          <span className="font-mono font-semibold text-status-overdue-ink">
             -{breakdown.disputeComponent}{" "}
-            <span className="text-xs font-normal text-slate/60">({issue.disputeCount || 0} flags)</span>
+            <span className="text-xs font-normal text-ink-2">({issue.disputeCount || 0} flags)</span>
           </span>
         </div>
       </div>
 
       <div className="mt-1 rounded-xl border border-hairline bg-paper p-2.5">
-        <span className="mb-0.5 block font-mono text-sm font-bold text-slate">Scoring formula</span>
-        <code className="block overflow-x-auto whitespace-nowrap font-mono text-sm text-slate">
+        <span className="mb-0.5 block font-mono text-sm font-bold text-ink-2">Scoring formula</span>
+        <code className="block overflow-x-auto whitespace-nowrap font-mono text-sm text-ink-2">
           Score = (Sev x 12) + Urg_Bonus + min(Age/12, 10) + min(Conf x 3, 15) + (Reps x 4) - (Disp x 5)
         </code>
       </div>

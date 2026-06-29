@@ -158,7 +158,7 @@ export default function HomeMap({
     if (sev <= 2) return "#0FB5A6";
     if (sev === 3) return "#EE9B2D";
     if (sev === 4) return "#F2683B";
-    return "#E5484D";
+    return "#B91C1C";
   };
 
   const getSvgPinUrl = (color: string) => {

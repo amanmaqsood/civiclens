@@ -243,6 +243,23 @@ Phase 5.2 D3 impact-dashboard rebuild verification on 2026-06-30:
 - `npm run test:rules`: passed; 1 emulator rules file passed, 3 tests passed.
 - `npm run test:concurrency`: passed; 1 emulator concurrency file passed, 4 tests passed.
 
+Phase 5.3 + 5.4 lifecycle status and WCAG state-coverage verification on 2026-06-30:
+
+- Added a shared lifecycle status system with token-backed status labels, descriptions, icon mapping, accessible `aria-label`/`title` text, and icon+label badges for `submitted`, `verified`, `in_progress`, and `resolved`.
+- Public issue lists, operator queues, issue detail, operator detail, accountability ledger, verification consensus, priority breakdown, and dashboard status distributions now use contrast-safe lifecycle/status ink tokens instead of low-contrast status text or color-only status cues.
+- Dashboard lifecycle distribution now uses status-specific tokenized bars and badge labels; issue-detail progress rails now expose lifecycle icons with label text and do not rely on color alone.
+- The live verifier seeds all four lifecycle statuses into the Firestore emulator, opens report/detail/dashboard in Chromium, checks badge/icon counts, and runs `axe-core` WCAG 2.2 AA checks on all three surfaces.
+- `.\node_modules\.bin\tsc.cmd --noEmit`: passed with 0 errors.
+- `.\node_modules\.bin\vitest.cmd run src\server\lifecycle-accessibility.test.ts src\ux-redesign.test.ts src\server\dashboard-redesign.test.ts`: passed; 3 files passed, 14 tests passed.
+- Browser/emulator proof: `firebase emulators:exec --project demo-civiclens --only auth,firestore "powershell -NoProfile -ExecutionPolicy Bypass -File scripts\verify-lifecycle-accessibility-live.ps1"` passed and reported `LIFECYCLE_A11Y_LIVE reportAxe=0 detailAxe=0 dashboardAxe=0 detailBadges=1 dashboardBadges=4 badgeIcons=5 stepIcons=1`.
+- `.\node_modules\.bin\vitest.cmd run`: passed; 27 files passed, 3 skipped; 111 tests passed, 10 skipped.
+- `npm run build`: passed; Vite transformed 2340 modules, emitted `dist/server.cjs` at 229.8 kB, emitted the `ImpactDashboard` chunk at 46.93 kB, and kept the largest JS chunk at `fb-firestore` 475.16 kB with no chunk over 500 kB.
+- `npm run test:rules`: passed; 1 emulator rules file passed, 3 tests passed.
+- `npm run test:concurrency`: passed; 1 emulator concurrency file passed, 4 tests passed.
+- `npm run test:e2e`: passed; 7 Chromium Playwright tests passed against local Firebase Auth, Firestore, and Storage emulators.
+- `.\node_modules\.bin\vitest.cmd run src\docs-readiness.test.ts`: passed; 1 file passed, 5 tests passed.
+- Hygiene scans found no prohibited attribution terms and no Google API-key prefix matches. `git diff --check` returned only line-ending normalization warnings, and the temporary lifecycle verifier script was removed after the live run.
+
 Phase 6.1 behavioral API test verification on 2026-06-30:
 
 - Added `npm run test:behavioral-api`, which starts Firebase Auth/Firestore/Storage emulators, launches the local app server, and runs `src/server/behavioral-api.test.ts` against real HTTP endpoints.

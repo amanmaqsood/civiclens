@@ -9,6 +9,13 @@ export const ISSUE_STATUS_LABELS: Record<IssueStatusKey, string> = {
   resolved: "Resolved",
 };
 
+export const ISSUE_STATUS_DESCRIPTIONS: Record<IssueStatusKey, string> = {
+  submitted: "Report saved and awaiting operator review",
+  verified: "Evidence checked and accepted for action",
+  in_progress: "Assigned work is in progress",
+  resolved: "Closure evidence has been accepted",
+};
+
 const legacyStatusMap: Record<string, IssueStatusKey> = {
   submitted: "submitted",
   Submitted: "submitted",
@@ -33,15 +40,32 @@ export function issueStatusLabel(value: unknown): string {
   return ISSUE_STATUS_LABELS[normalizeIssueStatus(value)];
 }
 
+export function issueStatusDescription(value: unknown): string {
+  return ISSUE_STATUS_DESCRIPTIONS[normalizeIssueStatus(value)];
+}
+
 export function issueStatusToneClass(value: unknown): string {
   switch (normalizeIssueStatus(value)) {
     case "verified":
-      return "bg-marigold/10 border-marigold/25 text-marigold-ink";
+      return "bg-status-verified/10 border-status-verified/30 text-status-verified-ink";
     case "in_progress":
-      return "bg-[#3B82F6]/10 border-[#3B82F6]/25 text-[#1D4ED8]";
+      return "bg-status-progress/15 border-status-progress/35 text-status-progress-ink";
     case "resolved":
-      return "bg-verify/10 border-verify/25 text-[#047857]";
+      return "bg-status-resolved/10 border-status-resolved/30 text-status-resolved-ink";
     default:
-      return "bg-slate/10 border-slate/25 text-ink-2";
+      return "bg-status-submitted/10 border-status-submitted/30 text-status-submitted-ink";
+  }
+}
+
+export function issueStatusBarClass(value: unknown): string {
+  switch (normalizeIssueStatus(value)) {
+    case "verified":
+      return "bg-status-verified";
+    case "in_progress":
+      return "bg-status-progress";
+    case "resolved":
+      return "bg-status-resolved";
+    default:
+      return "bg-status-submitted";
   }
 }

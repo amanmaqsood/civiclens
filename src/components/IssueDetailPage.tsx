@@ -9,7 +9,8 @@ import AgentTraceTimeline from "./AgentTraceTimeline";
 import AccountabilityLedger from "./AccountabilityLedger";
 import { humanizeCategory, humanizeUrgency } from "../utils/humanize";
 import { fetchLatestAgentRun } from "../services/api";
-import { ISSUE_STATUS_KEYS, issueStatusLabel } from "../constants/status";
+import { ISSUE_STATUS_KEYS, issueStatusDescription, issueStatusLabel } from "../constants/status";
+import LifecycleStatusBadge, { LifecycleStatusIcon } from "./LifecycleStatusBadge";
 
 interface IssueDetailPageProps {
   issue: IssueReport;
@@ -38,7 +39,7 @@ export default function IssueDetailPage({
     if (s <= 2) {
       return {
         text: `Low (Level ${s}/5)`,
-        classes: "bg-verify/10 text-verify border-verify/20",
+        classes: "bg-verify/10 text-status-resolved-ink border-verify/20",
       };
     }
     if (s === 3) {
@@ -55,18 +56,18 @@ export default function IssueDetailPage({
     }
     return {
       text: `Critical (Level ${s}/5)`,
-      classes: "bg-alert/10 text-alert border-alert/20",
+      classes: "bg-alert/10 text-status-overdue-ink border-alert/20",
     };
   };
 
   const getUrgencyClasses = (urgency?: string) => {
     switch (urgency) {
       case "urgent":
-        return "bg-alert/10 text-alert border-alert/20";
+        return "bg-alert/10 text-status-overdue-ink border-alert/20";
       case "priority":
         return "bg-marigold/10 text-marigold border-marigold/20 font-bold";
       default:
-        return "bg-slate/10 text-slate border-slate/20";
+        return "bg-slate/10 text-ink-2 border-slate/20";
     }
   };
 
@@ -170,7 +171,7 @@ export default function IssueDetailPage({
             <ArrowLeft className="w-4 h-4 text-ink" />
           </button>
           <div>
-            <span className="text-sm font-mono text-slate block">
+            <span className="text-sm font-mono text-ink-2 block">
               {t("nav.report").toUpperCase()}
             </span>
             <h2 className="text-sm font-mono font-semibold text-ink">
@@ -179,7 +180,7 @@ export default function IssueDetailPage({
           </div>
         </div>
 
-        <div className="rounded-xl border border-hairline bg-white px-3 py-2 text-right text-sm font-semibold text-slate shadow-2xs">
+        <div className="rounded-xl border border-hairline bg-white px-3 py-2 text-right text-sm font-semibold text-ink-2 shadow-2xs">
           <span className="block text-ink">{t("account.language")}</span>
           <span className="block">{lang === "hi" ? "हिन्दी सक्रिय" : "English active"}</span>
         </div>
@@ -206,7 +207,7 @@ export default function IssueDetailPage({
             )}
           </div>
         ) : (
-          <div className="aspect-video w-full bg-paper flex items-center justify-center text-slate border-b border-hairline">
+          <div className="aspect-video w-full bg-paper flex items-center justify-center text-ink-2 border-b border-hairline">
             <p className="text-base font-medium">No incident photograph uploaded</p>
           </div>
         )}
@@ -226,7 +227,7 @@ export default function IssueDetailPage({
             )}
           </div>
 
-          <p className="text-base text-slate leading-relaxed bg-paper/50 p-3 rounded-xl border border-hairline/80 whitespace-pre-wrap animate-fade-in">
+          <p className="text-base text-ink-2 leading-relaxed bg-paper/50 p-3 rounded-xl border border-hairline/80 whitespace-pre-wrap animate-fade-in">
             {lang === "hi"
               ? (issue.summaryHi || issue.summary || issue.description)
               : (issue.summary || issue.description)}
@@ -235,11 +236,11 @@ export default function IssueDetailPage({
           {/* Severity and follow-up widgets */}
           <div className="grid grid-cols-2 gap-2 mt-0.5">
             <div className={`border p-2.5 rounded-xl flex flex-col gap-0.5 ${severityInfo.classes}`}>
-              <span className="text-sm font-mono opacity-75">AI severity</span>
+              <span className="text-sm font-mono text-ink-2">AI severity</span>
               <span className="text-[13px] font-bold">{severityInfo.text}</span>
             </div>
             <div className={`border p-2.5 rounded-xl flex flex-col gap-0.5 ${getUrgencyClasses(issue.urgency)}`}>
-              <span className="text-sm font-mono opacity-75">Urgency</span>
+              <span className="text-sm font-mono text-ink-2">Urgency</span>
               <span className="text-[13px] font-bold capitalize">{humanizeUrgency(issue.urgency)}</span>
             </div>
           </div>
@@ -254,13 +255,13 @@ export default function IssueDetailPage({
             Server agent evidence
           </h3>
           {persistedAgentSteps.length > 0 && (
-            <span className="text-sm font-mono bg-verify/10 text-verify px-2 py-1 rounded-lg border border-verify/20">
+            <span className="text-sm font-mono bg-verify/10 text-status-resolved-ink px-2 py-1 rounded-lg border border-verify/20">
               Persisted run
             </span>
           )}
         </div>
 
-        <p className="text-base text-slate leading-relaxed">
+        <p className="text-base text-ink-2 leading-relaxed">
           This public detail page only displays persisted server-generated tool records. Agent runs, draft routing, escalation, and lifecycle decisions happen in the authorized operator workspace and do not file or route anything outside CivicLens.
         </p>
       </div>
@@ -278,40 +279,40 @@ export default function IssueDetailPage({
         <div className="flex flex-col gap-3 text-base text-ink/80">
           {/* Hazards */}
           <div className="flex flex-col gap-1">
-            <span className="text-sm font-mono text-slate">Identified hazards</span>
+            <span className="text-sm font-mono text-ink-2">Identified hazards</span>
             {issue.visibleHazards && issue.visibleHazards.length > 0 ? (
               <div className="flex flex-wrap gap-1 mt-0.5">
                 {issue.visibleHazards.map((tag) => (
-                  <span key={tag} className="bg-alert/5 border border-alert/20 text-alert text-sm py-1 px-2 rounded-lg font-medium">
+                  <span key={tag} className="bg-alert/5 border border-alert/20 text-status-overdue-ink text-sm py-1 px-2 rounded-lg font-medium">
                     Warning: {tag}
                   </span>
                 ))}
               </div>
             ) : (
-              <span className="text-slate italic text-sm">No public hazards detected.</span>
+              <span className="text-ink-2 italic text-sm">No public hazards detected.</span>
             )}
           </div>
 
           {/* Privacy Redactions */}
           <div className="flex flex-col gap-1 mt-1">
-            <span className="text-sm font-mono text-slate">Redaction and de-identifier markers</span>
+            <span className="text-sm font-mono text-ink-2">Redaction and de-identifier markers</span>
             {issue.privacyFlags && issue.privacyFlags.length > 0 ? (
               <div className="flex flex-wrap gap-1 mt-0.5">
                 {issue.privacyFlags.map((flag) => (
-                  <span key={flag} className="bg-slate/5 border border-slate/20 text-slate text-sm py-1 px-2 rounded-lg font-medium">
+                  <span key={flag} className="bg-slate/5 border border-slate/20 text-ink-2 text-sm py-1 px-2 rounded-lg font-medium">
                     Privacy: {flag}
                   </span>
                 ))}
               </div>
             ) : (
-              <span className="text-slate italic text-sm">No sensitive data tags flagged.</span>
+              <span className="text-ink-2 italic text-sm">No sensitive data tags flagged.</span>
             )}
           </div>
 
           {/* Footprints */}
           {issue.affectedArea && (
             <div className="flex items-center justify-between border-t border-hairline pt-2.5 mt-1 text-sm">
-              <span className="font-mono text-slate">Calculated impact boundary</span>
+              <span className="font-mono text-ink-2">Calculated impact boundary</span>
               <span className="bg-paper text-ink border border-hairline font-bold px-2 py-1 rounded-lg capitalize font-sans text-sm">
                 {issue.affectedArea.replace("_", " ")}
               </span>
@@ -330,8 +331,8 @@ export default function IssueDetailPage({
             </h3>
             <span className={`text-sm font-mono font-semibold px-2 py-1 rounded-lg border ${
               issue.closureAssessment.resolved
-                ? "bg-verify/10 text-verify border-verify/20"
-                : "bg-alert/10 text-alert border-alert/20"
+                ? "bg-verify/10 text-status-resolved-ink border-verify/20"
+                : "bg-alert/10 text-status-overdue-ink border-alert/20"
             }`}>
               {issue.closureAssessment.resolved ? "resolved" : "reopened"}
             </span>
@@ -357,15 +358,15 @@ export default function IssueDetailPage({
           <div className="flex flex-col gap-1.5 text-sm bg-paper p-2.5 rounded-xl border border-hairline mt-1">
             <div className="flex items-center justify-between text-sm font-mono">
               <div className="flex items-center gap-1.5">
-                <span className="text-slate uppercase">Visual Match Metrics</span>
-                <span className="font-semibold text-verify">{closureConfidence !== null ? `${(closureConfidence * 100).toFixed(0)}% matched` : "Match not recorded"}</span>
+                <span className="text-ink-2 uppercase">Visual Match Metrics</span>
+                <span className="font-semibold text-status-resolved-ink">{closureConfidence !== null ? `${(closureConfidence * 100).toFixed(0)}% matched` : "Match not recorded"}</span>
               </div>
               <div className="flex items-center gap-1">
-                <span className="text-slate uppercase">Type</span>
+                <span className="text-ink-2 uppercase">Type</span>
                 <span className="font-bold text-ink uppercase">{issue.closureAssessment.recommendation.replace("_", " ")}</span>
               </div>
             </div>
-            <div className="text-slate leading-relaxed font-semibold text-sm p-2 bg-white rounded-lg border border-hairline/80 mt-1 italic">
+            <div className="text-ink-2 leading-relaxed font-semibold text-sm p-2 bg-white rounded-lg border border-hairline/80 mt-1 italic">
               "{issue.closureAssessment.explanation}"
             </div>
           </div>
@@ -381,34 +382,34 @@ export default function IssueDetailPage({
             </h3>
             <span className={`text-sm font-mono font-semibold px-2 py-1 rounded-lg border ${
               issue.ghostForensics.autoReopened
-                ? "bg-alert/10 text-alert border-alert/20"
-                : "bg-verify/10 text-verify border-verify/20"
+                ? "bg-alert/10 text-status-overdue-ink border-alert/20"
+                : "bg-verify/10 text-status-resolved-ink border-verify/20"
             }`}>
               {issue.ghostForensics.autoReopened ? "auto reopened" : "checked"}
             </span>
           </div>
           <div className="grid gap-2 sm:grid-cols-3">
             <div className="rounded-xl border border-hairline bg-paper p-2.5">
-              <span className="block text-sm font-mono text-slate">Recommendation</span>
+              <span className="block text-sm font-mono text-ink-2">Recommendation</span>
               <span className="text-base font-black uppercase text-ink">{issue.ghostForensics.recommendation.replace("_", " ")}</span>
             </div>
             <div className="rounded-xl border border-hairline bg-paper p-2.5">
-              <span className="block text-sm font-mono text-slate">Confidence</span>
+              <span className="block text-sm font-mono text-ink-2">Confidence</span>
               <span className="text-base font-black text-marigold">{ghostConfidence !== null ? `${Math.round(ghostConfidence * 100)}%` : "Not recorded"}</span>
             </div>
             <div className="rounded-xl border border-hairline bg-paper p-2.5">
-              <span className="block text-sm font-mono text-slate">Penalty</span>
-              <span className="text-base font-black text-alert">{issue.ghostForensics.officerPenaltyPoints || 0} pts</span>
+              <span className="block text-sm font-mono text-ink-2">Penalty</span>
+              <span className="text-base font-black text-status-overdue-ink">{issue.ghostForensics.officerPenaltyPoints || 0} pts</span>
             </div>
           </div>
           {(issue.ghostForensics.signals || []).length > 0 && (
-            <ul className="list-disc pl-5 text-sm font-semibold text-slate">
+            <ul className="list-disc pl-5 text-sm font-semibold text-ink-2">
               {(issue.ghostForensics.signals || []).slice(0, 4).map((signal) => (
                 <li key={signal}>{signal}</li>
               ))}
             </ul>
           )}
-          <p className="rounded-xl border border-hairline bg-paper p-3 text-sm font-semibold leading-relaxed text-slate italic">
+          <p className="rounded-xl border border-hairline bg-paper p-3 text-sm font-semibold leading-relaxed text-ink-2 italic">
             "{issue.ghostForensics.explanation}"
           </p>
         </div>
@@ -416,7 +417,7 @@ export default function IssueDetailPage({
 
       {/* Captured Location coordinate card */}
       <div className="bg-white border border-hairline rounded-2xl p-4 flex flex-col gap-2 shadow-[0_4px_16px_-4px_rgba(14,26,43,0.05)]">
-        <span className="text-sm font-mono text-slate">Spatial reference point</span>
+        <span className="text-sm font-mono text-ink-2">Spatial reference point</span>
         <div className="flex items-start gap-2.5">
           <MapPin className="w-4 h-4 text-marigold flex-shrink-0 mt-0.5" />
           <div className="flex-1 min-w-0">
@@ -424,7 +425,7 @@ export default function IssueDetailPage({
               {issue.locationName || "Reported Location"}
             </p>
             {hasCoordinates && (
-              <span className="text-sm font-mono text-slate block mt-0.5 select-all">
+              <span className="text-sm font-mono text-ink-2 block mt-0.5 select-all">
                 COORD: {finiteNumber(issue.lat)!.toFixed(6)} N, {finiteNumber(issue.lng)!.toFixed(6)} E
               </span>
             )}
@@ -435,7 +436,7 @@ export default function IssueDetailPage({
       {/* Community voice backer details */}
       <div className="bg-white border border-hairline rounded-2xl p-4 flex items-center justify-between shadow-[0_4px_16px_-4px_rgba(14,26,43,0.05)]">
         <div className="flex flex-col">
-          <span className="text-sm font-mono text-slate">Community support</span>
+          <span className="text-sm font-mono text-ink-2">Community support</span>
           <span className="text-base font-semibold text-ink mt-0.5">{issue.citizenUpvotes} {issue.citizenUpvotes === 1 ? "citizen" : "citizens"} backed this case</span>
         </div>
         <button
@@ -457,9 +458,12 @@ export default function IssueDetailPage({
 
       {/* Compact Interactive Status progress bar */}
       <div className="bg-white border border-hairline rounded-2xl p-4 flex flex-col gap-4 shadow-[0_4px_16px_-4px_rgba(14,26,43,0.05)]">
-        <h3 className="text-lg font-display font-black text-ink border-b border-hairline pb-2.5">
-          {t("detail.status")}
-        </h3>
+        <div className="flex flex-wrap items-center justify-between gap-3 border-b border-hairline pb-2.5">
+          <h3 className="text-lg font-display font-black text-ink">
+            {t("detail.status")}
+          </h3>
+          <LifecycleStatusBadge status={issue.status} size="md" showDescription />
+        </div>
         <div className="relative flex justify-between items-center px-1">
           {/* Timeline background rule */}
           <div className="absolute top-1/2 left-3 right-3 h-[2px] bg-hairline -translate-y-1/2 z-0" />
@@ -476,9 +480,13 @@ export default function IssueDetailPage({
             const isCurrent = currentStatusIndex === idx;
 
             return (
-              <div key={step} className="flex flex-col items-center gap-1.5 z-10 relative">
+              <div
+                key={step}
+                className="flex flex-col items-center gap-1.5 z-10 relative"
+                title={`${issueStatusLabel(step)}: ${issueStatusDescription(step)}`}
+              >
                 <div
-                  className={`w-6 h-6 rounded-full flex items-center justify-center text-sm font-mono transition-all duration-[300ms] border ${
+                  className={`w-8 h-8 rounded-full flex items-center justify-center text-sm font-mono transition-all duration-[300ms] border ${
                     isCompleted
                       ? isCurrent
                         ? "bg-marigold text-ink border-marigold font-bold scale-105"
@@ -486,9 +494,9 @@ export default function IssueDetailPage({
                       : "bg-white text-slate/40 border-hairline"
                   }`}
                 >
-                  {idx + 1}
+                  <LifecycleStatusIcon status={step} className="h-4 w-4" />
                 </div>
-                <span className={`text-sm font-sans font-semibold ${isCurrent ? "text-ink font-bold" : isCompleted ? "text-verify" : "text-slate/60"}`}>
+                  <span className={`text-sm font-sans font-semibold ${isCurrent ? "text-ink font-bold" : "text-ink-2"}`}>
                   {issueStatusLabel(step)}
                 </span>
               </div>
@@ -511,7 +519,7 @@ export default function IssueDetailPage({
             <RefreshCw className="w-3.5 h-3.5 animate-spin text-slate" />
           </div>
         ) : activities.length === 0 ? (
-          <p className="text-sm text-slate/60 text-center font-medium py-2">
+          <p className="text-sm text-ink-2 text-center font-medium py-2">
             No activity yet.
           </p>
         ) : (
@@ -519,7 +527,7 @@ export default function IssueDetailPage({
             {activities.map((act) => (
               <div key={act.id} className="relative flex flex-col gap-0.5">
                 <div className="absolute -left-[19px] top-1.5 w-1.5 h-1.5 rounded-full bg-slate border border-white" />
-                <span className="text-sm font-mono font-bold text-slate">
+                <span className="text-sm font-mono font-bold text-ink-2">
                   {{
                     operator: "Prototype Operator",
                     ai: "CivicLens Agent",
@@ -529,7 +537,7 @@ export default function IssueDetailPage({
                 <p className="text-sm text-ink leading-relaxed font-sans font-medium">
                   {act.message}
                 </p>
-                <span className="text-sm font-mono text-slate/60">
+                <span className="text-sm font-mono text-ink-2">
                   {new Date(act.timestamp).toLocaleString()}
                 </span>
               </div>

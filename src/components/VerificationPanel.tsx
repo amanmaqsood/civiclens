@@ -87,16 +87,16 @@ export default function VerificationPanel({ issue, onRefresh }: VerificationPane
 
         {/* Counts display using theme colors */}
         <div className="grid grid-cols-2 gap-2 text-center text-sm">
-          <div className="bg-verify/5 border border-verify/20 text-verify p-2.5 rounded-xl flex items-center justify-between">
+          <div className="bg-verify/5 border border-verify/20 text-status-resolved-ink p-2.5 rounded-xl flex items-center justify-between">
             <div className="flex items-center gap-1.5 font-bold">
-              <ThumbsUp className="w-3.5 h-3.5 text-verify" />
+              <ThumbsUp className="w-3.5 h-3.5 text-status-resolved-ink" />
               <span>Confirmed</span>
             </div>
             <span className="font-mono font-extrabold text-base">{issue.confirmCount || 0}</span>
           </div>
-          <div className="bg-alert/5 border border-alert/20 text-alert p-2.5 rounded-xl flex items-center justify-between">
+          <div className="bg-alert/5 border border-alert/20 text-status-overdue-ink p-2.5 rounded-xl flex items-center justify-between">
             <div className="flex items-center gap-1.5 font-bold">
-              <ThumbsDown className="w-3.5 h-3.5 text-alert" />
+              <ThumbsDown className="w-3.5 h-3.5 text-status-overdue-ink" />
               <span>Disputed</span>
             </div>
             <span className="font-mono font-extrabold text-base">{issue.disputeCount || 0}</span>
@@ -112,10 +112,10 @@ export default function VerificationPanel({ issue, onRefresh }: VerificationPane
               </div>
               <span className={`rounded-lg border px-2 py-1 text-sm font-bold ${
                 brigadingRisk === "high"
-                  ? "border-alert/20 bg-alert/10 text-alert"
+                  ? "border-alert/20 bg-alert/10 text-status-overdue-ink"
                   : brigadingRisk === "watch"
                     ? "border-marigold/20 bg-marigold/10 text-marigold-ink"
-                    : "border-verify/20 bg-verify/10 text-verify"
+                    : "border-verify/20 bg-verify/10 text-status-resolved-ink"
               }`}>
                 {brigadingRisk}
               </span>
@@ -126,18 +126,18 @@ export default function VerificationPanel({ issue, onRefresh }: VerificationPane
             <div className="mt-2 grid grid-cols-2 gap-2 text-sm">
               <div className="flex items-center justify-between rounded-lg bg-white px-2 py-1.5 border border-hairline">
                 <span className="font-semibold text-slate">Confirm weight</span>
-                <span className="font-mono font-black text-verify">{confirmWeight.toFixed(2)}</span>
+                <span className="font-mono font-black text-status-resolved-ink">{confirmWeight.toFixed(2)}</span>
               </div>
               <div className="flex items-center justify-between rounded-lg bg-white px-2 py-1.5 border border-hairline">
                 <span className="font-semibold text-slate">Dispute weight</span>
-                <span className="font-mono font-black text-alert">{disputeWeight.toFixed(2)}</span>
+                <span className="font-mono font-black text-status-overdue-ink">{disputeWeight.toFixed(2)}</span>
               </div>
             </div>
             <p className="mt-2 text-sm font-medium leading-relaxed text-slate">
               {consensus.publicExplanation}
             </p>
             {consensus.collapsedVotes > 0 && (
-              <p className="mt-1 flex items-center gap-1.5 text-sm font-semibold text-alert">
+              <p className="mt-1 flex items-center gap-1.5 text-sm font-semibold text-status-overdue-ink">
                 <ShieldCheck className="w-3.5 h-3.5" />
                 {consensus.collapsedVotes} low-weight signal{consensus.collapsedVotes === 1 ? "" : "s"} collapsed by the guard.
               </p>
@@ -155,17 +155,17 @@ export default function VerificationPanel({ issue, onRefresh }: VerificationPane
             <button
               onClick={() => handleVote("confirm")}
               disabled={loading}
-              className="flex-1 flex min-h-[44px] items-center justify-center gap-1.5 border border-verify/20 bg-verify/5 text-verify hover:bg-verify/10 text-sm py-2 px-3 rounded-xl font-bold cursor-pointer transition-colors disabled:opacity-50"
+              className="flex-1 flex min-h-[44px] items-center justify-center gap-1.5 border border-verify/20 bg-verify/5 text-status-resolved-ink hover:bg-verify/10 text-sm py-2 px-3 rounded-xl font-bold cursor-pointer transition-colors disabled:opacity-50"
             >
-              <ThumbsUp className="w-3.5 h-3.5 text-verify" />
+              <ThumbsUp className="w-3.5 h-3.5 text-status-resolved-ink" />
               <span>Confirm</span>
             </button>
             <button
               onClick={() => handleVote("dispute")}
               disabled={loading}
-              className="flex-1 flex min-h-[44px] items-center justify-center gap-1.5 border border-alert/20 bg-alert/5 text-alert hover:bg-alert/10 text-sm py-2 px-3 rounded-xl font-bold cursor-pointer transition-colors disabled:opacity-50"
+              className="flex-1 flex min-h-[44px] items-center justify-center gap-1.5 border border-alert/20 bg-alert/5 text-status-overdue-ink hover:bg-alert/10 text-sm py-2 px-3 rounded-xl font-bold cursor-pointer transition-colors disabled:opacity-50"
             >
-              <ThumbsDown className="w-3.5 h-3.5 text-alert" />
+              <ThumbsDown className="w-3.5 h-3.5 text-status-overdue-ink" />
               <span>Dispute</span>
             </button>
           </div>
@@ -206,16 +206,16 @@ export default function VerificationPanel({ issue, onRefresh }: VerificationPane
       )}
 
       {notice && (
-        <div className="bg-verify/5 border border-verify/20 text-verify text-sm p-3 rounded-xl flex items-start gap-1.5">
-          <ShieldCheck className="w-3.5 h-3.5 text-verify mt-0.5 flex-shrink-0" />
+        <div className="bg-verify/5 border border-verify/20 text-status-resolved-ink text-sm p-3 rounded-xl flex items-start gap-1.5">
+          <ShieldCheck className="w-3.5 h-3.5 text-status-resolved-ink mt-0.5 flex-shrink-0" />
           <span>{notice}</span>
         </div>
       )}
 
       {/* Errors output */}
       {error && (
-        <div className="bg-alert/5 border border-alert/20 text-alert text-sm p-3 rounded-xl flex items-start gap-1.5">
-          <AlertCircle className="w-3.5 h-3.5 text-alert mt-0.5 flex-shrink-0" />
+        <div className="bg-alert/5 border border-alert/20 text-status-overdue-ink text-sm p-3 rounded-xl flex items-start gap-1.5">
+          <AlertCircle className="w-3.5 h-3.5 text-status-overdue-ink mt-0.5 flex-shrink-0" />
           <span>{error}</span>
         </div>
       )}

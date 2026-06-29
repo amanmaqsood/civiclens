@@ -20,7 +20,7 @@ Single source of truth for the CivicLens UI. Every screen, component, and token 
 | `--color-paper` | `#F5F4F1` | app background |
 | `--color-marigold` | `#EE9B2D` | primary action / brand accent |
 | `--color-verify` | `#0FB5A6` | success / verified / resolved |
-| `--color-alert` | `#E5484D` | danger / errors / overdue |
+| `--color-alert` | `#B91C1C` | danger / errors / overdue |
 | `--color-slate` | `#64748B` | secondary text, muted |
 | `--color-hairline` | `#E3E1DA` | borders, dividers |
 
@@ -43,7 +43,7 @@ Single source of truth for the CivicLens UI. Every screen, component, and token 
 | Verified | `--status-verified` | `#7C3AED` (review) | `users` | Community-verified |
 | In Progress | `--status-progress` | `#EE9B2D` (marigold) | `loader` | In progress |
 | Resolved | `--status-resolved` | `#0FB5A6` (verify) | `check-circle` | Resolved |
-| Overdue/Escalated | `--status-overdue` | `#E5484D` (alert) | `alert-triangle` | Escalated |
+| Overdue/Escalated | `--status-overdue` | `#B91C1C` (alert) | `alert-triangle` | Escalated |
 
 Severity ramp (heatmap/priority): `--sev-1 #16A34A` → `--sev-2 #EAB308` → `--sev-3 #F97316` → `--sev-4 #E5484D` → `--sev-5 #991B1B`. Always pair with a numeric label; verify all pairs with an OKLCH contrast check (AA on `--surface-1`).
 

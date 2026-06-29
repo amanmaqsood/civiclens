@@ -20,8 +20,9 @@ import {
   TrendingDown,
   TrendingUp,
 } from "lucide-react";
-import { ISSUE_STATUS_KEYS, IssueStatusKey, issueStatusLabel } from "../constants/status";
+import { ISSUE_STATUS_KEYS, IssueStatusKey, issueStatusBarClass, issueStatusLabel } from "../constants/status";
 import { isInternalSmokeTestIssue } from "../utils/issueVisibility";
+import LifecycleStatusBadge from "./LifecycleStatusBadge";
 
 interface ImpactDashboardProps {
   issues: IssueReport[];
@@ -639,7 +640,7 @@ export default function ImpactDashboard({
                     </h3>
                     <p className="text-sm font-semibold text-slate">D3 severity-weighted grid from persisted coordinates.</p>
                   </div>
-                  <span className="rounded-lg border border-hairline bg-paper px-2 py-1 text-sm font-mono text-slate">
+                  <span className="rounded-lg border border-hairline bg-paper px-2 py-1 text-sm font-mono text-ink-2">
                     {metrics.heatmapCells.filter((cell) => cell.count > 0).length} active cells
                   </span>
                 </div>
@@ -709,7 +710,7 @@ export default function ImpactDashboard({
                       <li key={item.id} className="rounded-xl border border-hairline bg-paper p-3">
                         <div className="flex items-start justify-between gap-3">
                           <div>
-                            <p className="text-sm font-mono font-bold text-slate">{item.type}</p>
+                            <p className="text-sm font-mono font-bold text-ink-2">{item.type}</p>
                             <p className="mt-1 text-sm font-bold leading-snug text-ink">{item.title}</p>
                           </div>
                           <span className="rounded-lg border border-hairline bg-white px-2 py-1 text-xs font-mono text-slate">
@@ -771,7 +772,9 @@ export default function ImpactDashboard({
                         const share = metrics.totalReported > 0 ? Math.round((count / metrics.totalReported) * 100) : 0;
                         return (
                           <tr key={status}>
-                            <td className="px-3 py-2 font-bold text-ink">{issueStatusLabel(status)}</td>
+                            <td className="px-3 py-2">
+                              <LifecycleStatusBadge status={status} size="sm" />
+                            </td>
                             <td className="px-3 py-2 font-mono font-bold tabular-nums text-ink">{count}</td>
                             <td className="px-3 py-2 font-mono tabular-nums text-slate">{share}%</td>
                           </tr>
@@ -812,21 +815,14 @@ export default function ImpactDashboard({
                 {statuses.map((stat) => {
                   const count = metrics.statusCounts[stat] || 0;
                   const pct = count === 0 ? 0 : Math.max(6, Math.round((count / maxStatusCount) * 100));
-                  const statusBarColors: Record<IssueStatusKey, string> = {
-                    submitted: "bg-slate",
-                    verified: "bg-marigold",
-                    in_progress: "bg-[#3B82F6]",
-                    resolved: "bg-verify",
-                  };
-
                   return (
                     <div key={stat} className="flex flex-col gap-1 text-sm">
                       <div className="flex items-center justify-between font-semibold text-slate">
-                        <span className="text-sm font-bold text-ink">{issueStatusLabel(stat)}</span>
+                        <LifecycleStatusBadge status={stat} size="sm" />
                         <span className="font-mono tabular-nums text-ink">{count}</span>
                       </div>
                       <div className="h-2 w-full overflow-hidden rounded-full border border-hairline bg-paper">
-                        <div className={`${statusBarColors[stat] || "bg-slate"} h-full rounded-full transition-all duration-300`} style={{ width: `${pct}%` }} />
+                        <div className={`${issueStatusBarClass(stat)} h-full rounded-full transition-all duration-300`} style={{ width: `${pct}%` }} />
                       </div>
                     </div>
                   );

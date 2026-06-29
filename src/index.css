@@ -11,7 +11,7 @@
   --color-marigold: #EE9B2D;
   --color-marigold-ink: #7A4300; /* readable marigold text on tint */
   --color-verify: #0FB5A6;
-  --color-alert: #E5484D;
+  --color-alert: #B91C1C;
   --color-slate: #64748B;
   --color-hairline: #E3E1DA;
   /* Lifecycle status (semantic — always paired with icon + label) */
@@ -19,7 +19,12 @@
   --color-status-verified: #7C3AED;
   --color-status-progress: #EE9B2D;
   --color-status-resolved: #0FB5A6;
-  --color-status-overdue: #E5484D;
+  --color-status-overdue: #B91C1C;
+  --color-status-submitted-ink: #1D4ED8;
+  --color-status-verified-ink: #5B21B6;
+  --color-status-progress-ink: #7A4300;
+  --color-status-resolved-ink: #047857;
+  --color-status-overdue-ink: #B91C1C;
   /* Severity ramp (1-2 verify, 3 marigold, 4, 5 alert) */
   --color-sev-4: #F2683B;
   --color-sev-5: #991B1B;
@@ -65,6 +70,11 @@ html.dark {
   --color-hairline: #27374F;
   --color-ink-2: #93A1B5;
   --color-slate: #93A1B5;
+  --color-status-submitted-ink: #93C5FD;
+  --color-status-verified-ink: #C4B5FD;
+  --color-status-progress-ink: #FBBF24;
+  --color-status-resolved-ink: #5EEAD4;
+  --color-status-overdue-ink: #FCA5A5;
   --color-surface-1: #0E1A2B;
   --color-surface-2: #15233A;
   --color-surface-3: #1C2C46;

@@ -646,7 +646,7 @@ export default function ReportPage({ onBack, onSubmit, prefilledLocation, prefil
             </span>
           )}
           {!locLoading && locError && (
-            <span className="text-alert flex items-center gap-1">
+            <span className="text-status-overdue-ink flex items-center gap-1">
               {t("report.locationFallback")}
             </span>
           )}

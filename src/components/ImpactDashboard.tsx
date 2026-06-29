@@ -1,6 +1,6 @@
 import React, { useEffect, useMemo, useState } from "react";
 import { IssueReport } from "../types";
-import { ArrowLeft, CheckCircle, Copy, Clock, Layers, Sparkles, Download, AlertTriangle } from "lucide-react";
+import { ArrowLeft, CheckCircle, Copy, Clock, Layers, Sparkles, Download, AlertTriangle, Trophy, Medal } from "lucide-react";
 import { ISSUE_STATUS_KEYS, IssueStatusKey, issueStatusLabel } from "../constants/status";
 import { isInternalSmokeTestIssue } from "../utils/issueVisibility";
 
@@ -109,6 +109,17 @@ export default function ImpactDashboard({
       .then((d) => { if (active) setInsight(d?.insight ? d : null); })
       .catch(() => { if (active) setInsight(null); })
       .finally(() => { if (active) setInsightLoading(false); });
+    return () => { active = false; };
+  }, []);
+
+  // Public community leaderboard (gamification).
+  const [leaders, setLeaders] = useState<any[]>([]);
+  useEffect(() => {
+    let active = true;
+    fetch("/api/leaderboard")
+      .then((r) => (r.ok ? r.json() : null))
+      .then((d) => { if (active) setLeaders(Array.isArray(d?.leaders) ? d.leaders : []); })
+      .catch(() => { if (active) setLeaders([]); });
     return () => { active = false; };
   }, []);
 
@@ -320,6 +331,39 @@ export default function ImpactDashboard({
               <p className="text-[13px] text-slate italic">Deterministic summary shown (AI forecast temporarily unavailable).</p>
             )}
           </div>
+        )}
+      </div>
+
+      {/* Community leaderboard (gamified civic engagement) */}
+      <div className="bg-white border border-hairline rounded-2xl p-4 shadow-[0_4px_16px_-4px_rgba(14,26,43,0.05)] flex flex-col gap-3">
+        <h3 className="flex items-center gap-2 text-lg font-bold text-ink border-b border-hairline pb-2">
+          <Trophy className="w-5 h-5 text-marigold" aria-hidden="true" />
+          Community leaderboard
+        </h3>
+        {leaders.length === 0 ? (
+          <p className="text-sm text-slate">No contributors yet. Report, support, or verify issues to earn points and badges.</p>
+        ) : (
+          <ol className="flex flex-col gap-2">
+            {leaders.map((l) => (
+              <li key={l.rank} className="flex items-center gap-3 rounded-xl border border-hairline bg-paper p-3">
+                <span className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full bg-marigold/10 font-mono text-sm font-bold text-marigold-ink">
+                  {l.rank <= 3 ? <Medal className="w-4 h-4 text-marigold" aria-hidden="true" /> : l.rank}
+                </span>
+                <div className="flex flex-col min-w-0">
+                  <span className="text-sm font-bold text-ink truncate">{l.handle}</span>
+                  <span className="text-[13px] text-slate">Level {l.level} · {l.reportCount} reports · {l.verifyCount} verifications</span>
+                  {Array.isArray(l.badges) && l.badges.length > 0 && (
+                    <div className="mt-1 flex flex-wrap gap-1">
+                      {l.badges.map((b: string) => (
+                        <span key={b} className="rounded-full bg-verify/10 px-2 py-0.5 text-[13px] font-semibold text-verify">{b}</span>
+                      ))}
+                    </div>
+                  )}
+                </div>
+                <span className="ml-auto shrink-0 font-mono text-lg font-bold text-ink tabular-nums">{l.points}<span className="text-[13px] font-semibold text-slate"> pts</span></span>
+              </li>
+            ))}
+          </ol>
         )}
       </div>
     </div>

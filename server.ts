@@ -495,6 +495,46 @@ async function startServer() {
     await issueRef.collection("activity").add(activity);
   }
 
+  // ---- Phase 4: Gamification (civic reputation) -------------------------
+  // Server-authoritative point award + badge/level recompute for a contributor.
+  // Best-effort: failures here never block the underlying civic action.
+  async function awardPoints(uid: string | undefined, role: string | undefined, delta: number, counterField?: "reportCount" | "supportCount" | "verifyCount") {
+    if (!adminDb || !uid) return;
+    try {
+      const ref = adminDb.collection("profiles").doc(uid);
+      await adminDb.runTransaction(async (tx: any) => {
+        const snap = await tx.get(ref);
+        const cur: any = snap.exists ? snap.data() : {};
+        const counters: Record<string, number> = {
+          reportCount: cur.reportCount || 0,
+          supportCount: cur.supportCount || 0,
+          verifyCount: cur.verifyCount || 0,
+        };
+        if (counterField) counters[counterField] = (counters[counterField] || 0) + 1;
+        const points = Math.max(0, (cur.points || 0) + delta);
+        const level = Math.floor(points / 50) + 1;
+        const badges: string[] = [];
+        if (counters.reportCount >= 1) badges.push("First Report");
+        if (counters.reportCount >= 5) badges.push("Active Reporter");
+        if (counters.verifyCount >= 3) badges.push("Community Verifier");
+        if (counters.supportCount >= 5) badges.push("Neighborhood Ally");
+        if (points >= 100) badges.push("Civic Champion");
+        tx.set(ref, {
+          uid,
+          points,
+          level,
+          badges,
+          ...counters,
+          role: role || cur.role || "citizen",
+          handle: cur.handle || `Hero-${String(uid).slice(0, 4).toUpperCase()}`,
+          updatedAt: new Date().toISOString(),
+        }, { merge: true });
+      });
+    } catch (err: any) {
+      console.warn("awardPoints failed (non-blocking):", err?.message || err);
+    }
+  }
+
     // Server-authoritative status transition (Admin SDK + auth + state machine) — STEP 19b
   app.post("/api/issues/update-status", async (req: any, res) => {
     if (!adminDb) return sendApiError(res, 503, "Server data layer unavailable.");
@@ -638,6 +678,7 @@ async function startServer() {
     };
     report.priorityScore = serverPriorityScore(report);
 
+    let createdNew = false;
     try {
       const saved = await adminDb.runTransaction(async (tx: any) => {
         const existing = await tx.get(issueRef);
@@ -648,6 +689,7 @@ async function startServer() {
           }
           return existingData;
         }
+        createdNew = true;
         tx.set(issueRef, report);
         const activityRef = issueRef.collection("activity").doc();
         tx.set(activityRef, {
@@ -661,6 +703,7 @@ async function startServer() {
         return report;
       });
 
+      if (createdNew) await awardPoints(actor.uid, actor.role, 10, "reportCount");
       return res.json({ success: true, data: publicIssueFromDoc(issueRef.id, saved) });
     } catch (error: any) {
       if (error?.message === "IDEMPOTENCY_CONFLICT") {
@@ -740,6 +783,7 @@ async function startServer() {
           updatedAt: nowIso,
         });
       });
+      await awardPoints(actor.uid, actor.role, 2, "supportCount");
       return res.json({ success: true });
     } catch (error: any) {
       if (error?.message === "NOT_FOUND") return sendApiError(res, 404, "Issue not found.");
@@ -788,6 +832,7 @@ async function startServer() {
           byRole: actor.role,
         });
       });
+      if (type === "confirm") await awardPoints(actor.uid, actor.role, 5, "verifyCount");
       return res.json({ success: true });
     } catch (error: any) {
       if (error?.message === "NOT_FOUND") return sendApiError(res, 404, "Issue not found.");
@@ -2369,6 +2414,36 @@ Return STRICT JSON: { "summary": "2-3 sentences", "predictedHotspots": [{"area":
       return res.json(doc.exists ? doc.data() : { insight: null });
     } catch (error) {
       return sendApiError(res, 500, "Failed to load predictive insight.", error);
+    }
+  });
+
+  // Public community leaderboard (anonymized handles, no uids).
+  app.get("/api/leaderboard", async (_req: any, res) => {
+    if (!adminDb) return sendApiError(res, 503, "Server data layer unavailable.");
+    try {
+      const snap = await adminDb.collection("profiles").orderBy("points", "desc").limit(10).get();
+      const leaders = snap.docs.map((d: any, i: number) => {
+        const p: any = d.data();
+        return { rank: i + 1, handle: p.handle || "Civic Hero", points: p.points || 0, level: p.level || 1, badges: p.badges || [], reportCount: p.reportCount || 0, verifyCount: p.verifyCount || 0 };
+      });
+      return res.json({ leaders });
+    } catch (error) {
+      return sendApiError(res, 500, "Failed to load leaderboard.", error);
+    }
+  });
+
+  // Current user's gamification profile.
+  app.get("/api/profile", async (req: any, res) => {
+    if (!adminDb) return sendApiError(res, 503, "Server data layer unavailable.");
+    const actor = req.actor as RequestActor | undefined;
+    if (!actor) return sendApiError(res, 401, "Firebase ID token is required.");
+    try {
+      const doc = await adminDb.collection("profiles").doc(actor.uid).get();
+      const p: any = doc.exists ? doc.data() : { points: 0, level: 1, badges: [], reportCount: 0, supportCount: 0, verifyCount: 0 };
+      delete p.uid;
+      return res.json({ profile: p });
+    } catch (error) {
+      return sendApiError(res, 500, "Failed to load profile.", error);
     }
   });
 

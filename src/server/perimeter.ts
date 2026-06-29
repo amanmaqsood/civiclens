@@ -156,6 +156,8 @@ export function classifyProtectedRoute(method: string, path: string): "health" |
   if (method === "GET" && (path === "/api/export/open311" || path.endsWith("/open311"))) return "health";
   // Predictive analytics is open civic data - publicly readable.
   if (method === "GET" && path === "/api/insights/predictive") return "health";
+  // Community leaderboard is public (anonymized handles only).
+  if (method === "GET" && path === "/api/leaderboard") return "health";
   if (path === "/api/session") return "session";
   if (
     path === "/api/analyze-report" ||

@@ -1,0 +1,55 @@
+name: CI
+
+on:
+  push:
+    branches: [master, main]
+  pull_request:
+    branches: [master, main]
+
+jobs:
+  build-and-test:
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Set up Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Typecheck
+        run: npm run lint
+
+      - name: Unit tests
+        run: npm test
+
+      - name: Build
+        run: npm run build
+
+      - name: Security audit (non-blocking)
+        run: npm audit --omit=dev || true
+
+  emulator-gates:
+    runs-on: ubuntu-latest
+    timeout-minutes: 25
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+      - name: Install dependencies
+        run: npm ci
+      - name: Install Playwright browsers
+        run: npx playwright install --with-deps chromium
+      - name: Firestore/Storage rules tests
+        run: npm run test:rules
+      - name: Concurrency/transaction tests
+        run: npm run test:concurrency
+      - name: End-to-end (emulator)
+        run: npm run test:e2e

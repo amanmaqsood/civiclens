@@ -230,6 +230,19 @@ Phase 5.1 + 5.5 dark mode and celebration-removal verification on 2026-06-30:
 - `npm run build`: passed; Vite transformed 2141 modules, emitted the dark-mode CSS bundle at 62.69 kB, and kept the largest JS chunk at `fb-firestore` 475.16 kB.
 - Hygiene scans found no prohibited attribution terms and no Google API-key prefix matches. `rg -n "confetti|canvas-confetti" src package.json package-lock.json` found only the UX contract assertion that `OperatorDetailView` does not contain `confetti`; `npm ls canvas-confetti @types/canvas-confetti` reported an empty dependency tree.
 
+Phase 5.2 D3 impact-dashboard rebuild verification on 2026-06-30:
+
+- `ImpactDashboard` now computes public and agency analytics from persisted real/demo `IssueReport` data only, preserving the real/demo scope split and empty "Not enough data" states.
+- The public dashboard includes a KPI row with tabular numerals, seven-day deltas, SVG sparklines, a D3 severity-weighted geospatial heatmap with native SVG tooltips, a visible heatmap table fallback, and a live activity feed.
+- The agency dashboard includes response-time distribution bars, status/category queues, SLA and duplicate signals, and a table fallback for assistive technology and non-visual review.
+- `.\node_modules\.bin\tsc.cmd --noEmit`: passed with 0 errors.
+- `.\node_modules\.bin\vitest.cmd run src\server\dashboard-redesign.test.ts src\reliability-performance.test.ts src\release-golden-path.test.ts src\server\trust-economy.test.ts`: passed; 4 files passed, 13 tests passed.
+- Browser/emulator proof: `firebase emulators:exec --project demo-civiclens --only auth,firestore "powershell -NoProfile -ExecutionPolicy Bypass -File scripts\verify-dashboard-redesign-live.ps1"` passed and reported `DASHBOARD_REDESIGN_LIVE kpis=4 sparklines=12 heatCells=16 responseBars=4 agencyRows=4 axeSeriousCritical=0`.
+- `.\node_modules\.bin\vitest.cmd run`: passed; 26 files passed, 3 skipped; 108 tests passed, 10 skipped.
+- `npm run build`: passed; Vite transformed 2339 modules, emitted `dist/server.cjs` at 229.8 kB, emitted the `ImpactDashboard` chunk at 47.05 kB, and kept the largest JS chunk at `fb-firestore` 475.16 kB.
+- `npm run test:rules`: passed; 1 emulator rules file passed, 3 tests passed.
+- `npm run test:concurrency`: passed; 1 emulator concurrency file passed, 4 tests passed.
+
 Phase 6.1 behavioral API test verification on 2026-06-30:
 
 - Added `npm run test:behavioral-api`, which starts Firebase Auth/Firestore/Storage emulators, launches the local app server, and runs `src/server/behavioral-api.test.ts` against real HTTP endpoints.

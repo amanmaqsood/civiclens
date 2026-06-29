@@ -2364,17 +2364,21 @@ Output ONLY valid JSON and nothing else.`;
           return { candidates: safeCandidates, radiusM: args.radiusM || 250 };
         }
         if (name === "calculate_priority") {
-          const severity = args.severity || 1;
-          const urgency = args.urgency || "routine";
-          const confirmCount = args.confirmCount || 0;
-          const reportCount = args.reportCount || 1;
+          // Real work: derive inputs from canonical server data, not model args,
+          // so the score cannot be fabricated by the model.
+          const severity = Number(issue.severity) || Number(args.severity) || 1;
+          const urgency = (issue.urgency || args.urgency || "routine") as string;
+          const confirmCount = Number(issue.verificationCount ?? issue.confirmCount ?? 0);
+          const reportCount = (safeCandidates?.length || 0) + 1;
           let urgencyBonus = 0;
           if (urgency === "urgent") urgencyBonus = 10;
           else if (urgency === "priority") urgencyBonus = 5;
           const score = severity * 12 + urgencyBonus + Math.min(confirmCount * 3, 15) + Math.min(reportCount * 4, 15);
-          const clampedScore = Math.max(0, Math.min(100, score));
-          const roundedScore = Math.round(clampedScore * 10) / 10;
-          return { score: roundedScore };
+          const roundedScore = Math.round(Math.max(0, Math.min(100, score)) * 10) / 10;
+          return {
+            score: roundedScore,
+            basis: { severity, urgency, confirmCount, reportCount, source: "canonical issue + server-loaded candidates" },
+          };
         }
         if (name === "compare_candidate_evidence") {
           const candidateId = cleanText(args.candidateId, "none", 160);
@@ -2461,20 +2465,23 @@ Output ONLY valid JSON and nothing else.`;
       }
 
       let contents: any[] = [{ role: "user", parts: [{ text:
-        `You are CivicLens's server-side triage agent. Use only server-provided issue data and tools.
-Issue: ${JSON.stringify(issue)}
-Steps: 1) call search_nearby_cases, 2) call compare_candidate_evidence using candidates if any, 3) call calculate_priority, 4) call find_responsible_authority, 5) call draft_action_packet, 6) call request_human_approval for any merge/routing/resolution recommendation, 7) call verify_closure to record that closure still needs human review, 8) call record_event. Call exactly one tool per turn.` }]}];
+        `You are CivicLens's autonomous server-side triage agent for ONE civic issue. There is NO fixed script: you decide which tools to call, in what order, and how many, based on the issue's actual state. Choose only the tools that the evidence justifies.
 
-      const requiredAgentSteps = [
-        "search_nearby_cases",
-        "compare_candidate_evidence",
-        "calculate_priority",
-        "find_responsible_authority",
-        "draft_action_packet",
-        "request_human_approval",
-        "verify_closure",
-        "record_event",
-      ];
+Goal: produce a defensible triage - detect duplicates, ground the priority, identify the responsible authority, and prepare a human-reviewable action draft - then finish by calling record_event with your routing decision and rationale, and stop.
+
+Decision guidance (branch on evidence; do NOT blindly run every tool):
+- ${safeCandidates.length} nearby candidate(s) are available. Call search_nearby_cases only if duplicate detection is warranted; if there are 0 candidates do NOT call compare_candidate_evidence.
+- If you find a confident duplicate, you may SKIP draft_action_packet and instead record_event routing it as a merge that needs human approval.
+- Call calculate_priority to ground the score in canonical server data.
+- Call find_responsible_authority when you need the department/contact for a non-duplicate issue.
+- Call draft_action_packet only for non-duplicate issues that need an outbound draft.
+- Call request_human_approval for any consequential recommendation (merge, routing, closure).
+- Call verify_closure ONLY if closure evidence already exists on the issue (closureAssessment present: ${issue.closureAssessment ? "yes" : "no"}).
+- When you have enough to route, call record_event(routeTo, priorityScore, rationale) and stop.
+
+Call one tool per turn. Briefly state your reasoning before each call - it is recorded. Use only server-provided data and tools; never invent facts.
+
+Issue: ${JSON.stringify(issue)}` }]}];
 
       const steps: any[] = [];
       let final: any = null;
@@ -2488,13 +2495,15 @@ Steps: 1) call search_nearby_cases, 2) call compare_candidate_evidence using can
       let duplicateSimilarity: number | null = null;
       let duplicateReasoning: string | null = null;
 
-      while (guard++ < 8) {
+      const MAX_AGENT_TURNS = 12; // safety backstop only; the model decides when to stop
+      while (guard++ < MAX_AGENT_TURNS) {
         const t0 = Date.now();
         const { response, retried } = await generateContentWithRetry(ai, {
           model: "gemini-2.5-flash",
           contents,
           config: { tools: agentTools }
         });
+        const turnReasoning = (response.text || "").trim();
         const calls = response.functionCalls || [];
         if (!calls.length) break;
         const fc = calls[0];
@@ -2529,7 +2538,8 @@ Steps: 1) call search_nearby_cases, 2) call compare_candidate_evidence using can
           outputSummary: JSON.stringify(result).slice(0, 160),
           durationMs: Date.now() - t0,
           ts: new Date().toISOString(),
-          rationale: fc.args?.reasoning || fc.args?.rationale || fc.args?.reason || `Called ${fc.name}`,
+          rationale: turnReasoning || fc.args?.reasoning || fc.args?.rationale || fc.args?.reason || `Called ${fc.name}`,
+          reasoning: turnReasoning || null,
           model: "gemini-2.5-flash",
           retried,
           sources: fc.name === "search_nearby_cases"
@@ -2551,46 +2561,9 @@ Steps: 1) call search_nearby_cases, 2) call compare_candidate_evidence using can
         }
       }
 
-      const emittedByStep = new Map<string, any>();
-      for (const step of steps) {
-        if (!emittedByStep.has(step.step)) emittedByStep.set(step.step, step);
-      }
-      const normalizedSteps = requiredAgentSteps.map((stepName, index) => {
-        const emitted = emittedByStep.get(stepName);
-        const order = index + 1;
-        if (emitted) {
-          return {
-            ...emitted,
-            id: `${runRef.id}_${order}_${stepName}`,
-            order,
-          };
-        }
-
-        const skippedBecause = stepName === "compare_candidate_evidence" && safeCandidates.length === 0
-          ? "No nearby candidates were available to compare; the server recorded this required lifecycle step as skipped."
-          : "Gemini did not emit this required tool call before the run completed; the server recorded it as skipped for lifecycle completeness.";
-
-        return {
-          id: `${runRef.id}_${order}_${stepName}`,
-          runId: runRef.id,
-          issueId,
-          order,
-          step: stepName,
-          tool: `agent.${stepName}`,
-          status: "skipped",
-          inputDigest: stepName === "compare_candidate_evidence"
-            ? `candidateCount:${safeCandidates.length}`
-            : "No model tool call emitted.",
-          outputSummary: skippedBecause,
-          durationMs: 0,
-          ts: new Date().toISOString(),
-          rationale: skippedBecause,
-          model: "gemini-2.5-flash",
-          retried: false,
-          sources: [],
-        };
-      });
-      steps.splice(0, steps.length, ...normalizedSteps);
+      // The persisted trace reflects exactly the tools the agent chose to call,
+      // in the order it called them - no forced canonical sequence, no padded
+      // "skipped" rows. Two different issues produce two different, real traces.
 
       // Generate the final rich resolution plan
       let resolutionPlan = null;

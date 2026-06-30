@@ -71,17 +71,15 @@ Demo operator actions are server-limited to records explicitly marked as synthet
 - Data: Firestore plus Firebase Storage, guarded by Rules and Admin SDK boundaries.
 - Validation: Vitest, Firebase Emulator Suite, Playwright headed browser verification, Cloud Run smoke tests.
 
-Key documents:
+Judge-facing materials:
 
+- [Submission Google Doc](https://docs.google.com/document/d/19nFBVMLHUOqlKipMi7tsML25BW2h_Q2s82cQukuzlMk/edit?usp=sharing)
 - [ARCHITECTURE.md](ARCHITECTURE.md)
 - [security_spec.md](security_spec.md)
 - [ATTRIBUTIONS.md](ATTRIBUTIONS.md)
-- [docs/DEPLOYMENT_CLOUD_RUN.md](docs/DEPLOYMENT_CLOUD_RUN.md)
+- [LICENSE](LICENSE)
+- [docs/AI_STUDIO_EVIDENCE.md](docs/AI_STUDIO_EVIDENCE.md)
 - [docs/FINAL_EVIDENCE_REPORT.md](docs/FINAL_EVIDENCE_REPORT.md)
-- [docs/IMPLEMENTATION_PLAN_STATUS_2026-06-30.md](docs/IMPLEMENTATION_PLAN_STATUS_2026-06-30.md)
-- [docs/HEADED_BROWSER_PHASE_0_6_REPORT_2026-06-30.md](docs/HEADED_BROWSER_PHASE_0_6_REPORT_2026-06-30.md)
-- [docs/GOOGLE_DOC_DRAFT.md](docs/GOOGLE_DOC_DRAFT.md)
-- [docs/DEMO_SCRIPT.md](docs/DEMO_SCRIPT.md)
 
 ## Verified Deployment
 

@@ -15,12 +15,10 @@ describe("documentation release readiness", () => {
       "ATTRIBUTIONS.md",
       "ARCHITECTURE.md",
       "security_spec.md",
+      "docs/README.md",
       "docs/DEPLOYMENT_CLOUD_RUN.md",
       "docs/AI_STUDIO_EVIDENCE.md",
-      "docs/DEMO_SCRIPT.md",
-      "docs/GOOGLE_DOC_DRAFT.md",
       "docs/FINAL_EVIDENCE_REPORT.md",
-      "docs/RUBRIC_SELF_SCORE.md",
       "docs/OBSERVABILITY.md",
       "docs/monitoring/civiclens-cloud-monitoring-dashboard.json",
       "Dockerfile",
@@ -45,23 +43,18 @@ describe("documentation release readiness", () => {
 
   it("records deployed app and Google Doc URLs while keeping hackathon submission unclaimed", () => {
     const evidence = readProjectFile("docs/FINAL_EVIDENCE_REPORT.md");
-    const demo = readProjectFile("docs/DEMO_SCRIPT.md");
-    const docDraft = readProjectFile("docs/GOOGLE_DOC_DRAFT.md");
-    const score = readProjectFile("docs/RUBRIC_SELF_SCORE.md");
+    const readme = readProjectFile("README.md");
+    const docsReadme = readProjectFile("docs/README.md");
 
     expect(evidence).toContain("Public URL: https://civiclens-py7ixxgroq-as.a.run.app");
     expect(evidence).toContain("FINAL_GOLDEN_PATH_LIVE");
-    expect(score).toContain("97/100");
-    expect(score).toContain("FINAL_GOLDEN_PATH_LIVE");
-    expect(evidence).toContain(
-      "Public Google Doc body was replaced with `docs/GOOGLE_DOC_DRAFT.md`, formatted with headings/lists/links, and public text export was rechecked.",
-    );
+    expect(readme).toContain("Submission doc: https://docs.google.com/document/d/19nFBVMLHUOqlKipMi7tsML25BW2h_Q2s82cQukuzlMk/edit?usp=sharing");
+    expect(readme).toContain("Live app: https://civiclens-py7ixxgroq-as.a.run.app");
+    expect(docsReadme).toContain("judge-facing technical and verification artifacts");
+    expect(docsReadme).toContain("Non-submission working notes");
+    expect(evidence).toContain("Public Google Doc body was refreshed for the final submission");
+    expect(evidence).toContain("Public GitHub documentation was narrowed to judge-facing materials only");
     expect(evidence).toContain("Hackathon submission has not been performed.");
-    expect(demo).toContain("Public app URL: https://civiclens-py7ixxgroq-as.a.run.app");
-    expect(docDraft).toContain("Primary URL: https://civiclens-py7ixxgroq-as.a.run.app");
-    expect(docDraft).toContain("Repository: https://github.com/amanmaqsood/civiclens");
-    expect(docDraft).toContain("Demo video link can be added by the submitter if available.");
-    expect(docDraft).toContain("Screenshots that require authenticated consoles are treated carefully");
   });
 
   it("documents production Firebase, App Check, and Cloud Run configuration truthfully", () => {
@@ -101,7 +94,7 @@ describe("documentation release readiness", () => {
       "README.md",
       "security_spec.md",
       "ARCHITECTURE.md",
-      "docs/GOOGLE_DOC_DRAFT.md",
+      "docs/FINAL_EVIDENCE_REPORT.md",
       "src/components/LandingPage.tsx",
       "server.ts",
     ];

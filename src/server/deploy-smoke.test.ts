@@ -40,11 +40,10 @@ describe("deploy smoke coverage", () => {
 
   it("documents deploy smoke usage without embedding credentials", () => {
     const deployment = readProjectFile("docs/DEPLOYMENT_CLOUD_RUN.md");
-    const deployV2 = readProjectFile("docs/DEPLOY_V2.md");
 
     expect(deployment).toContain("npm run smoke:deploy");
     expect(deployment).toContain("DEPLOY_SMOKE_LIVE");
-    expect(deployV2).toContain("scripts\\deploy-smoke.ps1");
-    expect(`${deployment}\n${deployV2}`).not.toContain(["A", "Iza"].join(""));
+    expect(deployment).toContain("scripts\\deploy-smoke.ps1");
+    expect(deployment).not.toContain(["A", "Iza"].join(""));
   });
 });

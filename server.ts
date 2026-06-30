@@ -2675,7 +2675,8 @@ Mark suspicious only for obvious mismatch, pile-on, or unverifiable reasoning. K
               lastAutoMergedBy: actor.uid,
               lastSimilarity: mergeCandidate.similarity,
               lastDistanceM: mergeCandidate.distanceM,
-              method: "geohash7_embedding_cosine",
+              method: mergeCandidate.sameEvidenceImage ? "geohash7_embedding_cosine_or_same_image" : "geohash7_embedding_cosine",
+              sameEvidenceImage: !!mergeCandidate.sameEvidenceImage,
             },
           };
           if (evidenceCreated) {
@@ -2691,6 +2692,7 @@ Mark suspicious only for obvious mismatch, pile-on, or unverifiable reasoning. K
               requestedIssueId: issueRef.id,
               duplicateSimilarity: mergeCandidate.similarity,
               duplicateDistanceM: mergeCandidate.distanceM,
+              sameEvidenceImage: !!mergeCandidate.sameEvidenceImage,
               category: report.category,
               title: report.title,
               summary: report.summary,
@@ -2721,6 +2723,7 @@ Mark suspicious only for obvious mismatch, pile-on, or unverifiable reasoning. K
             duplicateSimilarity: mergeCandidate.similarity,
             duplicateDistanceM: mergeCandidate.distanceM,
             evidenceId: idempotencyKey,
+            sameEvidenceImage: !!mergeCandidate.sameEvidenceImage,
             pipelineStageCount: pipelineContext.report.createPipeline?.steps?.length || 0,
           });
           return {
@@ -6318,6 +6321,10 @@ Return STRICT JSON: { "action": "wait|escalate|request_evidence|ready_to_close",
   function issueEmbeddingText(i: any): string {
     return `${i.category || ""} ${i.title || ""} ${i.summary || i.description || ""}`.trim();
   }
+  function evidenceFingerprint(value: unknown): string {
+    const text = cleanText(value, "", 1_200_000);
+    return text ? createHash("sha256").update(text).digest("hex") : "";
+  }
   function havMeters(la1: number, lo1: number, la2: number, lo2: number): number {
     const R = 6371000, toR = (d: number) => (d * Math.PI) / 180;
     const dLa = toR(la2 - la1), dLo = toR(lo2 - lo1);
@@ -6361,6 +6368,7 @@ Return STRICT JSON: { "action": "wait|escalate|request_evidence|ready_to_close",
   async function findAutoMergeCandidate(issue: any, queryEmbedding: number[], excludeIssueId: string) {
     if (typeof issue.lat !== "number" || typeof issue.lng !== "number") return null;
     const candidateHashes = nearbyGeoHash7Set(issue.lat, issue.lng);
+    const issueEvidenceFingerprint = evidenceFingerprint(issue.image);
     const snap = await adminDb.collection("issues").limit(500).get();
     let best: any = null;
     for (const doc of snap.docs) {
@@ -6374,7 +6382,9 @@ Return STRICT JSON: { "action": "wait|escalate|request_evidence|ready_to_close",
       if (!candidateHash || !candidateHashes.has(candidateHash)) continue;
       const distanceM = Math.round(havMeters(issue.lat, issue.lng, candidate.lat, candidate.lng));
       if (distanceM > 50) continue;
-      const similarity = Math.round(cosineSim(queryEmbedding, candidate.embedding) * 1000) / 1000;
+      const embeddingSimilarity = cosineSim(queryEmbedding, candidate.embedding);
+      const sameEvidenceImage = !!issueEvidenceFingerprint && issueEvidenceFingerprint === evidenceFingerprint(candidate.image);
+      const similarity = Math.round(Math.max(embeddingSimilarity, sameEvidenceImage ? 0.985 : 0) * 1000) / 1000;
       const categoryCompatible = candidate.category === issue.category || candidate.category === "other" || issue.category === "other";
       if (similarity < 0.85 || (!categoryCompatible && similarity < 0.93)) continue;
       if (!best || similarity > best.similarity || (similarity === best.similarity && distanceM < best.distanceM)) {
@@ -6384,6 +6394,7 @@ Return STRICT JSON: { "action": "wait|escalate|request_evidence|ready_to_close",
           similarity,
           distanceM,
           geohash7: candidateHash,
+          sameEvidenceImage,
         };
       }
     }

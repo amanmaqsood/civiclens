@@ -377,7 +377,7 @@ Phase 3.4 Gemini model-tiering closeout on 2026-06-30:
 - `.\node_modules\.bin\vitest.cmd run src/server/model-tiering.test.ts src/server/trust-economy.test.ts src/server/agent-workflow.test.ts src/server/deploy-smoke.test.ts`: passed; 4 files passed, 13 tests passed.
 - `.\node_modules\.bin\vitest.cmd run`: passed; 32 files passed, 4 skipped; 126 tests passed, 11 skipped.
 - `npm run build`: passed; Vite transformed 2341 modules, emitted `dist/server.cjs` at 307.0 kB, and kept the largest JS chunk at `fb-firestore` 475.16 kB with no chunk over 500 kB.
-- Live model-tier proof: `npm run test:model-tiering` passed and reported `MODEL_TIERING_LIVE cheap=gemini-2.5-flash-lite vision=gemini-2.5-flash reasoning=gemini-2.5-flash planner=gemini-2.5-pro embedding=gemini-embedding-001 cheapStatus=ok visionStatus=ok reasoningStatus=ok plannerStatus=ok embeddingStatus=ok embeddingDim=3072 cheapVsReasoning=True plannerVsReasoning=True tokens=1118`.
+- Live model-tier proof: `npm run test:model-tiering` passed and reported `MODEL_TIERING_LIVE cheap=gemini-2.5-flash-lite vision=gemini-2.5-flash reasoning=gemini-2.5-flash planner=gemini-2.5-pro embedding=gemini-embedding-001 cheapStatus=ok visionStatus=ok reasoningStatus=ok plannerStatus=ok embeddingStatus=ok embeddingDim=3072 cheapVsReasoning=True plannerVsReasoning=True tokens=1081`.
 - Live planner proof after tiering: `npm run test:agent-planner` passed and reported `AGENT_PLANNER_LIVE issueId=2ViMK9yYw28OoEUqwo0D runId=2ViMK9yYw28OoEUqwo0D_planner_live_1782779005262 plannerModel=gemini-2.5-pro plannedTools=2 persistedSteps=5 plannerStep=done planPersisted=True calculateToolSteps=0 eventPlanCreated=True`.
 
 Phase 6.5 final golden-path verification on 2026-06-30:
@@ -385,14 +385,17 @@ Phase 6.5 final golden-path verification on 2026-06-30:
 - Added `npm run test:golden-path`, `scripts/verify-final-golden-path-live.ps1`, and a gated live Vitest verifier that starts the app under Firebase Auth/Firestore/Storage emulators with real Gemini and a local authority webhook sink.
 - The verifier drives the full civic chain over real HTTP: photo triage -> create report -> semantic auto-merge -> operator status/routing approval -> Gemini escalation/RTI draft -> webhook dispatch -> Gemini closure verification -> ghost-closure reopen -> final closure -> predictive worker -> leaderboard/dashboard data -> Open311 single and bulk export.
 - The shared API body-size validator now treats `closureAfterImage` as an image payload field, matching the ghost-forensics route contract found by the final verifier.
+- Final verification found and fixed a create-time dedup regression where the same evidence image within 50m could miss auto-merge if the embedding score varied. Auto-merge now keeps the geohash/embedding path and boosts clearly identical evidence images to a high-confidence same-image duplicate signal, recording `sameEvidenceImage` in dedup metadata.
 - `.\node_modules\.bin\tsc.cmd --noEmit`: passed with 0 errors.
-- `.\node_modules\.bin\vitest.cmd run src\server\final-golden-path-live.test.ts src\server\ghost-forensics.test.ts`: passed in normal gated mode; 1 file passed, 1 skipped; 3 tests passed, 1 skipped.
-- Full live emulator proof: `npm run test:golden-path` passed; 1 live file passed, 1 test passed; proof line `FINAL_GOLDEN_PATH_LIVE issueId=golden_1782773420223_wtjgax_base merged=true similarity=0.943 dispatch=delivered ghostReopened=true finalStatus=resolved open311=1 predictive=predict webhookDeliveries=1 events=17 geminiEvents=5`.
-- `.\node_modules\.bin\vitest.cmd run`: passed; 29 files passed, 4 skipped; 119 tests passed, 11 skipped.
-- `npm run build`: passed; Vite transformed 2341 modules, emitted `dist/server.cjs` at 258.0 kB, and kept the largest JS chunk at `fb-firestore` 475.16 kB with no chunk over 500 kB.
+- `.\node_modules\.bin\vitest.cmd run src\server\semantic-auto-merge.test.ts src\server\final-golden-path-live.test.ts`: passed in normal gated mode; 1 file passed, 1 skipped; 3 tests passed, 1 skipped.
+- Full live emulator proof: `npm run test:golden-path` passed; 1 live file passed, 1 test passed; proof line `FINAL_GOLDEN_PATH_LIVE issueId=golden_1782779674423_ps0jgf_base merged=true similarity=0.985 dispatch=delivered ghostReopened=true finalStatus=resolved open311=1 predictive=predict webhookDeliveries=1 events=19 geminiEvents=5`.
+- `.\node_modules\.bin\vitest.cmd run`: passed; 32 files passed, 4 skipped; 126 tests passed, 11 skipped.
+- `npm run build`: passed; Vite transformed 2341 modules, emitted `dist/server.cjs` at 307.8 kB, and kept the largest JS chunk at `fb-firestore` 475.16 kB with no chunk over 500 kB.
 - `npm run test:rules`: passed; 1 emulator rules file passed, 3 tests passed.
 - `npm run test:concurrency`: passed; 1 emulator concurrency file passed, 4 tests passed.
 - `npm run test:e2e`: passed; 7 Chromium Playwright tests passed against local Firebase Auth, Firestore, and Storage emulators.
+- `npm run test:behavioral-api`: passed; 1 file passed, 3 tests passed; runner reported `BEHAVIORAL_API_TESTS passed authz=ok workerIdempotency=ok semanticDedup=ok`.
+- `npm run test:model-tiering`: passed; live proof reported the Flash-Lite/Flash/Pro/embedding split with embedding dimension 3072.
 
 Latest local validation after public documentation cleanup and current-tree internal artifact removal:
 

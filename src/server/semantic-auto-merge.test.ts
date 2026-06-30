@@ -14,9 +14,11 @@ describe("semantic auto merge on create", () => {
 
     expect(server).toContain("function geoHash7");
     expect(server).toContain("function nearbyGeoHash7Set");
+    expect(server).toContain("function evidenceFingerprint");
     expect(server).toContain("async function findAutoMergeCandidate");
     expect(server).toContain("similarity < 0.85");
     expect(server).toContain("distanceM > 50");
+    expect(server).toContain("sameEvidenceImage ? 0.985 : 0");
     expect(server).toContain("const mergeCandidate = queryEmbedding ? await findAutoMergeCandidate(report, queryEmbedding, issueRef.id) : null");
     expect(server).toContain('adminDb.collection("issueCreateResults").doc(idempotencyKey)');
     expect(server).toContain("await adminDb.runTransaction");
@@ -30,7 +32,8 @@ describe("semantic auto merge on create", () => {
     expect(server).toContain('eventType: "auto_merged_on_create"');
     expect(server).toContain("reportCount: nextReportCount");
     expect(server).toContain("priorityScore: nextPriorityScore");
-    expect(server).toContain('method: "geohash7_embedding_cosine"');
+    expect(server).toContain('method: mergeCandidate.sameEvidenceImage ? "geohash7_embedding_cosine_or_same_image" : "geohash7_embedding_cosine"');
+    expect(server).toContain("sameEvidenceImage: !!mergeCandidate.sameEvidenceImage");
     expect(server).toContain("duplicateSimilarity: outcome.duplicateSimilarity");
     expect(server).toContain("duplicateDistanceM: outcome.duplicateDistanceM");
   });

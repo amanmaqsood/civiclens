@@ -343,6 +343,19 @@ Phase 1.1/1.2 explicit planner and real agent tools closeout on 2026-06-30:
 - `npm run test:concurrency`: passed; 1 emulator concurrency file passed, 4 tests passed.
 - `npm run test:e2e`: passed; 7 Chromium Playwright tests passed against local Firebase Auth, Firestore, and Storage emulators.
 
+Phase 1.5 live agent stream closeout on 2026-06-30:
+
+- Added authenticated `GET /api/issues/:issueId/agent-events/stream` with `text/event-stream`, no-cache headers, heartbeat frames, and per-issue subscribers.
+- `/api/agent/run` now emits live `agent_start`, `agent_step`, `agent_retry`, and terminal `agent_complete` events from the same server-side lifecycle that persists the run.
+- The operator case view now opens the live stream before starting a run, then renders streamed planner/tool/self-critique steps as they are emitted instead of replaying a timer.
+- `AgentTraceTimeline` now treats `planner`, `get_local_context`, and `propose_merge` as first-class steps and removes `calculate_priority` from the expected tool order.
+- `.\node_modules\.bin\tsc.cmd --noEmit`: passed with 0 errors.
+- `.\node_modules\.bin\vitest.cmd run src\server\agent-stream.test.ts src\server\agent-workflow.test.ts`: passed; 2 files passed, 6 tests passed.
+- Real Gemini stream emulator proof: `npm run test:agent-stream` passed and reported `AGENT_STREAM_LIVE issueId=8o116Vvzh7rMAFgFb7KO runId=8o116Vvzh7rMAFgFb7KO_stream_live_1782777540369 ready=True start=True stepEvents=7 plannerStep=True complete=True retryEvents=0 persistedSteps=7`.
+- `.\node_modules\.bin\vitest.cmd run`: passed; 30 files passed, 4 skipped; 121 tests passed, 11 skipped.
+- `npm run build`: passed; Vite transformed 2341 modules, emitted `dist/server.cjs` at 290.3 kB, and kept the largest JS chunk at `fb-firestore` 475.16 kB with no chunk over 500 kB.
+- `npm run test:e2e`: passed; 7 Chromium Playwright tests passed against local Firebase Auth, Firestore, and Storage emulators.
+
 Phase 6.5 final golden-path verification on 2026-06-30:
 
 - Added `npm run test:golden-path`, `scripts/verify-final-golden-path-live.ps1`, and a gated live Vitest verifier that starts the app under Firebase Auth/Firestore/Storage emulators with real Gemini and a local authority webhook sink.

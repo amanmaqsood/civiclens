@@ -17,6 +17,8 @@ auditable trail.
    The latest agent run begins with a persisted Gemini JSON execution plan
    (tools, rationale, and conditions), can execute multiple Gemini tool calls in
    one model turn, and stores the plan on both the run and issue documents.
+   Operators can also watch the run over a real server-sent event stream as
+   planner/tool/self-critique steps are emitted by the server.
 
 2. **The agent grounds itself in the real world.** It can call `get_local_context`
    to pull **live weather (Open-Meteo)**, **nearby schools/hospitals
@@ -77,6 +79,7 @@ auditable trail.
   `/api/export/open311`, `/api/issues/:id/open311`, `/api/issues/:id/grounding`;
   operator/job: `POST /api/jobs/run` (workers `sla|followup|predict|embed`),
   `POST /api/dedup/semantic`, `POST /api/issues/:id/escalation-dispatch`,
-  `POST /api/issues/:id/merge-proposals/:proposalId/approve`.
+  `POST /api/issues/:id/merge-proposals/:proposalId/approve`,
+  `GET /api/issues/:id/agent-events/stream`.
 
 See `docs/DEPLOY_V2.md` for deployment + worker scheduling.

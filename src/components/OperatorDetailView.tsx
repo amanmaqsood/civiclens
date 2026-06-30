@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from "react";
 import { IssueReport, IssueActivity } from "../types";
 import { approveRoutingPlan, dispatchEscalation, fetchIssueActivities, finalizeEscalation, updateIssueStatus } from "../services/issues";
-import { fetchLatestAgentRun, runAgentForIssue } from "../services/api";
+import { fetchLatestAgentRun, runAgentForIssue, streamAgentRunEvents, type AgentRunStreamEvent } from "../services/api";
 import { ArrowLeft, Clock, CheckSquare, RefreshCw, Lock, Sparkles, Send, CheckCircle2, MapPin, CloudRain, Building2, Repeat } from "lucide-react";
 import ClosureVerificationPanel from "./ClosureVerificationPanel";
 import AutoEscalationPanel from "./AutoEscalationPanel";
@@ -28,6 +28,7 @@ export default function OperatorDetailView({ issue, onBack, onRefresh, demoOpera
   const [actionError, setActionError] = useState<string | null>(null);
   const [agentRunning, setAgentRunning] = useState(false);
   const [agentError, setAgentError] = useState<string | null>(null);
+  const [agentStreamStatus, setAgentStreamStatus] = useState<string | null>(null);
   const [liveAgentSteps, setLiveAgentSteps] = useState<any[]>([]);
   const [persistedAgentSteps, setPersistedAgentSteps] = useState<any[]>([]);
   const [activeAgentRun, setActiveAgentRun] = useState<any | null>(null);
@@ -70,11 +71,67 @@ export default function OperatorDetailView({ issue, onBack, onRefresh, demoOpera
     };
   }, [issue.id]);
 
+  const upsertLiveAgentStep = (step: any) => {
+    if (!step) return;
+    setLiveAgentSteps((current) => {
+      const key = step.id || `${step.order || current.length + 1}_${step.step}`;
+      const next = current.some((entry) => (entry.id || `${entry.order}_${entry.step}`) === key)
+        ? current.map((entry) => ((entry.id || `${entry.order}_${entry.step}`) === key ? step : entry))
+        : [...current, step];
+      return next.sort((a, b) => (Number(a.order) || 0) - (Number(b.order) || 0));
+    });
+  };
+
+  const handleAgentStreamEvent = (event: AgentRunStreamEvent) => {
+    if (event.type === "agent_stream_ready") {
+      setAgentStreamStatus("Watching live server events...");
+      return;
+    }
+    if (event.type === "agent_start") {
+      setAgentStreamStatus(event.message || "Server agent started.");
+      setActiveAgentRun({ id: event.runId, status: "running", model: "Gemini" });
+      return;
+    }
+    if (event.type === "agent_retry") {
+      setAgentStreamStatus("Gemini retry scheduled...");
+      return;
+    }
+    if (event.type === "agent_step" && event.step) {
+      upsertLiveAgentStep(event.step);
+      setAgentStreamStatus(event.message || "Agent step persisted.");
+      return;
+    }
+    if (event.type === "agent_complete") {
+      setAgentStreamStatus(event.message || "Server agent completed.");
+      if (event.run) setActiveAgentRun(event.run);
+      if (event.status && event.status !== "completed") {
+        setAgentError(event.message || "Server agent did not complete.");
+      }
+    }
+  };
+
   const handleRunAgent = async () => {
     setAgentRunning(true);
     setAgentError(null);
+    setAgentStreamStatus("Connecting to live server events...");
     setLiveAgentSteps([]);
+    const streamAbort = new AbortController();
+    let resolveStreamReady: () => void = () => {};
+    const streamReady = new Promise<void>((resolve) => {
+      resolveStreamReady = resolve;
+    });
+    const streamPromise = streamAgentRunEvents(issue.id, handleAgentStreamEvent, {
+      demoOperator,
+      signal: streamAbort.signal,
+      onOpen: resolveStreamReady,
+    }).catch((error: any) => {
+      resolveStreamReady();
+      if (streamAbort.signal.aborted || error?.name === "AbortError") return;
+      setAgentStreamStatus(null);
+      setAgentError(error?.message || "Live agent stream closed unexpectedly.");
+    });
     try {
+      await streamReady;
       const agentResult = await runAgentForIssue(issue.id, { demoOperator });
       // Show the real persisted trace exactly as the server recorded it - no
       // artificial step-by-step replay timing.
@@ -86,6 +143,8 @@ export default function OperatorDetailView({ issue, onBack, onRefresh, demoOpera
     } catch (e: any) {
       setAgentError(e?.message || "Failed to run the server agent workflow.");
     } finally {
+      streamAbort.abort();
+      await streamPromise.catch(() => {});
       setAgentRunning(false);
     }
   };
@@ -274,10 +333,10 @@ export default function OperatorDetailView({ issue, onBack, onRefresh, demoOpera
                 <div>
                   <h3 className="text-base font-extrabold text-slate-800 flex items-center gap-1.5">
                     <Sparkles className="w-4 h-4 text-indigo-500" />
-                    Persisted agent workflow
+                    Watch agents think
                   </h3>
                   <p className="mt-1 text-sm font-semibold leading-relaxed text-slate-500">
-                    Runs the server-side Gemini tool loop for this operator case. Drafts stay inside CivicLens until a human acts outside the app.
+                    Live server events stream here as Gemini plans, tools run, and the final trace persists.
                   </p>
                 </div>
                 {persistedAgentSteps.length > 0 && (
@@ -305,7 +364,7 @@ export default function OperatorDetailView({ issue, onBack, onRefresh, demoOpera
               {agentRunning && (
                 <div className="flex items-center justify-center gap-2 rounded-xl border bg-slate-50 py-2 text-sm font-bold text-slate-600">
                   <RefreshCw className="w-4 h-4 animate-spin text-indigo-500" />
-                  Executing persisted tool workflow...
+                  {agentStreamStatus || "Executing persisted tool workflow..."}
                 </div>
               )}
             </div>

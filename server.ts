@@ -244,6 +244,7 @@ async function startServer() {
   type GeminiGenerateOptions = {
     signal?: AbortSignal;
     usageAccumulator?: GeminiUsageAccumulator;
+    onRetry?: (event: { model: string; attempt: number; maxAttempts: number; delayMs: number; error: string }) => void | Promise<void>;
   };
 
   const geminiInputUsdPerMillionTokens = parseNonNegativeFloatEnv(process.env.CIVICLENS_GEMINI_INPUT_USD_PER_MILLION_TOKENS);
@@ -421,6 +422,13 @@ async function startServer() {
             maxAttempts: delays.length + 1,
             delayMs: delayTime,
             model,
+            error: safeLogText(error?.message || String(error)),
+          });
+          await options.onRetry?.({
+            model,
+            attempt: attempt + 1,
+            maxAttempts: delays.length + 1,
+            delayMs: delayTime,
             error: safeLogText(error?.message || String(error)),
           });
           await sleepWithAbort(delayTime, options.signal);
@@ -1674,6 +1682,77 @@ Coordinates: lat ${input.lat || "unknown"}, lng ${input.lng || "unknown"}`;
       return null;
     }
   }
+
+  type AgentStreamSubscriber = (event: Record<string, unknown>) => void;
+  const agentStreamSubscribers = new Map<string, Set<AgentStreamSubscriber>>();
+
+  function publishAgentStreamEvent(issueId: string, event: Record<string, unknown>) {
+    const subscribers = agentStreamSubscribers.get(issueId);
+    if (!subscribers || subscribers.size === 0) return;
+    const payload = {
+      issueId,
+      ts: new Date().toISOString(),
+      ...event,
+    };
+    for (const send of subscribers) {
+      try {
+        send(payload);
+      } catch {
+        // Dead clients are cleaned up by the request close handler.
+      }
+    }
+  }
+
+  function sendSseEvent(res: any, event: Record<string, unknown>) {
+    const type = cleanText(event.type, "message", 80) || "message";
+    res.write(`event: ${type}\n`);
+    res.write(`data: ${JSON.stringify(event)}\n\n`);
+  }
+
+  app.get("/api/issues/:issueId/agent-events/stream", async (req: any, res) => {
+    if (!adminDb) return sendApiError(res, 503, "Server data layer unavailable.");
+    const actor = req.actor as RequestActor | undefined;
+    const { issueId } = req.params;
+    if (!actor || !isSafeDocumentId(issueId)) return sendApiError(res, 400, "Invalid agent stream request.");
+
+    try {
+      const issueSnap = await adminDb.collection("issues").doc(issueId).get();
+      if (!issueSnap.exists) return sendApiError(res, 404, "Issue not found.");
+      if (!requireOperatorForIssue(issueSnap.data(), actor, res)) return;
+
+      res.status(200);
+      res.setHeader("Content-Type", "text/event-stream; charset=utf-8");
+      res.setHeader("Cache-Control", "no-cache, no-transform");
+      res.setHeader("Connection", "keep-alive");
+      res.setHeader("X-Accel-Buffering", "no");
+      res.flushHeaders?.();
+
+      const send: AgentStreamSubscriber = (event) => sendSseEvent(res, event);
+      const subscribers = agentStreamSubscribers.get(issueId) || new Set<AgentStreamSubscriber>();
+      subscribers.add(send);
+      agentStreamSubscribers.set(issueId, subscribers);
+
+      send({
+        type: "agent_stream_ready",
+        message: "Connected to live server agent stream.",
+        issueId,
+        actorRole: actor.role,
+        ts: new Date().toISOString(),
+      });
+
+      const heartbeat = setInterval(() => {
+        send({ type: "agent_heartbeat", issueId, ts: new Date().toISOString() });
+      }, 15_000);
+
+      req.on("close", () => {
+        clearInterval(heartbeat);
+        subscribers.delete(send);
+        if (subscribers.size === 0) agentStreamSubscribers.delete(issueId);
+      });
+    } catch (error) {
+      return sendApiError(res, 500, "Failed to open agent event stream.", error);
+    }
+  });
 
   async function addServerActivity(issueRef: any, activity: ServerActivity) {
     const activityRef = issueRef.collection("activity").doc();
@@ -6111,6 +6190,18 @@ Return STRICT JSON: { "action": "wait|escalate|request_evidence|ready_to_close",
     const agentSignal = AbortSignal.timeout(agentTimeoutMs);
     const agentRunStartedAt = Date.now();
     const agentGeminiUsage = createGeminiUsageAccumulator();
+    const agentGeminiOptions: GeminiGenerateOptions = {
+      signal: agentSignal,
+      usageAccumulator: agentGeminiUsage,
+      onRetry: (retry) => {
+        publishAgentStreamEvent(issueId, {
+          type: "agent_retry",
+          runId: runRef.id,
+          message: "Gemini call retry scheduled.",
+          retry,
+        });
+      },
+    };
 
     try {
       const existingRun = await runRef.get();
@@ -6140,12 +6231,34 @@ Return STRICT JSON: { "action": "wait|escalate|request_evidence|ready_to_close",
       const issue = { id: issueSnap.id, ...issueSnap.data() };
       const safeCandidates = await loadNearbyCandidates(issueId, issue);
       const priorityBreakdown = buildPriorityBreakdown(issue, safeCandidates.length);
+      publishAgentStreamEvent(issueId, {
+        type: "agent_start",
+        runId: runRef.id,
+        message: "Server-side triage agent started.",
+        model: "gemini-2.5-flash",
+        timeoutMs: agentTimeoutMs,
+      });
+      await recordEvent({
+        issueRef,
+        actorType: "ai",
+        eventType: "agent_run_started",
+        message: "Server-side triage agent run started.",
+        actor,
+        source: "agent",
+        status: "attempted",
+        idempotencyKey,
+        payload: {
+          runId: runRef.id,
+          timeoutMs: agentTimeoutMs,
+          nearbyCandidateCount: safeCandidates.length,
+        },
+      });
       const plannerResult = await buildAgentExecutionPlan(
         ai,
         issue,
         safeCandidates,
         priorityBreakdown,
-        { signal: agentSignal, usageAccumulator: agentGeminiUsage },
+        agentGeminiOptions,
       );
       const executionPlan = plannerResult.plan;
 
@@ -6267,7 +6380,7 @@ Return STRICT JSON: { "action": "wait|escalate|request_evidence|ready_to_close",
         }
         if (name === "compare_candidate_evidence") {
           const candidateId = cleanText(args.candidateId, "none", 160);
-          return await compareCandidateEvidenceSignals(issueId, issue, safeCandidates, candidateId, { signal: agentSignal, usageAccumulator: agentGeminiUsage });
+          return await compareCandidateEvidenceSignals(issueId, issue, safeCandidates, candidateId, agentGeminiOptions);
         }
         if (name === "propose_merge") {
           const candidateId = cleanText(args.candidateId || duplicateCandidateId, "", 160);
@@ -6342,7 +6455,7 @@ Return STRICT JSON: { "action": "wait|escalate|request_evidence|ready_to_close",
               config: {
                 tools: [{ googleSearch: {} }]
               }
-            }, { signal: agentSignal, usageAccumulator: agentGeminiUsage });
+            }, agentGeminiOptions);
 
             const responseText = (searchRes.response.text || "").trim();
             let cleanText = responseText;
@@ -6424,6 +6537,12 @@ Return STRICT JSON: { "action": "wait|escalate|request_evidence|ready_to_close",
         priorityBreakdown,
         sources: [],
       }];
+      publishAgentStreamEvent(issueId, {
+        type: "agent_step",
+        runId: runRef.id,
+        message: "Planner step persisted.",
+        step: steps[0],
+      });
       await recordEvent({
         issueRef,
         actorType: "ai",
@@ -6492,7 +6611,7 @@ Issue: ${JSON.stringify(issue)}` }]}];
           model: "gemini-2.5-flash",
           contents,
           config: { tools: agentTools }
-        }, { signal: agentSignal, usageAccumulator: agentGeminiUsage });
+        }, agentGeminiOptions);
         const turnReasoning = (response.text || "").trim();
         const calls = response.functionCalls || [];
         if (!calls.length) break;
@@ -6522,7 +6641,7 @@ Issue: ${JSON.stringify(issue)}` }]}];
 
           const plannedIndex = executionPlan.steps.findIndex((step) => step.tool === fc.name);
           const stepId = `${runRef.id}_${steps.length + 1}_${fc.name}`;
-          steps.push({
+          const stepRecord = {
             id: stepId,
             runId: runRef.id,
             issueId,
@@ -6550,6 +6669,13 @@ Issue: ${JSON.stringify(issue)}` }]}];
                   sourceType: "sourced",
                 }))
               : [],
+          };
+          steps.push(stepRecord);
+          publishAgentStreamEvent(issueId, {
+            type: "agent_step",
+            runId: runRef.id,
+            message: `Agent executed ${fc.name}.`,
+            step: stepRecord,
           });
 
           if (fc.name === "record_event") {
@@ -6572,9 +6698,9 @@ Issue: ${JSON.stringify(issue)}` }]}];
       // "skipped" rows. Two different issues produce two different, real traces.
 
       try {
-        selfCritique = await runAgentSelfCritique(ai, issueForPlan, steps, final, { signal: agentSignal, usageAccumulator: agentGeminiUsage });
+        selfCritique = await runAgentSelfCritique(ai, issueForPlan, steps, final, agentGeminiOptions);
         const critiqueTs = new Date().toISOString();
-        steps.push({
+        const critiqueStep = {
           id: `${runRef.id}_${steps.length + 1}_self_critique`,
           runId: runRef.id,
           issueId,
@@ -6592,6 +6718,13 @@ Issue: ${JSON.stringify(issue)}` }]}];
           retried: selfCritique.retried,
           qaAnomaly: selfCritique.anomaly,
           sources: [],
+        };
+        steps.push(critiqueStep);
+        publishAgentStreamEvent(issueId, {
+          type: "agent_step",
+          runId: runRef.id,
+          message: "Self-critique step persisted.",
+          step: critiqueStep,
         });
 
         final = {
@@ -6647,7 +6780,7 @@ Issue: ${JSON.stringify(issue)}` }]}];
         });
       } catch (critiqueError: any) {
         const critiqueTs = new Date().toISOString();
-        steps.push({
+        const critiqueStep = {
           id: `${runRef.id}_${steps.length + 1}_self_critique`,
           runId: runRef.id,
           issueId,
@@ -6663,6 +6796,13 @@ Issue: ${JSON.stringify(issue)}` }]}];
           model: "gemini-2.5-flash",
           retried: false,
           sources: [],
+        };
+        steps.push(critiqueStep);
+        publishAgentStreamEvent(issueId, {
+          type: "agent_step",
+          runId: runRef.id,
+          message: "Self-critique step failed.",
+          step: critiqueStep,
         });
         await recordEvent({
           issueRef,
@@ -6697,7 +6837,7 @@ Issue: ${JSON.stringify(issue)}` }]}];
       // Generate the final rich resolution plan
       let resolutionPlan = null;
       try {
-        const actionPacket = await generateActionPacket(ai, issueForPlan, authority, channel, slaDays, { signal: agentSignal, usageAccumulator: agentGeminiUsage });
+        const actionPacket = await generateActionPacket(ai, issueForPlan, authority, channel, slaDays, agentGeminiOptions);
         resolutionPlan = {
           recommendedAuthority: authority,
           contactChannel: channel,
@@ -6795,6 +6935,15 @@ Issue: ${JSON.stringify(issue)}` }]}];
         actorRole: actor.role,
         ...geminiUsage,
       });
+      publishAgentStreamEvent(issueId, {
+        type: "agent_complete",
+        runId: runRef.id,
+        status: "completed",
+        message: "Server-side triage agent run completed and persisted.",
+        run,
+        stepCount: steps.length,
+        geminiUsage,
+      });
 
       return res.json({
         success: true,
@@ -6838,6 +6987,14 @@ Issue: ${JSON.stringify(issue)}` }]}];
         actorRole: actor.role,
         ...geminiUsage,
         error: safeLogText(error?.message || String(error)),
+      });
+      publishAgentStreamEvent(issueId, {
+        type: "agent_complete",
+        runId: runRef.id,
+        status: timedOut ? "timed_out" : "failed",
+        message: timedOut ? "Server-side triage agent run timed out." : "Server-side triage agent run failed.",
+        error: safeLogText(error?.message || String(error)),
+        geminiUsage,
       });
       return sendApiError(res, timedOut ? 504 : 500, timedOut ? "Agent run timed out before completing." : "An unexpected error occurred during the agent triage run.");
     }

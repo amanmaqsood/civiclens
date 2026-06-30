@@ -5,7 +5,7 @@ export type ActiveView = "landing" | "report" | "success" | "issues" | "detail" 
 export interface AgentTraceEntry {
   step: string;
   tool: string;
-  status: "done" | "skipped" | "failed";
+  status: "done" | "skipped" | "failed" | "fallback" | "running";
   rationale: string;
   ts: string;
   inputDigest?: string;        // short summary of what went into the step

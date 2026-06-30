@@ -16,9 +16,11 @@ interface AgentTraceTimelineProps {
 }
 
 const expectedOrder = [
+  "planner",
+  "get_local_context",
   "search_nearby_cases",
   "compare_candidate_evidence",
-  "calculate_priority",
+  "propose_merge",
   "find_responsible_authority",
   "draft_action_packet",
   "request_human_approval",
@@ -34,9 +36,11 @@ const labelMap: Record<string, string> = {
   Decide: "Review gate",
   "Find Authority": "Suggested authority lookup",
   "Draft Action Packet": "Draft action packet",
+  planner: "Execution planner",
+  get_local_context: "Local context grounding",
   search_nearby_cases: "Nearby case search",
   compare_candidate_evidence: "Duplicate evidence comparison",
-  calculate_priority: "Priority calculation",
+  propose_merge: "Merge proposal",
   find_responsible_authority: "Suggested authority lookup",
   draft_action_packet: "Draft action packet",
   request_human_approval: "Human approval gate",
@@ -58,6 +62,7 @@ function formatTime(value?: string) {
 function StatusIcon({ status }: { status?: string }) {
   if (status === "failed") return <XCircle className="h-5 w-5 text-alert" />;
   if (status === "skipped") return <Clock3 className="h-5 w-5 text-slate" />;
+  if (status === "fallback") return <Clock3 className="h-5 w-5 text-marigold" />;
   return <CheckCircle2 className="h-5 w-5 text-verify" />;
 }
 
@@ -219,6 +224,12 @@ export default function AgentTraceTimeline({ trace = [], run = null, mode = "per
                   <p className="mt-3 flex items-start gap-2 rounded-lg border border-verify/25 bg-verify/10 px-3 py-2 text-sm font-bold text-verify">
                     <ShieldCheck className="mt-0.5 h-4 w-4 shrink-0" />
                     Consequential action waits for a human decision.
+                  </p>
+                )}
+                {entry.step === "propose_merge" && (
+                  <p className="mt-3 flex items-start gap-2 rounded-lg border border-verify/25 bg-verify/10 px-3 py-2 text-sm font-bold text-verify">
+                    <ShieldCheck className="mt-0.5 h-4 w-4 shrink-0" />
+                    Merge proposal waits for operator approval.
                   </p>
                 )}
                 {entry.status === "failed" && entry.errorMsg && (

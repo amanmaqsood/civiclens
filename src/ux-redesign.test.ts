@@ -148,7 +148,7 @@ describe("UX redesign contract", () => {
     expect(detail).toContain("hasCoordinates");
     const operatorDetail = readProjectFile("src/components/OperatorDetailView.tsx");
     expect(operatorDetail).toContain("runAgentForIssue(issue.id, { demoOperator })");
-    expect(operatorDetail).toContain("Persisted agent workflow");
+    expect(operatorDetail).toContain("Watch agents think");
     expect(operatorDetail).toContain("Written rationale is required");
     expect(operatorDetail).toContain("approvalRationale.trim().length === 0");
     expect(operatorDetail).not.toContain("confetti");

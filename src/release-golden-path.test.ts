@@ -38,7 +38,7 @@ describe("release golden path and accessibility coverage", () => {
     expect(api).toContain("/api/agent/run");
     expect(api).toContain("/agent-runs/latest");
     expect(operator).toContain("runAgentForIssue(issue.id, { demoOperator })");
-    expect(operator).toContain("Persisted agent workflow");
+    expect(operator).toContain("Watch agents think");
     expect(operator).toContain("ClosureVerificationPanel");
     expect(operator).toContain("AutoEscalationPanel");
     expect(operator).toContain("Approve draft routing/action packet");

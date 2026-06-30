@@ -7,12 +7,12 @@ Date: 2026-06-30
 - Project: `gen-lang-client-0871796745`
 - Region: `asia-southeast1`
 - Cloud Run service: `civiclens`
-- Active revision: `civiclens-00057-kld`
-- Traffic: 100 percent to `civiclens-00057-kld`
+- Active revision: `civiclens-00059-245`
+- Traffic: 100 percent to `civiclens-00059-245`
 - Public URL: https://civiclens-py7ixxgroq-as.a.run.app
 - Alternate URL: https://civiclens-802067002365.asia-southeast1.run.app
-- Runtime source: `main@9978cbd` plus current verification/dashboard/doc patches
-- Runtime image: `asia-southeast1-docker.pkg.dev/gen-lang-client-0871796745/civiclens/civiclens:9978cbd-defaultdb-dashboard-20260630114525`
+- Runtime source: `main@d277989`
+- Runtime image: `asia-southeast1-docker.pkg.dev/gen-lang-client-0871796745/civiclens/civiclens:d277989-public-20260630124658`
 - Firestore database for final public demo: `(default)`
 - Firestore rules: released to `cloud.firestore` / `(default)` with ruleset `c90c68f8-b31e-4e8a-ae4a-4c0cb761cd37`
 
@@ -23,12 +23,12 @@ Important deploy note: the earlier AI Studio Firestore database hit free read qu
 - Evidence-based score before the final public retest: **96/100**.
 - Evidence-based score after the final public retest: **97/100**.
 
-Remaining deductions: public-demo App Check/quota posture and final submission/video handoff. Core product flows are live-green.
+Remaining deductions: public-demo App Check/quota posture, final submission/video handoff, and current Gemini spend-cap exhaustion. Core product flows were verified green, but the live app should not be submitted until the AI Studio monthly spend cap is raised and the deep Gemini-heavy verifier is rerun green.
 
 ## Health And Smoke
 
 - `/readyz`: HTTP 200, `ready=true`, `adminDb=true`, `geminiConfigured=true`, `configValid=true`.
-- Public deploy smoke: `DEPLOY_SMOKE_LIVE url=https://civiclens-py7ixxgroq-as.a.run.app ready=ready auth=ok gemini=ok maps=OK mapsApi=maps-javascript-places-bootstrap geminiTokens=32 mapsPredictions=0 durationMs=2183`.
+- Public deploy smoke: `DEPLOY_SMOKE_LIVE url=https://civiclens-py7ixxgroq-as.a.run.app ready=ready auth=ok gemini=ok maps=OK mapsApi=maps-javascript-places-bootstrap geminiTokens=32 mapsPredictions=0 durationMs=1770`.
 - Public model-tier smoke: Flash-Lite, Flash, Pro, and `gemini-embedding-001` passed.
 - Public JS bundle was rebuilt with emulator mode false and active Firestore database `(default)`.
 
@@ -45,8 +45,10 @@ Deep phase-gap verifier:
 
 - Script: `scripts/verify-public-phase-gaps-headed.mjs`
 - Evidence JSON: `qa-results/public-phase-gaps/public-phase-gaps-headed.json`
-- Result: every check PASS.
-- Browser cleanliness: `consoleErrors=0`.
+- Current result: blocked by Gemini API spend cap after repeated public verification runs.
+- Current non-pass checks: `phase4.5.voice-intake-live`, `phase2.3.ghost-forensics-live`, and the headed voice run wrapper.
+- Cloud Run log proof: Gemini returned HTTP 429 `RESOURCE_EXHAUSTED` with "project has exceeded its monthly spending cap".
+- Non-Gemini and deterministic branches still passed, including dispatch, grounding, weekly/streak leaderboard, manual merge, SLA/follow-up/RTI, observability, and dashboard rendering.
 
 ## Public Flow Proof
 
@@ -54,7 +56,7 @@ Deep phase-gap verifier:
 - Account menu, anonymous session, demo operator status, language controls, and Google sign-in entry rendered.
 - Dark mode toggled and persisted after reload.
 - Dashboard rendered KPI row even for empty scopes, Open311 export, predictive insights, and community leaderboard.
-- Open311 export returned HTTP 200, `format=open311-georeport-v2`, `count=13`.
+- Open311 export returned HTTP 200, `format=open311-georeport-v2`, `count=25`.
 - Operator synthetic desk rendered demo guardrails, agent ledger, and run-agent button path.
 - Mobile report flow uploaded the sample image, previewed evidence, used manual pin fallback, and accepted description.
 - Public report analysis produced a real Gemini draft.
@@ -63,16 +65,16 @@ Deep phase-gap verifier:
 
 ## Phase-Gap Proof
 
-- Voice intake: live Gemini audio route returned pothole classification, Hindi/Hinglish transcript/translation, and readback text; headed report page rendered the draft.
-- Ghost forensics: live route returned `recommendation=reopen`, confidence `1`, and public detail rendered the forensics card.
+- Voice intake: previously passed live Gemini audio verification; current final rerun is blocked by Gemini spend-cap exhaustion and falls back to typed confirmation.
+- Ghost forensics: previously passed live verification; current final rerun is blocked by Gemini spend-cap exhaustion and returns 500.
 - Trust economy: weighted consensus, appeal, high brigading risk, and collapsed low-trust votes passed live and rendered in headed detail pages.
 - SLA/follow-up/RTI: ladder advanced to `first_appeal`, follow-up returned `wait`, RTI PDF was generated, and public detail rendered the ledger/timeline.
-- Dispatch: harmless outbound dispatch delivered to `httpbin.org`, HTTP 200.
-- Predictive worker: Gemini Flash returned 3 hotspots and dashboard rendered predictive insight.
+- Dispatch: harmless outbound dispatch delivered to `postman-echo.com`, HTTP 200.
+- Predictive worker: currently serves deterministic fallback with 3 hotspots while Gemini is spend-cap blocked; prior Gemini Flash run returned 3 hotspots.
 - Keyless grounding: live grounding included `nominatim-osm`, `firestore-history`, and `open-meteo`.
 - Weekly/streak gamification: live leaderboard returned `week=2026-W27`, `topWeekly=10`, `streak=1`.
 - Manual merge approval: source case marked merged and target report count increased.
-- Observability: API returned `events=172` and 4 Cloud Logging query templates.
+- Observability: API returned `events=250` and 4 Cloud Logging query templates.
 
 ## Local Verification
 
@@ -127,7 +129,8 @@ Deep gap screenshots:
 
 ## Remaining Hardening
 
-1. Enforce App Check only after a verified judge-safe public token path exists.
-2. Restore production distributed quota backend when public Firestore quota posture is ready.
-3. Capture a real GCP Monitoring screenshot/export if required by submission reviewers.
-4. Add the final demo video and submitter-owned hackathon submission link.
+1. Raise or remove the AI Studio/Gemini monthly spending cap, then rerun the deep phase-gap headed verifier until all Gemini-heavy checks pass again.
+2. Enforce App Check only after a verified judge-safe public token path exists.
+3. Restore production distributed quota backend when public Firestore quota posture is ready.
+4. Capture a real GCP Monitoring screenshot/export if required by submission reviewers.
+5. Add the final demo video and submitter-owned hackathon submission link.

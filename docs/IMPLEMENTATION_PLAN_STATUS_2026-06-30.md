@@ -5,10 +5,10 @@ Source plan audited: `E:\Pro\Community hero\CIVICLENS_IMPLEMENTATION_PLAN.md`.
 ## Final Public Deploy Under Test
 
 - URL: `https://civiclens-py7ixxgroq-as.a.run.app`
-- Cloud Run revision: `civiclens-00057-kld`
+- Cloud Run revision: `civiclens-00059-245`
 - Traffic: 100 percent
-- Image: `asia-southeast1-docker.pkg.dev/gen-lang-client-0871796745/civiclens/civiclens:9978cbd-defaultdb-dashboard-20260630114525`
-- Source: `main@9978cbd` plus current uncommitted verification/doc/dashboard patches
+- Image: `asia-southeast1-docker.pkg.dev/gen-lang-client-0871796745/civiclens/civiclens:d277989-public-20260630124658`
+- Source: `main@d277989`
 - Firestore database used by final public demo: `(default)`
 - Firestore rules released to `(default)` via `cloud.firestore` using ruleset `c90c68f8-b31e-4e8a-ae4a-4c0cb761cd37`
 - Note: the earlier AI Studio database hit free read quota exhaustion, so the final public demo was rebuilt for `(default)`.
@@ -17,7 +17,7 @@ Source plan audited: `E:\Pro\Community hero\CIVICLENS_IMPLEMENTATION_PLAN.md`.
 
 - Public deploy smoke: PASS, `ready=ready auth=ok gemini=ok maps=OK`.
 - Broad headed verifier: PASS for every result in `qa-results/headed-phase-0-6/public-headed-phase-status.json`; browser cleanliness `consoleErrors=0`, `pageErrors=0`, `server5xx=0`.
-- Deep public phase-gap verifier: PASS for every result in `qa-results/public-phase-gaps/public-phase-gaps-headed.json`; browser cleanliness `consoleErrors=0`.
+- Deep public phase-gap verifier: currently BLOCKED by Gemini API monthly spending cap. Current non-pass checks are voice intake, ghost forensics, and the headed voice wrapper; Cloud Run logs show Gemini HTTP 429 `RESOURCE_EXHAUSTED` / monthly spending cap exceeded.
 - `npx tsc --noEmit`: passed.
 - Focused server/UI regressions: 4 files passed, 21 tests passed.
 - `npm run build`: passed; largest JS chunk `fb-firestore` 474.21 kB.
@@ -35,14 +35,14 @@ Source plan audited: `E:\Pro\Community hero\CIVICLENS_IMPLEMENTATION_PLAN.md`.
 | 0.1 Clean green baseline | DONE | TypeScript, build, full Vitest, emulator gates, golden path, and Playwright E2E all passed after the final public deploy. |
 | 0.2 Firebase browser-key hygiene | DONE | `firebase-applet-config.json` is metadata-only; browser config comes from env/build args; final Cloud Build used `VITE_FIRESTORE_DATABASE_ID=(default)` and emulator mode false. |
 | 0.3 DESIGN.md | DONE | `docs/DESIGN.md` plus final `docs/DESIGN_REVIEW_2026-06-30.md`. |
-| 0.4 Append-only event spine/logging | DONE | Event spine, issue-scoped ledger, observability API, and public ledger rendering passed; phase-gap observability returned `events=172 queries=4`. |
+| 0.4 Append-only event spine/logging | DONE | Event spine, issue-scoped ledger, observability API, and public ledger rendering passed; phase-gap observability returned `events=250 queries=4`. |
 
 ## Phase 1 - Real Agentic Core
 
 | Plan line | Status | Current evidence |
 |---|---:|---|
 | 1.1 Planner-first dynamic loop | DONE | Planner-first server agent, Pro planner tier, persisted plan/steps, and headed operator run passed. |
-| 1.2 Tools do real work | DONE | Public gap verifier passed manual merge approval, dispatch, ghost forensics, trust/brigading, SLA/follow-up, predictive worker, and ledger views. |
+| 1.2 Tools do real work | DONE | Manual merge approval, dispatch, trust/brigading, SLA/follow-up, grounding, observability, and ledger views passed on the final revision. Gemini-heavy ghost/predictive reruns are currently spend-cap blocked, with deterministic fallback for predictive. |
 | 1.3 Self-critique pass | DONE | Server tests and headed operator run show persisted self-critique behavior. |
 | 1.4 Persist real trace | DONE | Agent runs and steps persist; latest-run endpoint now avoids composite-index 500s for empty runs. |
 | 1.5 SSE Watch Agents Think | DONE | Operator panel streams live run events and then renders persisted steps. |
@@ -54,8 +54,8 @@ Source plan audited: `E:\Pro\Community hero\CIVICLENS_IMPLEMENTATION_PLAN.md`.
 |---|---:|---|
 | 2.1 SLA matrix + escalation/RTI ladder | DONE | Public gap verifier: `stage=first_appeal`, RTI PDF bytes returned, headed public detail rendered SLA/RTI/appeal evidence. |
 | 2.2 Follow-up sentinel | DONE | Public gap verifier rendered follow-up decision in timeline/ledger. |
-| 2.3 Ghost/fake-closure forensics | DONE | Public gap verifier: `recommendation=reopen confidence=1`; headed detail screenshot captured. |
-| 2.4 Predictive hotspot worker | DONE | Public gap verifier: `model=gemini-2.5-flash hotspots=3`; dashboard rendered predictive insights. |
+| 2.3 Ghost/fake-closure forensics | DONE / CURRENTLY BLOCKED LIVE | Implementation and prior live pass returned `recommendation=reopen confidence=1`; current final rerun is blocked by Gemini spend-cap exhaustion. |
+| 2.4 Predictive hotspot worker | DONE | Prior live pass used `gemini-2.5-flash hotspots=3`; current final rerun serves deterministic fallback with 3 hotspots while Gemini is spend-cap blocked. |
 
 ## Phase 3 - Grounding, Dedup, Multi-Agent Pipeline
 
@@ -72,9 +72,9 @@ Source plan audited: `E:\Pro\Community hero\CIVICLENS_IMPLEMENTATION_PLAN.md`.
 |---|---:|---|
 | 4.1 Trust economy + brigading guard | DONE | Public gap verifier passed weighted trust consensus, appeal, high-risk brigading, and collapsed votes. |
 | 4.2 Gamification layer | DONE | Weekly leaderboard/streak data passed live: `week=2026-W27 topWeekly=10 streak=1`; UI uses scoped gamification classes. |
-| 4.3 Open311 GeoReport export | DONE | Broad headed verifier fetched Open311 export: HTTP 200, `format=open311-georeport-v2`, `count=13`. |
-| 4.4 One real outbound action | DONE | Public gap verifier delivered harmless dispatch to `httpbin.org`, HTTP 200. |
-| 4.5 Multilingual voice intake | DONE | Public gap verifier passed live voice intake and headed transcript/readback rendering. |
+| 4.3 Open311 GeoReport export | DONE | Broad headed verifier fetched Open311 export: HTTP 200, `format=open311-georeport-v2`, `count=25`. |
+| 4.4 One real outbound action | DONE | Public gap verifier delivered harmless dispatch to `postman-echo.com`, HTTP 200. |
+| 4.5 Multilingual voice intake | DONE / CURRENTLY BLOCKED LIVE | Implementation and prior live pass returned transcript/translation/readback; current final rerun is blocked by Gemini spend-cap exhaustion and falls back to typed confirmation. |
 | 4.6 Public accountability ledger | DONE | Headed public detail pages rendered server-owned ledger records with clean console. |
 
 ## Phase 5 - UI/UX Overhaul
@@ -95,9 +95,9 @@ Source plan audited: `E:\Pro\Community hero\CIVICLENS_IMPLEMENTATION_PLAN.md`.
 | 6.1 Behavioral tests | DONE | Behavioral API, full Vitest, focused regressions, emulator rules/concurrency, golden path, and Playwright E2E all passed. |
 | 6.2 Distributed quotas/App Check/timeouts/bundle | PARTIAL | Distributed quota implementation is verified in emulator, timeout and bundle are green. Public demo uses memory quota backend and relaxed App Check for judge access after the older AI Studio Firestore database exhausted free reads. |
 | 6.3 Cloud Logging/Monitoring + citations | PARTIAL | Observability API and Cloud Logging query templates passed live; a real GCP Monitoring dashboard screenshot/export was not captured in this pass. |
-| 6.4 Automated deploy smoke | DONE | Final public deploy smoke passed on `civiclens-00057-kld`. |
-| 6.5 Full fresh verification/doc/demo | PARTIAL | Fresh deploy, docs, ranking, headed public evidence, and local build/tests are updated and green. Hackathon submission and demo video handoff were not performed. |
+| 6.4 Automated deploy smoke | DONE | Final public deploy smoke passed on `civiclens-00059-245`. |
+| 6.5 Full fresh verification/doc/demo | PARTIAL / BLOCKED | Fresh deploy, docs, ranking, broad headed evidence, and local build/tests are updated. Deep Gemini-heavy live rerun is currently blocked by AI Studio monthly spending cap; hackathon submission and demo video handoff were not performed. |
 
 ## Bottom Line
 
-Every Phase 0-6 line is implemented or explicitly accounted for. The remaining strict partials are not missing core product features; they are public-demo hardening/submission-package items: App Check enforcement path, production distributed quota posture for public demo, Monitoring screenshot/export, and final submission/video handoff.
+Every Phase 0-6 line is implemented or explicitly accounted for. Do not submit the live app until the Gemini/AI Studio monthly spending cap is raised and the deep phase-gap verifier is rerun green. Remaining strict partials after that are public-demo hardening/submission-package items: App Check enforcement path, production distributed quota posture for public demo, Monitoring screenshot/export, and final submission/video handoff.

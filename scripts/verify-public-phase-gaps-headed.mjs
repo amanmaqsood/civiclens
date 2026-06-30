@@ -11,6 +11,7 @@ const databaseId = process.env.FIRESTORE_DATABASE_ID || "ai-studio-cd9d785c-f851
 const outDir = path.join(root, "qa-results", "public-phase-gaps");
 const summaryPath = path.join(outDir, "public-phase-gaps-headed.json");
 const voiceFixture = path.join(root, "tests", "fixtures", "voice-intake-pothole.wav");
+const sampleImagePath = path.join(root, "images (1).jpg");
 
 const evidence = {
   generatedAt: new Date().toISOString(),
@@ -597,7 +598,12 @@ async function run() {
     });
 
     await page.goto(`${baseUrl}/#report`, { waitUntil: "domcontentloaded", timeout: 60000 });
-    await waitForAnyText(page, [/Voice input|Start voice|Report what you see|AI-assisted civic reports/i], 45000);
+    await waitForAnyText(page, [/Proof photograph|Report what you see|AI-assisted civic reports/i], 45000);
+    await page.locator("#report-gallery-upload-input").setInputFiles(sampleImagePath);
+    await page.getByAltText("Civic preview").waitFor({ state: "visible", timeout: 30000 });
+    await page.getByRole("button", { name: /Drop pin manually/i }).click({ timeout: 30000 });
+    await waitForAnyText(page, [/Coordinates locked/i], 30000);
+    await waitForAnyText(page, [/Voice input|Start voice/i], 30000);
     const startVoice = page.getByRole("button", { name: /start voice|voice/i }).first();
     await startVoice.click({ timeout: 30000 });
     await page.waitForTimeout(3500);

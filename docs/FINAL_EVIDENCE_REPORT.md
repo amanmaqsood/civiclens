@@ -368,6 +368,18 @@ Phase 3.1 report-create BaseAgent pipeline closeout on 2026-06-30:
 - Live emulator proof: `npm run test:behavioral-api` passed; 1 file passed, 3 tests passed; runner reported `BEHAVIORAL_API_TESTS passed authz=ok workerIdempotency=ok semanticDedup=ok`.
 - `npm run test:e2e`: passed; 7 Chromium Playwright tests passed against local Firebase Auth, Firestore, and Storage emulators.
 
+Phase 3.4 Gemini model-tiering closeout on 2026-06-30:
+
+- Gemini model selection is now centralized in explicit tiers: cheap classification (`gemini-2.5-flash-lite`), reasoning/vision/audio/grounding (`gemini-2.5-flash` defaults), hard planning (`gemini-2.5-pro`), and embeddings (`gemini-embedding-001`).
+- Cheap structured classification paths now use the cheap tier, photo/closure/ghost evidence uses the vision tier, action packets/workers/agent turns use reasoning or grounding, and `/api/agent/run` persists the tier summary on runs and stream start events.
+- Added job-secret protected `POST /api/smoke/model-tiers`, `scripts/verify-model-tiering-live.ps1`, and `npm run test:model-tiering` to prove the live tier split without exposing secrets.
+- `.\node_modules\.bin\tsc.cmd --noEmit`: passed with 0 errors.
+- `.\node_modules\.bin\vitest.cmd run src/server/model-tiering.test.ts src/server/trust-economy.test.ts src/server/agent-workflow.test.ts src/server/deploy-smoke.test.ts`: passed; 4 files passed, 13 tests passed.
+- `.\node_modules\.bin\vitest.cmd run`: passed; 32 files passed, 4 skipped; 126 tests passed, 11 skipped.
+- `npm run build`: passed; Vite transformed 2341 modules, emitted `dist/server.cjs` at 307.0 kB, and kept the largest JS chunk at `fb-firestore` 475.16 kB with no chunk over 500 kB.
+- Live model-tier proof: `npm run test:model-tiering` passed and reported `MODEL_TIERING_LIVE cheap=gemini-2.5-flash-lite vision=gemini-2.5-flash reasoning=gemini-2.5-flash planner=gemini-2.5-pro embedding=gemini-embedding-001 cheapStatus=ok visionStatus=ok reasoningStatus=ok plannerStatus=ok embeddingStatus=ok embeddingDim=3072 cheapVsReasoning=True plannerVsReasoning=True tokens=1118`.
+- Live planner proof after tiering: `npm run test:agent-planner` passed and reported `AGENT_PLANNER_LIVE issueId=2ViMK9yYw28OoEUqwo0D runId=2ViMK9yYw28OoEUqwo0D_planner_live_1782779005262 plannerModel=gemini-2.5-pro plannedTools=2 persistedSteps=5 plannerStep=done planPersisted=True calculateToolSteps=0 eventPlanCreated=True`.
+
 Phase 6.5 final golden-path verification on 2026-06-30:
 
 - Added `npm run test:golden-path`, `scripts/verify-final-golden-path-live.ps1`, and a gated live Vitest verifier that starts the app under Firebase Auth/Firestore/Storage emulators with real Gemini and a local authority webhook sink.

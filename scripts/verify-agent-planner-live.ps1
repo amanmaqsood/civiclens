@@ -144,7 +144,7 @@ try {
   $env:CIVICLENS_LOCAL_APP_CHECK_BYPASS = "true"
   $env:CIVICLENS_DEMO_OPERATOR_ENABLED = "true"
   $env:CIVICLENS_AGENT_TIMEOUT_MS = "120000"
-  $env:CIVICLENS_PLANNER_MODEL = $(if ($env:CIVICLENS_PLANNER_MODEL) { $env:CIVICLENS_PLANNER_MODEL } else { "gemini-2.5-flash" })
+  $env:CIVICLENS_PLANNER_MODEL = $(if ($env:CIVICLENS_PLANNER_MODEL) { $env:CIVICLENS_PLANNER_MODEL } else { "gemini-2.5-pro" })
   $env:GEMINI_API_KEY = $geminiKey
 
   $server = Start-Process -FilePath "npm.cmd" `

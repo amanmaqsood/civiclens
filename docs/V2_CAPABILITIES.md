@@ -14,9 +14,9 @@ auditable trail.
    different cases produce different traces (e.g. a new pothole → 6 tool steps; an
    already-resolved case → 2 steps). No fixed step list, no fabricated rows.
 
-   The latest agent run begins with a persisted Gemini JSON execution plan
-   (tools, rationale, and conditions), can execute multiple Gemini tool calls in
-   one model turn, and stores the plan on both the run and issue documents.
+   The latest agent run begins with a persisted Gemini JSON execution plan on the
+   stronger planning tier (default `gemini-2.5-pro`), can execute multiple Gemini
+   tool calls in one model turn, and stores the plan on both the run and issue documents.
    Operators can also watch the run over a real server-sent event stream as
    planner/tool/self-critique steps are emitted by the server.
 
@@ -66,8 +66,11 @@ auditable trail.
    timeline of every AI and human action.
 
 ## Google technologies used
-- **Gemini** — multimodal triage, structured output, **function calling**, Google
-  Search grounding, and **`gemini-embedding-001`** embeddings.
+- **Gemini** — explicit model tiering (`gemini-2.5-flash-lite` for cheap
+  classification, `gemini-2.5-flash` for vision/reasoning/grounding,
+  `gemini-2.5-pro` for hard planning), multimodal triage, structured output,
+  **function calling**, Google Search grounding, and **`gemini-embedding-001`**
+  embeddings.
 - **Firebase** — Auth, Firestore (server-owned writes, transactions, security
   rules), Storage.
 - **Google Maps Platform** — map + Places.

@@ -14,7 +14,7 @@ describe("trust economy and brigading guard", () => {
     const perimeter = readProjectFile("src/server/perimeter.ts");
 
     expect(server).toContain("async function auditTrustWeightedVerification");
-    expect(server).toContain('model: "gemini-2.5-flash"');
+    expect(server).toContain("model: geminiModels.cheapClassification");
     expect(server).toContain("trust_verification_audited");
     expect(server).toContain("weightedConfirmScore");
     expect(server).toContain("weightedDisputeScore");

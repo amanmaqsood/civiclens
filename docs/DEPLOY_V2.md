@@ -16,6 +16,7 @@ Cloud Run and schedule the autonomous agents.
 | `CIVICLENS_SESSION_QUOTA_LIMIT`, `CIVICLENS_GEMINI_QUOTA_LIMIT`, `CIVICLENS_MUTATION_QUOTA_LIMIT` | Cloud Run runtime env | Per-window limits for session, Gemini, and mutation routes. |
 | `CIVICLENS_SESSION_QUOTA_WINDOW_MS`, `CIVICLENS_GEMINI_QUOTA_WINDOW_MS`, `CIVICLENS_MUTATION_QUOTA_WINDOW_MS` | Cloud Run runtime env | Fixed-window duration for the matching quota class. |
 | `CIVICLENS_GEMINI_INPUT_USD_PER_MILLION_TOKENS`, `CIVICLENS_GEMINI_OUTPUT_USD_PER_MILLION_TOKENS` | Cloud Run runtime env | Optional model-pricing values used only for structured log cost estimates. Token counts are logged even when unset. |
+| `CIVICLENS_GEMINI_CHEAP_MODEL`, `CIVICLENS_GEMINI_REASONING_MODEL`, `CIVICLENS_GEMINI_VISION_MODEL`, `CIVICLENS_GEMINI_AUDIO_MODEL`, `CIVICLENS_GEMINI_GROUNDING_MODEL`, `CIVICLENS_PLANNER_MODEL`, `CIVICLENS_GEMINI_EMBEDDING_MODEL` | Cloud Run runtime env | Optional Gemini model tier overrides. Defaults are Flash-Lite for cheap classification, Flash for vision/reasoning/audio/grounding, Pro for planning, and `gemini-embedding-001` for dedup. |
 | `GEMINI_API_KEY` | Secret Manager (unchanged) | Gemini + `gemini-embedding-001` for triage, workers, dedup, grounding. |
 
 Everything else (Firebase, `GOOGLE_MAPS_PLATFORM_KEY`, operator allowlist, App Check) is unchanged from v1.
@@ -52,6 +53,7 @@ Notes:
 - `VITE_*` browser values are baked at build time (already wired in `cloudbuild.yaml`).
 - After deploy, smoke-check: `GET /readyz` should report `adminDb:true, geminiConfigured:true, configValid:true`.
 - Run `scripts\deploy-smoke.ps1` or `npm run smoke:deploy` against the deployed URL with `CIVICLENS_JOB_SECRET`; the proof line must include `DEPLOY_SMOKE_LIVE` with `auth=ok`, `gemini=ok`, `maps=OK`, and `mapsApi=...`.
+- Run `npm run test:model-tiering` locally before release, or call `POST /api/smoke/model-tiers` with the job-secret header after deploy, to prove cheap/reasoning/planner/embedding tier separation.
 - Keep `CIVICLENS_QUOTA_BACKEND=firestore` in production so quota buckets are shared across Cloud Run instances. Development may use `memory`, but it is process-local.
 - Follow `docs/OBSERVABILITY.md` after the first smoke run to create logs-based metrics and import `docs/monitoring/civiclens-cloud-monitoring-dashboard.json`.
 

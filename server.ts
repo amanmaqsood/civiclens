@@ -101,6 +101,33 @@ async function startServer() {
     },
   });
 
+  function configuredGeminiModel(envName: string, fallback: string) {
+    const configured = String(process.env[envName] || "").trim();
+    return configured || fallback;
+  }
+
+  const geminiModels = {
+    cheapClassification: configuredGeminiModel("CIVICLENS_GEMINI_CHEAP_MODEL", "gemini-2.5-flash-lite"),
+    reasoning: configuredGeminiModel("CIVICLENS_GEMINI_REASONING_MODEL", "gemini-2.5-flash"),
+    vision: configuredGeminiModel("CIVICLENS_GEMINI_VISION_MODEL", "gemini-2.5-flash"),
+    audio: configuredGeminiModel("CIVICLENS_GEMINI_AUDIO_MODEL", "gemini-2.5-flash"),
+    grounding: configuredGeminiModel("CIVICLENS_GEMINI_GROUNDING_MODEL", "gemini-2.5-flash"),
+    planner: configuredGeminiModel("CIVICLENS_PLANNER_MODEL", configuredGeminiModel("CIVICLENS_GEMINI_PLANNER_MODEL", "gemini-2.5-pro")),
+    embedding: configuredGeminiModel("CIVICLENS_GEMINI_EMBEDDING_MODEL", "gemini-embedding-001"),
+  };
+
+  function geminiModelTierSummary() {
+    return {
+      cheapClassification: geminiModels.cheapClassification,
+      reasoning: geminiModels.reasoning,
+      vision: geminiModels.vision,
+      audio: geminiModels.audio,
+      grounding: geminiModels.grounding,
+      planner: geminiModels.planner,
+      embedding: geminiModels.embedding,
+    };
+  }
+
   // --- Admin SDK probe (STEP 19a) ---
   let adminDb: any = null;
   let adminInitError: string | null = null;
@@ -529,7 +556,7 @@ async function startServer() {
   }
 
   function isJobSecretRoute(path: string): boolean {
-    return path === "/api/jobs/run" || path === "/api/smoke/deploy";
+    return path === "/api/jobs/run" || path === "/api/smoke/deploy" || path === "/api/smoke/model-tiers";
   }
 
   function hasValidJobSecret(req: any): boolean {
@@ -880,7 +907,7 @@ async function startServer() {
         throw new Error("Gemini API key is not configured.");
       }
       const result = await generateContentWithRetry(ai, {
-        model: "gemini-2.5-flash",
+        model: geminiModels.cheapClassification,
         contents: "Return strict JSON proving this deploy smoke reached Gemini: {\"ok\":true,\"service\":\"gemini\"}.",
         config: {
           responseMimeType: "application/json",
@@ -903,6 +930,7 @@ async function startServer() {
         durationMs: Date.now() - geminiStartedAt,
         detail: {
           service: safeLogText(parsed.service, "unknown", 80),
+          model: geminiModels.cheapClassification,
           retried: result.retried,
           totalTokenCount: result.usage.totalTokenCount,
           estimatedCostUsd: result.usage.estimatedCostUsd,
@@ -996,6 +1024,184 @@ async function startServer() {
     };
   }
 
+  type ModelTierSmokeName = "cheapClassification" | "vision" | "reasoning" | "planner" | "embedding";
+
+  async function runModelTierSmokeChecks() {
+    const startedAt = Date.now();
+    const usage = createGeminiUsageAccumulator();
+    const checks: Record<ModelTierSmokeName, DeploySmokeCheck> = {
+      cheapClassification: { name: "cheapClassification", ok: false, status: "not_checked" },
+      vision: { name: "vision", ok: false, status: "not_checked" },
+      reasoning: { name: "reasoning", ok: false, status: "not_checked" },
+      planner: { name: "planner", ok: false, status: "not_checked" },
+      embedding: { name: "embedding", ok: false, status: "not_checked" },
+    };
+
+    const runJsonTier = async (
+      name: Exclude<ModelTierSmokeName, "embedding">,
+      model: string,
+      contents: any,
+      timeoutMs: number,
+      responseSchema: any,
+      validate: (parsed: any) => boolean,
+    ) => {
+      const tierStartedAt = Date.now();
+      try {
+        if (!geminiApiKey) throw new Error("Gemini API key is not configured.");
+        const result = await generateContentWithRetry(ai, {
+          model,
+          contents,
+          config: {
+            responseMimeType: "application/json",
+            responseSchema,
+          },
+        }, { signal: AbortSignal.timeout(timeoutMs), usageAccumulator: usage });
+        const responseText = (result.response.text || "").trim().replace(/^```(?:json)?\s*/i, "").replace(/```\s*$/, "").trim();
+        const parsed = JSON.parse(responseText);
+        const ok = validate(parsed);
+        checks[name] = {
+          name,
+          ok,
+          status: ok ? "ok" : "unexpected_response",
+          durationMs: Date.now() - tierStartedAt,
+          detail: {
+            model,
+            retried: result.retried,
+            totalTokenCount: result.usage.totalTokenCount,
+            estimatedCostUsd: result.usage.estimatedCostUsd,
+          },
+        };
+      } catch (error: any) {
+        checks[name] = {
+          name,
+          ok: false,
+          status: "failed",
+          durationMs: Date.now() - tierStartedAt,
+          detail: { model },
+          error: safeLogText(error?.message || String(error)),
+        };
+      }
+    };
+
+    await runJsonTier(
+      "cheapClassification",
+      geminiModels.cheapClassification,
+      "Classify this short civic text as civic or non_civic: 'streetlight is broken near a bus stop'. Return JSON only.",
+      20_000,
+      {
+        type: Type.OBJECT,
+        properties: {
+          label: { type: Type.STRING, enum: ["civic", "non_civic"] },
+          confidence: { type: Type.NUMBER },
+        },
+        required: ["label", "confidence"],
+      },
+      (parsed) => parsed.label === "civic",
+    );
+
+    await runJsonTier(
+      "vision",
+      geminiModels.vision,
+      [
+        {
+          inlineData: {
+            mimeType: "image/png",
+            data: "iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mP8/x8AAwMCAO+/p9sAAAAASUVORK5CYII=",
+          },
+        },
+        { text: "Confirm that an image payload was received. Return JSON only." },
+      ],
+      30_000,
+      {
+        type: Type.OBJECT,
+        properties: {
+          sawImage: { type: Type.BOOLEAN },
+          note: { type: Type.STRING },
+        },
+        required: ["sawImage", "note"],
+      },
+      (parsed) => parsed.sawImage === true,
+    );
+
+    await runJsonTier(
+      "reasoning",
+      geminiModels.reasoning,
+      "Given one civic case with severity 4, near a school, and rain forecast, recommend one next operator action. Return JSON only.",
+      25_000,
+      {
+        type: Type.OBJECT,
+        properties: {
+          action: { type: Type.STRING },
+          rationale: { type: Type.STRING },
+        },
+        required: ["action", "rationale"],
+      },
+      (parsed) => !!cleanText(parsed.action, "", 120) && !!cleanText(parsed.rationale, "", 300),
+    );
+
+    await runJsonTier(
+      "planner",
+      geminiModels.planner,
+      "Create a tiny execution plan for a civic triage agent that must inspect context then record an event. Return JSON only.",
+      45_000,
+      {
+        type: Type.OBJECT,
+        properties: {
+          steps: { type: Type.ARRAY, items: { type: Type.STRING } },
+          stopWhen: { type: Type.STRING },
+        },
+        required: ["steps", "stopWhen"],
+      },
+      (parsed) => Array.isArray(parsed.steps) && parsed.steps.length >= 2 && !!cleanText(parsed.stopWhen, "", 200),
+    );
+
+    const embeddingStartedAt = Date.now();
+    try {
+      if (!geminiApiKey) throw new Error("Gemini API key is not configured.");
+      const embeddingResponse: any = await ai.models.embedContent({
+        model: geminiModels.embedding,
+        contents: "semantic duplicate check for a pothole near a bus stop",
+      });
+      const values = embeddingResponse?.embeddings?.[0]?.values || embeddingResponse?.embedding?.values || [];
+      const dimension = Array.isArray(values) ? values.length : 0;
+      checks.embedding = {
+        name: "embedding",
+        ok: dimension > 0,
+        status: dimension > 0 ? "ok" : "unexpected_response",
+        durationMs: Date.now() - embeddingStartedAt,
+        detail: {
+          model: geminiModels.embedding,
+          dimension,
+        },
+      };
+    } catch (error: any) {
+      checks.embedding = {
+        name: "embedding",
+        ok: false,
+        status: "failed",
+        durationMs: Date.now() - embeddingStartedAt,
+        detail: { model: geminiModels.embedding },
+        error: safeLogText(error?.message || String(error)),
+      };
+    }
+
+    const separation = {
+      cheapVsReasoningDistinct: geminiModels.cheapClassification !== geminiModels.reasoning,
+      plannerVsReasoningDistinct: geminiModels.planner !== geminiModels.reasoning,
+      embeddingDedicated: geminiModels.embedding !== geminiModels.reasoning && geminiModels.embedding !== geminiModels.cheapClassification,
+    };
+    const success = Object.values(checks).every((check) => check.ok) && Object.values(separation).every(Boolean);
+    return {
+      success,
+      generatedAt: new Date().toISOString(),
+      durationMs: Date.now() - startedAt,
+      modelTiers: geminiModelTierSummary(),
+      separation,
+      checks,
+      geminiUsage: snapshotGeminiUsage(usage),
+    };
+  }
+
   app.post("/api/smoke/deploy", async (req: any, res) => {
     if (!hasValidJobSecret(req)) return sendApiError(res, 403, "Deploy smoke requires a valid job secret.");
     const result = await runDeploySmokeChecks();
@@ -1008,6 +1214,22 @@ async function startServer() {
       maps: result.checks.maps.status,
       geminiTotalTokenCount: result.geminiUsage.geminiTotalTokenCount,
       geminiEstimatedCostUsd: result.geminiUsage.geminiEstimatedCostUsd,
+    });
+    return res.status(result.success ? 200 : 503).json(result);
+  });
+
+  app.post("/api/smoke/model-tiers", async (req: any, res) => {
+    if (!hasValidJobSecret(req)) return sendApiError(res, 403, "Model-tier smoke requires a valid job secret.");
+    const result = await runModelTierSmokeChecks();
+    structuredLog(result.success ? "info" : "error", "model_tier_smoke_completed", {
+      status: result.success ? "passed" : "failed",
+      durationMs: result.durationMs,
+      cheapClassification: result.checks.cheapClassification.status,
+      vision: result.checks.vision.status,
+      reasoning: result.checks.reasoning.status,
+      planner: result.checks.planner.status,
+      embedding: result.checks.embedding.status,
+      ...result.separation,
     });
     return res.status(result.success ? 200 : 503).json(result);
   });
@@ -1284,7 +1506,7 @@ Summary: ${input.summary}
 Location: ${input.locationName || "India"}
 Coordinates: lat ${input.lat || "unknown"}, lng ${input.lng || "unknown"}`;
     const result = await createInteractionWithRetry(aiClient, {
-      model: "gemini-2.5-flash",
+      model: geminiModels.grounding,
       input: prompt,
       tools: [{ type: "google_search" }],
       store: false,
@@ -2073,7 +2295,7 @@ Mark suspicious only for obvious mismatch, pile-on, or unverifiable reasoning. K
     const startTime = Date.now();
     try {
       const result = await generateContentWithRetry(ai, {
-        model: "gemini-2.5-flash",
+        model: geminiModels.cheapClassification,
         contents: [{ text: promptText }],
         config: {
           responseMimeType: "application/json",
@@ -2099,7 +2321,7 @@ Mark suspicious only for obvious mismatch, pile-on, or unverifiable reasoning. K
         confidence: cleanNumber(parsed.confidence, 0.6, 0, 1),
         signals: cleanStringArray(parsed.signals, 6, 180),
         explanation: cleanText(parsed.explanation, "Gemini trust audit completed.", 900),
-        model: "gemini-2.5-flash",
+        model: geminiModels.cheapClassification,
         aiFallback: false,
         retried: result.retried,
         durationMs: Date.now() - startTime,
@@ -3179,7 +3401,7 @@ Output ONLY valid JSON and nothing else.`;
 
     const startTime = Date.now();
     const result = await generateContentWithRetry(ai, {
-      model: "gemini-2.5-flash",
+      model: geminiModels.grounding,
       contents: promptText,
       config: {
         tools: [{ googleSearch: {} }],
@@ -3793,7 +4015,7 @@ If confidence is low (under 0.6) or ambiguity exists, ask a targeted clarificati
       const startTime = Date.now();
       // Main Gemini Content Generation
       const mainResult = await generateContentWithRetry(ai, {
-        model: "gemini-2.5-flash",
+        model: geminiModels.vision,
         contents: [imagePart, { text: promptText }],
         config: {
           responseMimeType: "application/json",
@@ -3915,7 +4137,7 @@ ${responseText}
 Respond ONLY with the corrected, valid JSON object.`;
 
           const repairResult = await generateContentWithRetry(ai, {
-            model: "gemini-2.5-flash",
+            model: geminiModels.cheapClassification,
             contents: repairPrompt,
             config: {
               responseMimeType: "application/json",
@@ -4049,7 +4271,7 @@ Return strict JSON only with:
 }`;
 
       const result = await generateContentWithRetry(ai, {
-        model: "gemini-2.5-flash",
+        model: geminiModels.audio,
         contents: [
           audioPart,
           { text: promptText },
@@ -4090,7 +4312,7 @@ Return strict JSON only with:
         urgency,
         readbackText: cleanText(parsed.readbackText, `Drafted ${category.replace("_", " ")} report.`, 400),
         confidence: cleanNumber(parsed.confidence, 0.6, 0, 1),
-        model: "gemini-2.5-flash",
+        model: geminiModels.audio,
         retried: result.retried,
         durationMs: Date.now() - startTime,
         aiFallback: false,
@@ -4174,7 +4396,7 @@ Output STRICT, VALID JSON conforming exactly to the response schema.`;
 
       const startTime = Date.now();
       const result = await generateContentWithRetry(ai, {
-        model: "gemini-2.5-flash",
+        model: geminiModels.cheapClassification,
         contents: promptText,
         config: {
           responseMimeType: "application/json",
@@ -4315,7 +4537,7 @@ Output ONLY valid JSON and nothing else.`;
 
       const startTime = Date.now();
       const result = await generateContentWithRetry(ai, {
-        model: "gemini-2.5-flash",
+        model: geminiModels.grounding,
         contents: promptText,
         config: {
           tools: [{ googleSearch: {} }],
@@ -4470,7 +4692,7 @@ Return a STRICT JSON response adhering precisely to this schema. Do not include 
 
       const startTime = Date.now();
       const result = await generateContentWithRetry(ai, {
-        model: "gemini-2.5-flash",
+        model: geminiModels.vision,
         contents: contentsList,
         config: {
           responseMimeType: "application/json",
@@ -4650,7 +4872,7 @@ Return STRICT JSON with:
 
       const startTime = Date.now();
       const result = await generateContentWithRetry(ai, {
-        model: "gemini-2.5-flash",
+        model: geminiModels.vision,
         contents: [
           { text: "Image 1: original report before repair." },
           beforePart,
@@ -4707,7 +4929,7 @@ Return STRICT JSON with:
         autoReopened: shouldReopen,
         officerId,
         officerPenaltyPoints: penaltyPoints,
-        model: "gemini-2.5-flash",
+        model: geminiModels.vision,
         retried: result.retried,
         durationMs,
       };
@@ -4835,7 +5057,7 @@ Return a STRICT JSON response adhering precisely to this schema:
 
       const startTime = Date.now();
       const result = await generateContentWithRetry(ai, {
-        model: "gemini-2.5-flash",
+        model: geminiModels.reasoning,
         contents: promptText,
         config: {
           responseMimeType: "application/json",
@@ -4929,7 +5151,7 @@ Output STRICT, VALID JSON conforming exactly to this schema:
 Output ONLY valid JSON and nothing else.`;
 
       const result = await generateContentWithRetry(ai, {
-        model: "gemini-2.5-flash",
+        model: geminiModels.cheapClassification,
         contents: promptText,
         config: {
           responseMimeType: "application/json",
@@ -5012,7 +5234,7 @@ Output STRICT, VALID JSON conforming exactly to this schema:
 Output ONLY valid JSON and nothing else.`;
 
     const result = await generateContentWithRetry(aiClient, {
-      model: "gemini-2.5-flash",
+      model: geminiModels.reasoning,
       contents: promptText,
       config: {
         responseMimeType: "application/json",
@@ -5080,7 +5302,7 @@ Return STRICT JSON only:
 
     const startedAt = Date.now();
     const result = await generateContentWithRetry(aiClient, {
-      model: "gemini-2.5-flash",
+      model: geminiModels.cheapClassification,
       contents: prompt,
       config: {
         responseMimeType: "application/json",
@@ -5128,6 +5350,7 @@ Return STRICT JSON only:
       rationale,
       durationMs: Date.now() - startedAt,
       retried: result.retried,
+      model: geminiModels.cheapClassification,
       outputSummary: anomaly
         ? `QA corrected to ${correctedCategory}, severity ${correctedSeverity}, ${correctedUrgency}`
         : "QA self-critique found no correction needed",
@@ -5431,7 +5654,7 @@ Return STRICT JSON only:
     priorityBreakdown: ReturnType<typeof buildPriorityBreakdown>,
     options: GeminiGenerateOptions = {},
   ): Promise<{ plan: AgentExecutionPlan; retried: boolean; durationMs: number }> {
-    const plannerModel = process.env.CIVICLENS_PLANNER_MODEL || "gemini-2.5-pro";
+    const plannerModel = geminiModels.planner;
     const startedAt = Date.now();
     const plannerPrompt = `Create a JSON execution plan for a CivicLens server-side triage agent.
 
@@ -5597,7 +5820,7 @@ Return strict JSON with:
         const candidatePart = await imageSourceToInlinePart(best.candidateImage, "agent-compare-candidate-image");
         if (issuePart && candidatePart) {
           const visionResult = await generateContentWithRetry(ai, {
-            model: "gemini-2.5-flash",
+            model: geminiModels.vision,
             contents: [
               { text: "Compare these two civic issue photos. Return whether they appear to show the same physical issue/location and a 0-1 visual similarity score. Return strict JSON only." },
               issuePart,
@@ -5716,7 +5939,7 @@ Date: ${todayStr}
 Use ONLY the real ticketId and date above; never invent reference numbers or fake histories.
 Return STRICT JSON: { "escalationLetter": "string", "rtiRequest": "string" }`;
       const result = await generateContentWithRetry(ai, {
-        model: "gemini-2.5-flash",
+        model: geminiModels.reasoning,
         contents: promptText,
         config: {
           responseMimeType: "application/json",
@@ -5908,7 +6131,7 @@ Return STRICT JSON: { "escalationLetter": "string", "rtiRequest": "string" }`;
 Data: ${JSON.stringify(aggregates)}
 Return STRICT JSON: { "summary": "2-3 sentences", "predictedHotspots": [{"area":"string","category":"string","riskLevel":"low|medium|high","rationale":"string"}], "priorityCategories": ["string"], "recommendedActions": ["string"] }`;
       const result = await generateContentWithRetry(ai, {
-        model: "gemini-2.5-flash", contents: prompt,
+        model: geminiModels.reasoning, contents: prompt,
         config: { responseMimeType: "application/json", responseSchema: { type: Type.OBJECT, properties: {
           summary: { type: Type.STRING },
           predictedHotspots: { type: Type.ARRAY, items: { type: Type.OBJECT, properties: { area: { type: Type.STRING }, category: { type: Type.STRING }, riskLevel: { type: Type.STRING }, rationale: { type: Type.STRING } }, required: ["area", "category", "riskLevel"] } },
@@ -5930,7 +6153,7 @@ Return STRICT JSON: { "summary": "2-3 sentences", "predictedHotspots": [{"area":
       };
     }
     const generatedAt = new Date().toISOString();
-    await adminDb.collection("analytics").doc("predictive").set({ generatedAt, aggregates, insight, model: "gemini-2.5-flash", aiFallback }, { merge: true });
+    await adminDb.collection("analytics").doc("predictive").set({ generatedAt, aggregates, insight, model: aiFallback ? "deterministic-fallback" : geminiModels.reasoning, aiFallback }, { merge: true });
     await recordEvent({
       actorType: "worker",
       eventType: "worker_predictive_completed",
@@ -5982,7 +6205,7 @@ Return STRICT JSON: { "summary": "2-3 sentences", "predictedHotspots": [{"area":
 Context: ${JSON.stringify(ctx)}
 Return STRICT JSON: { "action": "wait|escalate|request_evidence|ready_to_close", "reasoning": "one sentence grounded in the timeline/age", "confidence": 0.0 to 1.0 }`;
         const result = await generateContentWithRetry(ai, {
-          model: "gemini-2.5-flash", contents: prompt,
+          model: geminiModels.cheapClassification, contents: prompt,
           config: { responseMimeType: "application/json", responseSchema: { type: Type.OBJECT, properties: { action: { type: Type.STRING }, reasoning: { type: Type.STRING }, confidence: { type: Type.NUMBER } }, required: ["action", "reasoning"] } },
         });
         const txt = (result.response.text || "").trim().replace(/^```(?:json)?\s*/i, "").replace(/```\s*$/, "").trim();
@@ -6078,7 +6301,7 @@ Return STRICT JSON: { "action": "wait|escalate|request_evidence|ready_to_close",
   // ---- Phase 3: semantic duplicate detection (gemini-embedding-001 + cosine) --
   async function embedText(text: string): Promise<number[] | null> {
     try {
-      const r: any = await ai.models.embedContent({ model: "gemini-embedding-001", contents: text });
+      const r: any = await ai.models.embedContent({ model: geminiModels.embedding, contents: text });
       const vals = r?.embeddings?.[0]?.values || r?.embedding?.values || (Array.isArray(r?.embeddings) ? r.embeddings[0] : null);
       return Array.isArray(vals) ? vals : null;
     } catch (e: any) {
@@ -6475,7 +6698,8 @@ Return STRICT JSON: { "action": "wait|escalate|request_evidence|ready_to_close",
         type: "agent_start",
         runId: runRef.id,
         message: "Server-side triage agent started.",
-        model: "gemini-2.5-flash",
+        model: geminiModels.reasoning,
+        modelTiers: geminiModelTierSummary(),
         timeoutMs: agentTimeoutMs,
       });
       await recordEvent({
@@ -6690,7 +6914,7 @@ Return STRICT JSON: { "action": "wait|escalate|request_evidence|ready_to_close",
             \`\`\``;
 
             const searchRes = await generateContentWithRetry(ai, {
-              model: "gemini-2.5-flash",
+              model: geminiModels.grounding,
               contents: searchPrompt,
               config: {
                 tools: [{ googleSearch: {} }]
@@ -6848,7 +7072,7 @@ Issue: ${JSON.stringify(issue)}` }]}];
         throwIfAborted(agentSignal);
         const t0 = Date.now();
         const { response, retried } = await generateContentWithRetry(ai, {
-          model: "gemini-2.5-flash",
+          model: geminiModels.reasoning,
           contents,
           config: { tools: agentTools }
         }, agentGeminiOptions);
@@ -6896,7 +7120,7 @@ Issue: ${JSON.stringify(issue)}` }]}];
             ts: new Date().toISOString(),
             rationale: turnReasoning || fc.args?.reasoning || fc.args?.rationale || fc.args?.reason || `Called ${fc.name}`,
             reasoning: turnReasoning || null,
-            model: "gemini-2.5-flash",
+            model: geminiModels.reasoning,
             retried,
             turn: guard,
             planned: plannedIndex >= 0,
@@ -6954,7 +7178,7 @@ Issue: ${JSON.stringify(issue)}` }]}];
           ts: critiqueTs,
           rationale: selfCritique.rationale,
           confidence: selfCritique.confidence,
-          model: "gemini-2.5-flash",
+          model: selfCritique.model || geminiModels.cheapClassification,
           retried: selfCritique.retried,
           qaAnomaly: selfCritique.anomaly,
           sources: [],
@@ -7033,7 +7257,7 @@ Issue: ${JSON.stringify(issue)}` }]}];
           durationMs: 0,
           ts: critiqueTs,
           rationale: critiqueError?.message || String(critiqueError),
-          model: "gemini-2.5-flash",
+          model: geminiModels.cheapClassification,
           retried: false,
           sources: [],
         };
@@ -7125,7 +7349,8 @@ Issue: ${JSON.stringify(issue)}` }]}];
         status: "completed",
         startedAt: steps[0]?.ts || nowIso,
         completedAt: nowIso,
-        model: "gemini-2.5-flash",
+        model: geminiModels.reasoning,
+        modelTiers: geminiModelTierSummary(),
         actorUid: actor.uid,
         actorRole: actor.role,
         duplicateCandidateId,

@@ -29,7 +29,8 @@ import {
   onSnapshot,
   getDocFromServer,
   limit,
-  connectFirestoreEmulator
+  connectFirestoreEmulator,
+  setLogLevel
 } from "firebase/firestore";
 import { connectStorageEmulator, getStorage } from "firebase/storage";
 import fallbackFirebaseConfig from "../../firebase-applet-config.json";
@@ -37,6 +38,10 @@ import { resolveFirebaseWebConfig, shouldInitializeFirebaseAppCheck } from "./fi
 
 const firebaseConfigResolution = resolveFirebaseWebConfig((import.meta as any).env || {}, fallbackFirebaseConfig);
 const firebaseConfig = firebaseConfigResolution.config;
+
+// Keep SDK transport retries from polluting headed-browser evidence; explicit
+// app-level Firestore failures still go through handleFirestoreError below.
+setLogLevel("silent");
 
 // Initialize Firebase
 const app = initializeApp(firebaseConfig);

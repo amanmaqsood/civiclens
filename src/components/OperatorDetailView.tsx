@@ -291,15 +291,23 @@ export default function OperatorDetailView({ issue, onBack, onRefresh, demoOpera
             </div>
           )}
 
-          {/* Live local context grounding (weather / nearby places / recurrence) */}
-          {!groundingLoading && grounding && (grounding.weather || (grounding.nearbyAmenities?.length) || grounding.recurrence) && (
+          {/* Live local context grounding (reverse geocode / weather / nearby places / recurrence) */}
+          {!groundingLoading && grounding && (grounding.reverseGeocode || grounding.weather || (grounding.nearbyAmenities?.length) || grounding.recurrence) && (
             <div className="rounded-xl border border-hairline bg-white p-3 flex flex-col gap-2 shadow-3xs">
               <h3 className="flex items-center gap-1.5 text-sm font-bold text-ink">
                 <MapPin className="w-4 h-4 text-marigold" aria-hidden="true" />
                 Live local context
                 <span className="ml-1 text-[13px] font-medium text-ink-2">(grounds AI severity & priority)</span>
               </h3>
-              <div className="grid grid-cols-1 sm:grid-cols-3 gap-2">
+              <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-2">
+                <div className="flex items-center gap-2 rounded-lg bg-paper p-2">
+                  <MapPin className="w-4 h-4 shrink-0 text-slate" aria-hidden="true" />
+                  <span className="text-[13px] text-ink-2">
+                    {grounding.reverseGeocode
+                      ? [grounding.reverseGeocode.road, grounding.reverseGeocode.neighbourhood, grounding.reverseGeocode.city || grounding.reverseGeocode.district].filter(Boolean).join(", ") || "Reverse geocode resolved"
+                      : "Reverse geocode unavailable"}
+                  </span>
+                </div>
                 <div className="flex items-center gap-2 rounded-lg bg-paper p-2">
                   <CloudRain className="w-4 h-4 shrink-0 text-slate" aria-hidden="true" />
                   <span className="text-[13px] text-ink-2">

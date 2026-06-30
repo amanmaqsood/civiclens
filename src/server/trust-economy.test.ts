@@ -50,4 +50,31 @@ describe("trust economy and brigading guard", () => {
     expect(panel).toContain("Consensus auto-resolution is appealable.");
     expect(dashboard).toContain("Trust {typeof l.trustScore");
   });
+
+  it("keeps gamification weekly, streak-aware, and visually scoped", () => {
+    const server = readProjectFile("server.ts");
+    const dashboard = readProjectFile("src/components/ImpactDashboard.tsx");
+
+    expect(server).toContain("function isoWeekKey");
+    expect(server).toContain("function nextContributionStreak");
+    expect(server).toContain("weeklyPoints");
+    expect(server).toContain("currentStreak");
+    expect(server).toContain('"Weekly Standout"');
+    expect(server).toContain('"3-Day Streak"');
+    expect(server).toContain('String(req.query?.period || "all") === "weekly"');
+    expect(dashboard).toContain("/api/leaderboard?period=weekly");
+    expect(dashboard).toContain("gamify-leaderboard");
+    expect(dashboard).toContain("gamify-badge");
+    expect(dashboard).toContain("gamify-points");
+    expect(dashboard).toContain("Weekly community leaderboard");
+  });
+
+  it("supports deterministic follow-up sentinel targeting for demos and tests", () => {
+    const server = readProjectFile("server.ts");
+
+    expect(server).toContain("async function runFollowUpSentinel(opts: { limit?: number; issueId?: string })");
+    expect(server).toContain("adminDb.collection(\"issues\").doc(opts.issueId).get()");
+    expect(server).toContain("issueId: cleanText(req.body?.issueId");
+    expect(server).toContain("payload: { scanned: docs.length, decisionCount: details.length, issueId: opts.issueId || null }");
+  });
 });

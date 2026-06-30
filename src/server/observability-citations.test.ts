@@ -53,6 +53,20 @@ describe("observability and grounding citation coverage", () => {
     expect(types).toContain('sourceType: "sourced" | "estimated"');
   });
 
+  it("uses all planned keyless grounding sources, including Nominatim reverse geocode", () => {
+    const server = readProjectFile("server.ts");
+    const operator = readProjectFile("src/components/OperatorDetailView.tsx");
+
+    expect(server).toContain("https://nominatim.openstreetmap.org/reverse");
+    expect(server).toContain('"User-Agent": "CivicLens/2.0 keyless-grounding"');
+    expect(server).toContain("reverseGeocode");
+    expect(server).toContain('"nominatim-osm"');
+    expect(server).toContain("https://api.open-meteo.com/v1/forecast");
+    expect(server).toContain("https://overpass-api.de/api/interpreter");
+    expect(server).toContain("firestore-history");
+    expect(operator).toContain("grounding.reverseGeocode");
+  });
+
   it("documents Cloud Logging and Cloud Monitoring setup without credentials", () => {
     const runbook = readProjectFile("docs/OBSERVABILITY.md");
     const dashboard = readProjectFile("docs/monitoring/civiclens-cloud-monitoring-dashboard.json");

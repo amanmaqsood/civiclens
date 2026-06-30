@@ -1739,6 +1739,7 @@ Coordinates: lat ${input.lat || "unknown"}, lng ${input.lng || "unknown"}`;
 
   function summarizeGroundingForReport(grounding: any) {
     return {
+      reverseGeocode: grounding?.reverseGeocode || null,
       weather: grounding?.weather || null,
       nearbyAmenitiesCount: Array.isArray(grounding?.nearbyAmenities) ? grounding.nearbyAmenities.length : 0,
       recurrence: grounding?.recurrence || null,
@@ -2242,6 +2243,33 @@ Coordinates: lat ${input.lat || "unknown"}, lng ${input.lng || "unknown"}`;
     return roundTrust(Math.max(0.08, Math.min(0.98, score)));
   }
 
+  function contributionDateKey(date = new Date()): string {
+    return date.toISOString().slice(0, 10);
+  }
+
+  function previousContributionDateKey(dateKey: string): string {
+    const date = new Date(`${dateKey}T00:00:00.000Z`);
+    date.setUTCDate(date.getUTCDate() - 1);
+    return contributionDateKey(date);
+  }
+
+  function isoWeekKey(date = new Date()): string {
+    const utc = new Date(Date.UTC(date.getUTCFullYear(), date.getUTCMonth(), date.getUTCDate()));
+    const day = utc.getUTCDay() || 7;
+    utc.setUTCDate(utc.getUTCDate() + 4 - day);
+    const yearStart = new Date(Date.UTC(utc.getUTCFullYear(), 0, 1));
+    const week = Math.ceil((((utc.getTime() - yearStart.getTime()) / 86400000) + 1) / 7);
+    return `${utc.getUTCFullYear()}-W${String(week).padStart(2, "0")}`;
+  }
+
+  function nextContributionStreak(profile: any, todayKey: string): number {
+    const last = cleanText(profile?.lastContributionDate, "", 20);
+    const current = cleanNumber(profile?.currentStreak, 0, 0, 10_000);
+    if (last === todayKey) return Math.max(1, current);
+    if (last === previousContributionDateKey(todayKey)) return current + 1;
+    return 1;
+  }
+
   function summarizeIssueForTrustAudit(issueData: any) {
     return {
       title: cleanText(issueData?.title, "Untitled civic issue", 140),
@@ -2403,25 +2431,39 @@ Mark suspicious only for obvious mismatch, pile-on, or unverifiable reasoning. K
         };
         if (counterField) counters[counterField] = (counters[counterField] || 0) + 1;
         const points = Math.max(0, (cur.points || 0) + delta);
+        const now = new Date();
+        const todayKey = contributionDateKey(now);
+        const weekKey = isoWeekKey(now);
+        const weeklyPoints = (cur.weeklyKey === weekKey ? cleanNumber(cur.weeklyPoints, 0, 0, 100_000) : 0) + Math.max(0, delta);
+        const currentStreak = nextContributionStreak(cur, todayKey);
+        const longestStreak = Math.max(cleanNumber(cur.longestStreak, 0, 0, 10_000), currentStreak);
         const level = Math.floor(points / 50) + 1;
         const badges: string[] = [];
         if (counters.reportCount >= 1) badges.push("First Report");
         if (counters.reportCount >= 5) badges.push("Active Reporter");
         if (counters.verifyCount >= 3) badges.push("Community Verifier");
         if (counters.supportCount >= 5) badges.push("Neighborhood Ally");
+        if (currentStreak >= 3) badges.push("3-Day Streak");
+        if (currentStreak >= 7) badges.push("7-Day Streak");
+        if (weeklyPoints >= 50) badges.push("Weekly Standout");
         if (points >= 100) badges.push("Civic Champion");
         const trustScore = computeTrustScore({ ...cur, ...counters, points }, role || cur.role);
         tx.set(ref, {
           uid,
           points,
+          weeklyPoints,
+          weeklyKey: weekKey,
           level,
           badges,
           ...counters,
+          currentStreak,
+          longestStreak,
+          lastContributionDate: todayKey,
           trustScore,
-          trustUpdatedAt: new Date().toISOString(),
+          trustUpdatedAt: now.toISOString(),
           role: role || cur.role || "citizen",
           handle: cur.handle || `Hero-${String(uid).slice(0, 4).toUpperCase()}`,
-          updatedAt: new Date().toISOString(),
+          updatedAt: now.toISOString(),
         }, { merge: true });
       });
     } catch (err: any) {
@@ -5911,11 +5953,12 @@ Return strict JSON with:
     try {
       const runSnap = await adminDb.collection("agentRuns")
         .where("issueId", "==", issueId)
-        .orderBy("startedAt", "desc")
-        .limit(1)
+        .limit(20)
         .get();
       if (runSnap.empty) return res.json({ success: true, run: null, steps: [] });
-      const runDoc = runSnap.docs[0];
+      const runDoc = runSnap.docs
+        .slice()
+        .sort((a: any, b: any) => String(b.get("startedAt") || "").localeCompare(String(a.get("startedAt") || "")))[0];
       const stepsSnap = await runDoc.ref.collection("steps").orderBy("order", "asc").get();
       const steps = stepsSnap.docs.map((docSnap: any) => docSnap.data());
       return res.json({ success: true, run: runDoc.data(), steps });
@@ -6179,13 +6222,20 @@ Return STRICT JSON: { "summary": "2-3 sentences", "predictedHotspots": [{"area":
   // reads the chronological timeline + elapsed time and decides the single best
   // next action (wait / escalate / request_evidence / ready_to_close), persists
   // the decision + reasoning, and logs it. Deterministic fallback on AI failure.
-  async function runFollowUpSentinel(opts: { limit?: number }) {
+  async function runFollowUpSentinel(opts: { limit?: number; issueId?: string }) {
     const limit = Math.min(25, Math.max(1, opts.limit || 15));
     const nowMs = Date.now();
-    const snap = await adminDb.collection("issues").where("status", "in", ["submitted", "verified", "in_progress"]).limit(limit).get();
+    let docs: any[] = [];
+    if (opts.issueId && isSafeDocumentId(opts.issueId)) {
+      const doc = await adminDb.collection("issues").doc(opts.issueId).get();
+      if (doc.exists) docs = [doc];
+    } else {
+      const snap = await adminDb.collection("issues").where("status", "in", ["submitted", "verified", "in_progress"]).limit(limit).get();
+      docs = snap.docs;
+    }
     const ACTIONS = ["wait", "escalate", "request_evidence", "ready_to_close"];
     const details: any[] = [];
-    for (const doc of snap.docs) {
+    for (const doc of docs) {
       const issue: any = { id: doc.id, ...doc.data() };
       const createdMs = Date.parse(issue.createdAt || issue.triagedAt || "");
       const ageHours = Number.isFinite(createdMs) ? Math.round((nowMs - createdMs) / 3600000) : null;
@@ -6236,17 +6286,18 @@ Return STRICT JSON: { "action": "wait|escalate|request_evidence|ready_to_close",
       message: "Follow-up sentinel worker completed.",
       source: "worker",
       byRole: "system",
-      payload: { scanned: snap.size, decisionCount: details.length },
+      payload: { scanned: docs.length, decisionCount: details.length, issueId: opts.issueId || null },
     });
-    return { worker: "followup", scanned: snap.size, decisions: details };
+    return { worker: "followup", scanned: docs.length, decisions: details };
   }
 
   // ---- Phase 3: real external grounding (keyless public data) -------------
-  // Grounds AI reasoning in real-world context: live weather (Open-Meteo),
-  // nearby sensitive amenities (OpenStreetMap/Overpass), and historical
-  // recurrence (Firestore). All sources fail gracefully (Promise.allSettled).
+  // Grounds AI reasoning in real-world context: reverse geocode (Nominatim),
+  // live weather (Open-Meteo), nearby sensitive amenities
+  // (OpenStreetMap/Overpass), and historical recurrence (Firestore). All
+  // sources fail gracefully (Promise.allSettled).
   async function fetchExternalGrounding(lat: number, lng: number, category: string, selfId?: string) {
-    const out: any = { weather: null, nearbyAmenities: [], recurrence: null, sources: [], errors: [] };
+    const out: any = { reverseGeocode: null, weather: null, nearbyAmenities: [], recurrence: null, sources: [], errors: [] };
     if (typeof lat !== "number" || typeof lng !== "number") { out.errors.push("no coordinates"); return out; }
     const hav = (la1: number, lo1: number, la2: number, lo2: number) => {
       const R = 6371000, toR = (d: number) => (d * Math.PI) / 180;
@@ -6255,6 +6306,36 @@ Return STRICT JSON: { "action": "wait|escalate|request_evidence|ready_to_close",
       return 2 * R * Math.asin(Math.sqrt(a));
     };
     await Promise.allSettled([
+      (async () => {
+        try {
+          const url = new URL("https://nominatim.openstreetmap.org/reverse");
+          url.searchParams.set("format", "jsonv2");
+          url.searchParams.set("lat", String(lat));
+          url.searchParams.set("lon", String(lng));
+          url.searchParams.set("zoom", "16");
+          url.searchParams.set("addressdetails", "1");
+          const r = await fetch(url, {
+            headers: {
+              "User-Agent": "CivicLens/2.0 keyless-grounding",
+              Accept: "application/json",
+            },
+            signal: AbortSignal.timeout(7000),
+          });
+          const d: any = await r.json();
+          const address = d?.address || {};
+          out.reverseGeocode = {
+            displayName: cleanText(d?.display_name, "", 300),
+            road: cleanText(address.road || address.pedestrian || address.footway, "", 120),
+            neighbourhood: cleanText(address.neighbourhood || address.suburb || address.quarter, "", 120),
+            city: cleanText(address.city || address.town || address.village || address.municipality, "", 120),
+            district: cleanText(address.city_district || address.county || address.state_district, "", 120),
+            state: cleanText(address.state, "", 120),
+            country: cleanText(address.country, "", 120),
+            postcode: cleanText(address.postcode, "", 40),
+          };
+          out.sources.push("nominatim-osm");
+        } catch (e: any) { out.errors.push("reverse-geocode: " + (e?.message || e)); }
+      })(),
       (async () => {
         try {
           const r = await fetch(`https://api.open-meteo.com/v1/forecast?latitude=${lat}&longitude=${lng}&current=temperature_2m,precipitation,weather_code,wind_speed_10m`, { signal: AbortSignal.timeout(6000) });
@@ -6469,16 +6550,31 @@ Return STRICT JSON: { "action": "wait|escalate|request_evidence|ready_to_close",
   });
 
   // Public community leaderboard (anonymized handles, no uids).
-  app.get("/api/leaderboard", async (_req: any, res) => {
+  app.get("/api/leaderboard", async (req: any, res) => {
     if (!adminDb) return sendApiError(res, 503, "Server data layer unavailable.");
     try {
-      const snap = await adminDb.collection("profiles").orderBy("points", "desc").limit(10).get();
-      const leaders = snap.docs.map((d: any, i: number) => {
-        const p: any = d.data();
+      const period = String(req.query?.period || "all") === "weekly" ? "weekly" : "all";
+      const currentWeekKey = isoWeekKey();
+      const snap = await adminDb.collection("profiles").orderBy("points", "desc").limit(100).get();
+      const profiles = snap.docs.map((d: any) => d.data());
+      profiles.sort((a: any, b: any) => {
+        const aWeekly = a.weeklyKey === currentWeekKey ? cleanNumber(a.weeklyPoints, 0, 0, 100_000) : 0;
+        const bWeekly = b.weeklyKey === currentWeekKey ? cleanNumber(b.weeklyPoints, 0, 0, 100_000) : 0;
+        const aScore = period === "weekly" ? aWeekly : cleanNumber(a.points, 0, 0, 100_000);
+        const bScore = period === "weekly" ? bWeekly : cleanNumber(b.points, 0, 0, 100_000);
+        if (bScore !== aScore) return bScore - aScore;
+        return cleanNumber(b.points, 0, 0, 100_000) - cleanNumber(a.points, 0, 0, 100_000);
+      });
+      const leaders = profiles.slice(0, 10).map((p: any, i: number) => {
+        const weeklyPoints = p.weeklyKey === currentWeekKey ? cleanNumber(p.weeklyPoints, 0, 0, 100_000) : 0;
         return {
           rank: i + 1,
           handle: p.handle || "Civic Hero",
           points: p.points || 0,
+          weeklyPoints,
+          weeklyKey: currentWeekKey,
+          currentStreak: cleanNumber(p.currentStreak, 0, 0, 10_000),
+          longestStreak: cleanNumber(p.longestStreak, 0, 0, 10_000),
           level: p.level || 1,
           badges: p.badges || [],
           reportCount: p.reportCount || 0,
@@ -6486,7 +6582,7 @@ Return STRICT JSON: { "action": "wait|escalate|request_evidence|ready_to_close",
           trustScore: typeof p.trustScore === "number" ? p.trustScore : computeTrustScore(p),
         };
       });
-      return res.json({ leaders });
+      return res.json({ leaders, period, weekKey: currentWeekKey });
     } catch (error) {
       return sendApiError(res, 500, "Failed to load leaderboard.", error);
     }
@@ -6556,7 +6652,7 @@ Return STRICT JSON: { "action": "wait|escalate|request_evidence|ready_to_close",
         return sendWorkerResult(result);
       }
       if (worker === "followup") {
-        const result = await runFollowUpSentinel({ limit: Number(req.body?.limit) });
+        const result = await runFollowUpSentinel({ limit: Number(req.body?.limit), issueId: cleanText(req.body?.issueId, "", 200) });
         return sendWorkerResult(result);
       }
       if (worker === "embed") {

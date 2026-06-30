@@ -83,6 +83,20 @@ describe("persisted server agent workflow", () => {
     expect(server).toContain("Agent run timed out before completing.");
   });
 
+  it("loads the latest run without requiring a composite Firestore index", () => {
+    const server = readProjectFile("server.ts");
+
+    const latestRoute = server.slice(
+      server.indexOf('app.get("/api/issues/:issueId/agent-runs/latest"'),
+      server.indexOf("// ---- Phase 2: Autonomous SLA escalation worker"),
+    );
+
+    expect(latestRoute).toContain('.where("issueId", "==", issueId)');
+    expect(latestRoute).toContain(".limit(20)");
+    expect(latestRoute).toContain(".localeCompare(");
+    expect(latestRoute).not.toContain('.orderBy("startedAt"');
+  });
+
   it("uses the server agent API from the operator detail page without sending candidates", () => {
     const detail = readProjectFile("src/components/IssueDetailPage.tsx");
     const operator = readProjectFile("src/components/OperatorDetailView.tsx");

@@ -1,4 +1,5 @@
 import { describe, expect, it } from "vitest";
+import { readFileSync } from "node:fs";
 import {
   resolveFirebaseWebConfig,
   shouldInitializeFirebaseAppCheck,
@@ -16,6 +17,13 @@ const fallbackConfig: FirebaseWebConfigMetadata = {
 };
 
 describe("Firebase web config resolution", () => {
+  it("keeps Firestore SDK transport retries out of browser-console evidence", () => {
+    const firebaseClient = readFileSync(new URL("./firebase.ts", import.meta.url), "utf8");
+
+    expect(firebaseClient).toContain('setLogLevel("silent")');
+    expect(firebaseClient).toContain("handleFirestoreError");
+  });
+
   it("fails closed when no Vite Firebase browser config is provided", () => {
     expect(() => resolveFirebaseWebConfig({}, fallbackConfig)).toThrow(/VITE_FIREBASE_\*/);
   });

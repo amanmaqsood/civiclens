@@ -495,12 +495,22 @@ export default function ImpactDashboard({
   }, []);
 
   const [leaders, setLeaders] = useState<any[]>([]);
+  const [leaderboardMeta, setLeaderboardMeta] = useState<{ period?: string; weekKey?: string }>({});
   useEffect(() => {
     let active = true;
-    fetch("/api/leaderboard")
+    fetch("/api/leaderboard?period=weekly")
       .then((r) => (r.ok ? r.json() : null))
-      .then((d) => { if (active) setLeaders(Array.isArray(d?.leaders) ? d.leaders : []); })
-      .catch(() => { if (active) setLeaders([]); });
+      .then((d) => {
+        if (!active) return;
+        setLeaders(Array.isArray(d?.leaders) ? d.leaders : []);
+        setLeaderboardMeta({ period: d?.period, weekKey: d?.weekKey });
+      })
+      .catch(() => {
+        if (active) {
+          setLeaders([]);
+          setLeaderboardMeta({});
+        }
+      });
     return () => { active = false; };
   }, []);
 
@@ -582,6 +592,46 @@ export default function ImpactDashboard({
         </p>
       </div>
 
+      <div id="dashboard-kpi-row" className="grid grid-cols-1 gap-3 md:grid-cols-2 xl:grid-cols-4">
+        <MetricCard
+          icon={Layers}
+          label="Loaded records"
+          value={formatNumber(metrics.totalReported)}
+          detail={scope === "demo" ? "Synthetic demo records" : "Non-demo records"}
+          delta={metrics.deltas.reported}
+          points={metrics.dailySeries}
+        />
+        <MetricCard
+          icon={CheckCircle}
+          label="Resolved rate"
+          value={metrics.resolutionRate.value}
+          detail={metrics.resolutionRate.detail}
+          delta={metrics.deltas.resolutionRate}
+          points={metrics.dailySeries.map((point) => ({
+            ...point,
+            count: metrics.currentPeriod.filter((issue) => issue.status === "resolved").length && point.count,
+          }))}
+          tone="text-ink"
+        />
+        <MetricCard
+          icon={Clock}
+          label="Response time"
+          value={metrics.avgResolutionTime.value}
+          detail={metrics.avgResolutionTime.detail}
+          delta={metrics.deltas.avgResponse}
+          points={metrics.dailySeries}
+        />
+        <MetricCard
+          icon={Copy}
+          label="Consolidated"
+          value={formatNumber(metrics.totalDuplicates)}
+          detail="Stored duplicate count signals"
+          delta={metrics.deltas.duplicates}
+          points={metrics.dailySeries}
+          tone="text-marigold"
+        />
+      </div>
+
       {scopedIssues.length === 0 ? (
         <div className="rounded-2xl border border-hairline bg-white p-6 text-center shadow-xs">
           <p className="text-lg font-black text-ink">No records in this dashboard scope.</p>
@@ -589,46 +639,6 @@ export default function ImpactDashboard({
         </div>
       ) : (
         <>
-          <div id="dashboard-kpi-row" className="grid grid-cols-1 gap-3 md:grid-cols-2 xl:grid-cols-4">
-            <MetricCard
-              icon={Layers}
-              label="Loaded records"
-              value={formatNumber(metrics.totalReported)}
-              detail={scope === "demo" ? "Synthetic demo records" : "Non-demo records"}
-              delta={metrics.deltas.reported}
-              points={metrics.dailySeries}
-            />
-            <MetricCard
-              icon={CheckCircle}
-              label="Resolved rate"
-              value={metrics.resolutionRate.value}
-              detail={metrics.resolutionRate.detail}
-              delta={metrics.deltas.resolutionRate}
-              points={metrics.dailySeries.map((point) => ({
-                ...point,
-                count: metrics.currentPeriod.filter((issue) => issue.status === "resolved").length && point.count,
-              }))}
-              tone="text-ink"
-            />
-            <MetricCard
-              icon={Clock}
-              label="Response time"
-              value={metrics.avgResolutionTime.value}
-              detail={metrics.avgResolutionTime.detail}
-              delta={metrics.deltas.avgResponse}
-              points={metrics.dailySeries}
-            />
-            <MetricCard
-              icon={Copy}
-              label="Consolidated"
-              value={formatNumber(metrics.totalDuplicates)}
-              detail="Stored duplicate count signals"
-              delta={metrics.deltas.duplicates}
-              points={metrics.dailySeries}
-              tone="text-marigold"
-            />
-          </div>
-
           {mode === "public" ? (
             <div className="grid grid-cols-1 gap-4 xl:grid-cols-[1.25fr_0.75fr]">
               <section id="dashboard-heatmap" className="rounded-2xl border border-hairline bg-white p-4 shadow-[0_4px_16px_-4px_rgba(14,26,43,0.05)]">
@@ -904,32 +914,42 @@ export default function ImpactDashboard({
         )}
       </section>
 
-      <section className="flex flex-col gap-3 rounded-2xl border border-hairline bg-white p-4 shadow-[0_4px_16px_-4px_rgba(14,26,43,0.05)]">
-        <h3 className="flex items-center gap-2 border-b border-hairline pb-2 text-lg font-bold text-ink">
-          <Trophy className="h-5 w-5 text-marigold" aria-hidden="true" />
-          Community leaderboard
-        </h3>
+      <section className="gamify-leaderboard flex flex-col gap-3 rounded-2xl border border-hairline bg-white p-4 shadow-[0_4px_16px_-4px_rgba(14,26,43,0.05)]">
+        <div className="flex flex-col gap-1 border-b border-hairline pb-2 sm:flex-row sm:items-end sm:justify-between">
+          <h3 className="flex items-center gap-2 text-lg font-bold text-ink">
+            <Trophy className="h-5 w-5 text-marigold" aria-hidden="true" />
+            Weekly community leaderboard
+          </h3>
+          <span className="gamify-week text-[13px] font-semibold text-slate">
+            {leaderboardMeta.weekKey ? `Week ${leaderboardMeta.weekKey}` : "Current week"}
+          </span>
+        </div>
         {leaders.length === 0 ? (
           <p className="text-sm text-slate">No contributors yet. Report, support, or verify issues to earn points and badges.</p>
         ) : (
-          <ol className="flex flex-col gap-2">
+          <ol className="gamify-leaderboard-list flex flex-col gap-2">
             {leaders.map((l) => (
-              <li key={l.rank} className="flex items-center gap-3 rounded-xl border border-hairline bg-paper p-3">
+              <li key={l.rank} className="gamify-leaderboard-row flex items-center gap-3 rounded-xl border border-hairline bg-paper p-3">
                 <span className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full bg-marigold/10 font-mono text-sm font-bold text-marigold-ink">
                   {l.rank <= 3 ? <Medal className="h-4 w-4 text-marigold" aria-hidden="true" /> : l.rank}
                 </span>
                 <div className="min-w-0 flex flex-col">
                   <span className="truncate text-sm font-bold text-ink">{l.handle}</span>
-                  <span className="text-[13px] text-slate">Level {l.level} | {l.reportCount} reports | {l.verifyCount} verifications | Trust {typeof l.trustScore === "number" ? Math.round(l.trustScore * 100) : 32}%</span>
+                  <span className="text-[13px] text-slate">
+                    Level {l.level} | {l.reportCount} reports | {l.verifyCount} verifications | Streak {l.currentStreak || 0}d | Trust {typeof l.trustScore === "number" ? Math.round(l.trustScore * 100) : 32}%
+                  </span>
                   {Array.isArray(l.badges) && l.badges.length > 0 && (
                     <div className="mt-1 flex flex-wrap gap-1">
                       {l.badges.map((b: string) => (
-                        <span key={b} className="rounded-full bg-verify/10 px-2 py-0.5 text-[13px] font-semibold text-verify">{b}</span>
+                        <span key={b} className="gamify-badge rounded-full bg-verify/10 px-2 py-0.5 text-[13px] font-semibold text-verify">{b}</span>
                       ))}
                     </div>
                   )}
                 </div>
-                <span className="ml-auto shrink-0 font-mono text-lg font-bold tabular-nums text-ink">{l.points}<span className="text-[13px] font-semibold text-slate"> pts</span></span>
+                <span className="gamify-points ml-auto shrink-0 text-right font-mono text-lg font-bold tabular-nums text-ink">
+                  {l.weeklyPoints ?? 0}<span className="text-[13px] font-semibold text-slate"> wk pts</span>
+                  <span className="block text-[13px] font-semibold text-slate">{l.points} all-time</span>
+                </span>
               </li>
             ))}
           </ol>

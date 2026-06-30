@@ -9,7 +9,6 @@ CivicLens is original hackathon prototype work assembled in this repository. No 
 - Tailwind CSS and `@tailwindcss/vite` for styling.
 - `lucide-react` for icons.
 - `motion` for UI animation.
-- `canvas-confetti` for the prototype resolved-state visual effect.
 - Firebase JavaScript SDK and Firebase Admin SDK for Auth, Firestore, Storage, App Check verification, and server-owned writes.
 - `@google/genai` for Gemini multimodal, structured output, and function-calling flows.
 - `@vis.gl/react-google-maps` for Google Maps rendering.

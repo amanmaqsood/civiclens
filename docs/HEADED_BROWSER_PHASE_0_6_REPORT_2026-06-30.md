@@ -9,12 +9,11 @@ Sample upload image: `E:\Pro\Community hero\images (1).jpg`
 ## Judge Score
 
 - Before this final public deploy/verification pass: **96/100**.
-- After final live headed verification before Gemini spend-cap exhaustion: **97/100**.
-- Current live submission readiness: **blocked** until the AI Studio/Gemini monthly spending cap is raised and deep Gemini-heavy verification passes again.
+- After final live headed verification: **97/100**.
 
 Reason: the final pass closed the stale public blockers: Firestore quota exhaustion was bypassed by rebuilding public demo on `(default)`, dashboard KPI empty-state coverage was fixed, agent-run empty latest-run 500s were fixed, Nominatim reverse-geocode grounding is live, weekly/streak gamification is live, the formal design-review artifact exists, and both headed verifier files are clean.
 
-Remaining deductions are public-demo App Check/quota posture, current Gemini spending-cap exhaustion, and final submission/video handoff, not missing core product behavior.
+Remaining deductions are public-demo App Check/quota posture and final submission/video handoff, not missing core product behavior.
 
 ## Fresh Evidence Files
 
@@ -49,23 +48,20 @@ Key broad-run values:
 
 ## Deep Gap Results
 
-Current final-rerun result: blocked by Gemini spending cap. Non-Gemini and deterministic checks passed:
+All results passed after the AI Studio/Gemini cap increase:
 
+- Voice intake: category `pothole`, language `hi`, transcript/readback returned.
+- Ghost forensics: `recommendation=reopen`, confidence `0.95`.
 - Trust/appeal: weighted consensus and appeal state passed.
 - Brigading guard: high risk detected, low-trust clustered votes collapsed.
 - SLA/follow-up/RTI: `stage=first_appeal`, follow-up `wait`, RTI PDF generated.
 - Dispatch: delivered to `postman-echo.com`, HTTP 200.
-- Predictive worker: deterministic fallback, 3 hotspots, because Gemini returned spend-cap 429.
+- Predictive worker: Gemini Flash model, 3 hotspots.
 - Keyless grounding: `nominatim-osm`, `firestore-history`, `open-meteo`.
 - Weekly/streak gamification: `week=2026-W27`, `topWeekly=10`, `streak=1`.
 - Manual merge approval: source merged, target report count incremented.
 - Observability API: `events=250`, `queries=4`.
-
-Current non-pass checks:
-
-- Voice intake live: Gemini returned monthly spend-cap exhaustion, so the app fell back to typed confirmation.
-- Ghost forensics live: Gemini returned monthly spend-cap exhaustion, so the route failed.
-- Headed voice wrapper: timed out waiting for the successful voice draft because the UI correctly rendered the fallback state.
+- Browser cleanliness: `consoleErrors=0`.
 
 ## Screenshots
 

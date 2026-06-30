@@ -23,7 +23,7 @@ Important deploy note: the earlier AI Studio Firestore database hit free read qu
 - Evidence-based score before the final public retest: **96/100**.
 - Evidence-based score after the final public retest: **97/100**.
 
-Remaining deductions: public-demo App Check/quota posture, final submission/video handoff, and current Gemini spend-cap exhaustion. Core product flows were verified green, but the live app should not be submitted until the AI Studio monthly spend cap is raised and the deep Gemini-heavy verifier is rerun green.
+Remaining deductions: public-demo App Check/quota posture and final submission/video handoff. Core product flows are live-green after the AI Studio/Gemini cap increase and final deep rerun.
 
 ## Health And Smoke
 
@@ -45,10 +45,8 @@ Deep phase-gap verifier:
 
 - Script: `scripts/verify-public-phase-gaps-headed.mjs`
 - Evidence JSON: `qa-results/public-phase-gaps/public-phase-gaps-headed.json`
-- Current result: blocked by Gemini API spend cap after repeated public verification runs.
-- Current non-pass checks: `phase4.5.voice-intake-live`, `phase2.3.ghost-forensics-live`, and the headed voice run wrapper.
-- Cloud Run log proof: Gemini returned HTTP 429 `RESOURCE_EXHAUSTED` with "project has exceeded its monthly spending cap".
-- Non-Gemini and deterministic branches still passed, including dispatch, grounding, weekly/streak leaderboard, manual merge, SLA/follow-up/RTI, observability, and dashboard rendering.
+- Result: every check PASS after the AI Studio/Gemini cap increase.
+- Browser cleanliness: `consoleErrors=0`.
 
 ## Public Flow Proof
 
@@ -65,12 +63,12 @@ Deep phase-gap verifier:
 
 ## Phase-Gap Proof
 
-- Voice intake: previously passed live Gemini audio verification; current final rerun is blocked by Gemini spend-cap exhaustion and falls back to typed confirmation.
-- Ghost forensics: previously passed live verification; current final rerun is blocked by Gemini spend-cap exhaustion and returns 500.
+- Voice intake: live Gemini audio route returned pothole classification, Hindi transcript/translation, and readback text; headed report page rendered the draft.
+- Ghost forensics: live route returned `recommendation=reopen`, confidence `0.95`, and public detail rendered the forensics card.
 - Trust economy: weighted consensus, appeal, high brigading risk, and collapsed low-trust votes passed live and rendered in headed detail pages.
 - SLA/follow-up/RTI: ladder advanced to `first_appeal`, follow-up returned `wait`, RTI PDF was generated, and public detail rendered the ledger/timeline.
 - Dispatch: harmless outbound dispatch delivered to `postman-echo.com`, HTTP 200.
-- Predictive worker: currently serves deterministic fallback with 3 hotspots while Gemini is spend-cap blocked; prior Gemini Flash run returned 3 hotspots.
+- Predictive worker: Gemini Flash returned 3 hotspots and dashboard rendered predictive insight.
 - Keyless grounding: live grounding included `nominatim-osm`, `firestore-history`, and `open-meteo`.
 - Weekly/streak gamification: live leaderboard returned `week=2026-W27`, `topWeekly=10`, `streak=1`.
 - Manual merge approval: source case marked merged and target report count increased.
@@ -129,8 +127,7 @@ Deep gap screenshots:
 
 ## Remaining Hardening
 
-1. Raise or remove the AI Studio/Gemini monthly spending cap, then rerun the deep phase-gap headed verifier until all Gemini-heavy checks pass again.
-2. Enforce App Check only after a verified judge-safe public token path exists.
-3. Restore production distributed quota backend when public Firestore quota posture is ready.
-4. Capture a real GCP Monitoring screenshot/export if required by submission reviewers.
-5. Add the final demo video and submitter-owned hackathon submission link.
+1. Enforce App Check only after a verified judge-safe public token path exists.
+2. Restore production distributed quota backend when public Firestore quota posture is ready.
+3. Capture a real GCP Monitoring screenshot/export if required by submission reviewers.
+4. Add the final demo video and submitter-owned hackathon submission link.

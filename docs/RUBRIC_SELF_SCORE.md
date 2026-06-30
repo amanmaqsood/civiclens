@@ -5,9 +5,8 @@ Date: 2026-06-30
 ## Scores
 
 - **Pre-final public verification estimate:** 96/100.
-- **Final public live score after fresh Cloud Run deploy and headed E2E verification before spend-cap exhaustion:** **97/100**.
+- **Final public live score after fresh Cloud Run deploy and headed E2E verification:** **97/100**.
 - **Brutal implementation score:** **97/100**.
-- **Current submission readiness:** blocked until the AI Studio/Gemini monthly spending cap is raised and deep Gemini-heavy verification passes again.
 
 ## Rubric Breakdown
 
@@ -35,7 +34,7 @@ Fresh public proof on final revision:
 - Public deploy smoke: `ready=ready`, `auth=ok`, `gemini=ok`, `maps=OK`.
 - Public model-tier smoke: Flash-Lite, Flash, Pro, and `gemini-embedding-001`.
 - Broad headed Phase 0-6 verifier: all results PASS; `consoleErrors=0`, `pageErrors=0`, `server5xx=0`.
-- Public phase-gap headed verifier: previously passed all Gemini-heavy checks; current final rerun is blocked by Gemini HTTP 429 monthly spend-cap exhaustion for voice and ghost forensics. Dispatch, trust/brigading, SLA/follow-up/RTI, grounding, weekly/streak leaderboard, merge approval, observability, and dashboard rendering still passed.
+- Public phase-gap headed verifier: all results PASS after the AI Studio/Gemini cap increase; voice, ghost forensics, trust/brigading, SLA/follow-up/RTI, dispatch, predictive worker, keyless grounding, weekly/streak leaderboard, merge approval, observability, dashboard rendering, and browser cleanliness passed.
 - Local verification: full Vitest 131 passed / 11 skipped, emulator rules/concurrency/behavioral API/golden path passed, and Playwright E2E 7 passed.
 - Current build: largest JS chunk `fb-firestore` 474.21 kB.
 
@@ -44,4 +43,3 @@ Remaining non-score blockers:
 - Hackathon submission has not been performed.
 - Demo video link still needs the submitter.
 - App Check is relaxed for public judge access; enforcing it needs a verified public token path.
-- Gemini/AI Studio monthly spending cap must be raised before submission.

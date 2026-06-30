@@ -194,7 +194,7 @@ Then smoke-test the deployed mobile and desktop UI before updating final submiss
 - If public smoke fails, roll back Cloud Run traffic to the previous healthy revision.
 - Do not delete resources during rollback.
 - Do not rotate keys during rollback.
-- Record the rollback decision and commands in `docs/CODEX_PROGRESS.md` and `docs/FINAL_EVIDENCE_REPORT.md`.
+- Record the rollback decision and commands in the project progress notes and `docs/FINAL_EVIDENCE_REPORT.md`.
 
 ## UX Scorecard
 

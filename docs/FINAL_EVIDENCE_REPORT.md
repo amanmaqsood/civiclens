@@ -97,6 +97,8 @@ FINAL_GOLDEN_PATH_LIVE issueId=golden_1782801524438_zl0c8b_base merged=true simi
 ## Required Submission Truth
 
 - Public Google Doc body was replaced with `docs/GOOGLE_DOC_DRAFT.md`, formatted with headings/lists/links, and public text export was rechecked.
+- Final README, Google Doc draft, and demo teleprompter were refreshed for the latest public revision; live Google Doc export confirms the new `One-Line Pitch` section and `civiclens-00059-245`, with stale `Product Thesis` / `civiclens-00047-5kr` text absent.
+- Repo-wide public text scan is clean for disallowed toolchain attribution terms.
 - Hackathon submission has not been performed.
 - Demo video link can be added by the submitter if available.
 

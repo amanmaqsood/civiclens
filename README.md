@@ -1,55 +1,119 @@
 # CivicLens - Community Hero
 
-CivicLens is a Google Cloud-deployed civic-resolution pilot for reporting, verifying, tracking, and reviewing hyperlocal community issues. It is an independent civic pilot, not an official government portal, and it does not submit complaints externally.
+**CivicLens** is a Google Cloud-deployed civic-resolution pilot for reporting, verifying, and reviewing hyperlocal community issues with Gemini-powered triage and human-governed decision checkpoints.
 
-The app demonstrates a Community Hero workflow built around citizen field reports, Google-powered location context, Gemini-assisted triage, community verification, and human operator review.
+Live app: https://civiclens-py7ixxgroq-as.a.run.app
 
-## What It Does
+Submission doc: https://docs.google.com/document/d/19nFBVMLHUOqlKipMi7tsML25BW2h_Q2s82cQukuzlMk/edit?usp=sharing
 
-- Citizens capture a photo, location, and description for a civic issue.
-- Gemini helps summarize reports, estimate severity, compare possible duplicates, draft review material, translate summaries, and assess closure evidence.
-- Google Maps and Places help residents anchor reports to real locations.
-- Community members can support, confirm, or dispute saved cases.
-- Server-side agent runs load canonical Firestore issue data, execute bounded tools, and persist `agentRuns` plus `agentSteps`.
-- Operators review evidence, draft routing/action packets, escalation text, closure assessments, and approval records.
-- Synthetic demo stories are visibly labelled and separated from real records.
+Problem statement: **Community Hero - Hyperlocal Problem Solver**
 
-## Pilot Boundary
+> CivicLens is an independent civic pilot. It is not an official government portal and does not submit complaints externally.
 
-CivicLens recommends and drafts; people decide. Human approval is required before duplicate merge, routing/action packet approval, escalation finalization, resolve, or reopen. The app does not claim government affiliation, external agency acceptance, statutory SLA enforcement, digital signatures, permanent tamper-proof records, or official case status.
+## Why It Matters
+
+Residents often report potholes, broken streetlights, water leaks, unsafe paths, and waste issues through fragmented channels. Reports may lack clear location context, duplicate awareness, closure evidence, and public status visibility. CivicLens turns those scattered reports into a structured, evidence-led workflow that communities and reviewers can trust.
+
+## What Judges Can Try
+
+- Submit a civic issue with a photo, location, and description.
+- Let Gemini classify, summarize, translate, and prioritize the report.
+- Review nearby duplicate handling and evidence-linking.
+- Open a public issue detail page with a CivicLens Ticket ID.
+- Use the synthetic operator desk to inspect server-owned agent traces and human approval gates.
+- Open the dashboard for Open311 export, predictive hotspots, community leaderboard, and lifecycle metrics.
+- Try Hindi in the public reporting flow.
+
+## Core Features
+
+- **Citizen field reporting** with camera/gallery upload, manual pin fallback, Google Places autocomplete, and responsive mobile flow.
+- **Gemini multimodal triage** for category, urgency, severity, confidence, rationale, and citizen-facing summary.
+- **Multilingual voice intake** using Gemini transcription, translation, category extraction, and readback.
+- **Semantic duplicate control** with nearby candidate detection and evidence-linking instead of duplicate ticket spam.
+- **Planner-first server agent workflow** with persisted `agentRuns` and `agentSteps`; the UI renders stored server records, not scripted traces.
+- **SLA and follow-up workers** for escalation ladder, follow-up decisioning, and RTI-style PDF generation.
+- **Ghost-closure forensics** comparing original, claimed closure, and fresh audit evidence before recommending reopen.
+- **Trust economy and brigading guard** for weighted community confirmations, appeal state, and low-trust vote collapse.
+- **Predictive hotspot worker** using Gemini to forecast ward-level risk patterns.
+- **Open311 GeoReport export** for municipal interoperability.
+- **Real outbound dispatch path** to a configured webhook, recorded with delivery receipt.
+- **Public accountability ledger** for AI, citizen, operator, worker, and lifecycle events.
+- **Weekly leaderboard and streaks** for civic participation while keeping the core workflow serious.
+
+## Human Oversight
+
+Gemini recommends; people decide. Human approval remains required for consequential workflow changes:
+
+- duplicate merge
+- routing or action-packet approval
+- escalation finalization
+- resolve
+- reopen
+
+Demo operator actions are server-limited to records explicitly marked as synthetic demo data. Real operator actions require server-authorized Firebase identity.
 
 ## Google Technologies
 
-- Google AI Studio was used during development and provenance of the Gemini-backed pilot.
-- Gemini via `@google/genai` powers multimodal triage, structured output, translation support, duplicate comparison support, draft resolution planning, closure image assessment, and server-side tool workflow.
-- Google Maps Platform renders map context and Places autocomplete for manual location search.
-- Firebase Auth supports anonymous citizen sessions and verified identity entry points.
-- Firestore stores issues, lifecycle fields, support and verification actions, approvals, `agentRuns`, and `agentSteps`.
-- Firebase Storage stores report, evidence, and closure images behind Storage Rules.
-- Firebase Admin SDK owns privileged writes, transactions, role checks, counters, and lifecycle transitions.
-- Secret Manager stores runtime secrets for Cloud Run without committing secret values.
-- Cloud Run hosts the public production service.
-- Cloud Build and Artifact Registry support the deployment flow.
+- **Gemini via `@google/genai`**: multimodal triage, structured output, voice intake, duplicate reasoning, closure forensics, predictive insights, and server-side workflow support.
+- **Google Maps Platform**: map rendering and Places autocomplete for location context.
+- **Firebase Auth**: anonymous citizen sessions and Google sign-in entry point.
+- **Firestore**: issues, evidence metadata, approvals, support, verification, lifecycle fields, agent traces, leaderboard state, and audit events.
+- **Firebase Storage**: report, evidence, and closure image storage governed by Storage Rules.
+- **Firebase Admin SDK**: privileged server writes, transactions, role checks, counters, and lifecycle transitions.
+- **Secret Manager**: runtime secrets for Cloud Run without committing secret values.
+- **Cloud Run**: public production deployment.
+- **Cloud Build and Artifact Registry**: build and container deployment pipeline.
 
-## Application Stack
+## Architecture
 
-- React, TypeScript, Vite, and Tailwind CSS for the frontend.
-- Express and esbuild for the TypeScript server bundle.
-- Firebase Rules and server-side Admin SDK boundaries for data integrity.
-- Vitest, Firebase Emulator Suite, and automated browser checks for validation.
+- Frontend: React, TypeScript, Vite, Tailwind CSS.
+- Backend: Express TypeScript server bundled with esbuild for Cloud Run.
+- Data: Firestore plus Firebase Storage, guarded by Rules and Admin SDK boundaries.
+- Validation: Vitest, Firebase Emulator Suite, Playwright headed browser verification, Cloud Run smoke tests.
 
-## Key Docs
+Key documents:
 
 - [ARCHITECTURE.md](ARCHITECTURE.md)
-- [ATTRIBUTIONS.md](ATTRIBUTIONS.md)
-- [LICENSE](LICENSE)
 - [security_spec.md](security_spec.md)
+- [ATTRIBUTIONS.md](ATTRIBUTIONS.md)
 - [docs/DEPLOYMENT_CLOUD_RUN.md](docs/DEPLOYMENT_CLOUD_RUN.md)
-- [docs/AI_STUDIO_EVIDENCE.md](docs/AI_STUDIO_EVIDENCE.md)
-- [docs/DEMO_SCRIPT.md](docs/DEMO_SCRIPT.md)
-- [docs/GOOGLE_DOC_DRAFT.md](docs/GOOGLE_DOC_DRAFT.md)
 - [docs/FINAL_EVIDENCE_REPORT.md](docs/FINAL_EVIDENCE_REPORT.md)
-- Public Google Doc: [CivicLens - Community Hero: Hyperlocal Problem Solver](https://docs.google.com/document/d/19nFBVMLHUOqlKipMi7tsML25BW2h_Q2s82cQukuzlMk/edit?usp=sharing)
+- [docs/IMPLEMENTATION_PLAN_STATUS_2026-06-30.md](docs/IMPLEMENTATION_PLAN_STATUS_2026-06-30.md)
+- [docs/HEADED_BROWSER_PHASE_0_6_REPORT_2026-06-30.md](docs/HEADED_BROWSER_PHASE_0_6_REPORT_2026-06-30.md)
+- [docs/GOOGLE_DOC_DRAFT.md](docs/GOOGLE_DOC_DRAFT.md)
+- [docs/DEMO_SCRIPT.md](docs/DEMO_SCRIPT.md)
+
+## Verified Deployment
+
+- Public app URL: `https://civiclens-py7ixxgroq-as.a.run.app`
+- Alternate Cloud Run URL: `https://civiclens-802067002365.asia-southeast1.run.app`
+- Cloud Run service: `civiclens`
+- Region: `asia-southeast1`
+- Active revision: `civiclens-00059-245`
+- Runtime image: `asia-southeast1-docker.pkg.dev/gen-lang-client-0871796745/civiclens/civiclens:d277989-public-20260630124658`
+- Runtime app source: `main@d277989`
+
+Latest public deploy smoke:
+
+```text
+DEPLOY_SMOKE_LIVE url=https://civiclens-py7ixxgroq-as.a.run.app ready=ready auth=ok gemini=ok maps=OK mapsApi=maps-javascript-places-bootstrap geminiTokens=32 mapsPredictions=0 durationMs=1770
+```
+
+## Verification Snapshot
+
+Final completed checks:
+
+- Broad headed Phase 0-6 verifier: all PASS; `consoleErrors=0`, `pageErrors=0`, `server5xx=0`.
+- Deep phase-gap headed verifier: all PASS after Gemini cap increase; `consoleErrors=0`.
+- `npx vitest run`: 131 passed, 11 skipped.
+- `npm run test:e2e`: 7 Playwright release-gate tests passed.
+- `npm run test:rules`: Firestore/Storage rules passed.
+- `npm run test:concurrency`: transaction/concurrency tests passed.
+- `npm run test:behavioral-api`: `authz=ok workerIdempotency=ok semanticDedup=ok`.
+- `npm run test:golden-path`: duplicate merge, dispatch, ghost reopen, final resolution, Open311 export, predictive worker, and event ledger passed.
+- `npm audit --omit=dev --audit-level=moderate`: 0 production vulnerabilities.
+
+See [docs/FINAL_EVIDENCE_REPORT.md](docs/FINAL_EVIDENCE_REPORT.md) for the full evidence trail.
 
 ## Run Locally
 
@@ -61,24 +125,27 @@ npm run dev
 
 Set real values in `.env` as needed:
 
-- `GEMINI_API_KEY` for Gemini calls.
-- `GOOGLE_MAPS_PLATFORM_KEY` or `VITE_GOOGLE_MAPS_PLATFORM_KEY` for Google Maps and Places autocomplete.
-- `VITE_FIREBASE_API_KEY`, `VITE_FIREBASE_AUTH_DOMAIN`, `VITE_FIREBASE_PROJECT_ID`, `VITE_FIREBASE_APP_ID`, and optional Firebase browser fields before building the frontend. The tracked `firebase-applet-config.json` is metadata-only; the public Firebase browser key is supplied through env/build args.
-- `FIREBASE_PROJECT_ID` or Cloud Run's `GOOGLE_CLOUD_PROJECT` for Firebase Admin SDK project selection.
-- `FIRESTORE_DATABASE_ID`, defaulting to `(default)`, when using a named Firestore database.
-- `VITE_FIREBASE_APP_CHECK_SITE_KEY` to initialize frontend App Check token generation.
-- `CIVICLENS_REQUIRE_APP_CHECK=true` only after the deployed frontend sends `X-Firebase-AppCheck` successfully.
-- `CIVICLENS_OPERATOR_EMAILS` for verified real operator email allowlist.
-- `CIVICLENS_LOCAL_APP_CHECK_BYPASS=true` for local development only.
-- `CIVICLENS_DEMO_OPERATOR_ENABLED=true` only when synthetic demo mutation should be enabled.
+- `GEMINI_API_KEY`
+- `GOOGLE_MAPS_PLATFORM_KEY` or `VITE_GOOGLE_MAPS_PLATFORM_KEY`
+- `VITE_FIREBASE_API_KEY`
+- `VITE_FIREBASE_AUTH_DOMAIN`
+- `VITE_FIREBASE_PROJECT_ID`
+- `VITE_FIREBASE_APP_ID`
+- `VITE_FIREBASE_STORAGE_BUCKET`
+- `VITE_FIREBASE_MESSAGING_SENDER_ID`
+- `VITE_FIREBASE_MEASUREMENT_ID`
+- `FIREBASE_PROJECT_ID`
+- `FIRESTORE_DATABASE_ID`
+- `VITE_FIREBASE_APP_CHECK_SITE_KEY`
+- `CIVICLENS_OPERATOR_EMAILS`
+- `CIVICLENS_JOB_SECRET`
 
-Vite reads `VITE_*` variables at build time, not Cloud Run request time. Rebuild the frontend after changing Firebase browser config, App Check site key, or Maps browser key.
+Vite reads `VITE_*` variables at build time. Rebuild the frontend after changing Firebase browser config, App Check site key, or Maps browser key.
+The tracked `firebase-applet-config.json` is metadata-only and intentionally excludes Firebase API keys or service-account material.
 
-Never commit `.env`, service-account JSON, or secret values.
+Never commit `.env`, service-account JSON, API keys, tokens, or private credentials.
 
-## Validation
-
-Required local gate:
+## Validation Commands
 
 ```bash
 npm ci
@@ -91,18 +158,25 @@ npm run test:concurrency
 npm run test:e2e
 ```
 
-`npm test` skips emulator-only files by default; use `npm run test:rules` for Firestore/Storage Emulator Suite coverage and `npm run test:concurrency` for the focused parallel transaction harness. `npm run test:e2e` starts local Firebase emulators and runs the responsive browser release gate.
+Additional live/evidence scripts:
 
-The latest recorded validation results are in `docs/FINAL_EVIDENCE_REPORT.md`.
+```bash
+npm run smoke:deploy
+npm run test:behavioral-api
+npm run test:golden-path
+node scripts/verify-public-headed-phase-status.mjs
+node scripts/verify-public-phase-gaps-headed.mjs
+```
 
-## Deployment Status
+## Demo Boundary
 
-Cloud Run deployment is documented in `docs/DEPLOYMENT_CLOUD_RUN.md`.
+The public deployment keeps judge access open:
 
-- Public app URL: `https://civiclens-py7ixxgroq-as.a.run.app`
-- Current deployed revision: `civiclens-00047-5kr`
-- Latest deployed source commit: `68e9787`
+- App Check support exists, but enforcement is relaxed for the hackathon demo.
+- The public hackathon demo uses a conservative in-memory quota fallback to keep judge access open during repeated testing.
+- Firestore-backed distributed quotas remain implemented and emulator-verified.
+- Synthetic demo records are visibly labelled.
 
-Maps browser-key restrictions were applied for the public Cloud Run origins and localhost during the final evidence checkpoint. App Check integration exists, but enforcement is disabled for this hackathon deployment to avoid blocking judge access.
+## License and Attributions
 
-The current deployment includes Google Places autocomplete for manual location search, persistent Hindi localization for the core citizen flow, a compact sticky header subtitle, public issue-detail read-only agent evidence, and operator-owned agent/lifecycle controls with required rationale. Firebase Google provider is enabled, the Cloud Run domains are authorized, and public smoke verification confirms the Google sign-in entry point opens the Firebase/Google auth flow without an inline app error. No private Google-account credential flow was completed during verification. App Check enforcement and final hackathon submission remain intentionally separate follow-up actions.
+This project is licensed under the terms in [LICENSE](LICENSE). Third-party libraries, services, and demo image notes are listed in [ATTRIBUTIONS.md](ATTRIBUTIONS.md).

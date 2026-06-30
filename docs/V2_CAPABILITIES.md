@@ -20,6 +20,12 @@ auditable trail.
    Operators can also watch the run over a real server-sent event stream as
    planner/tool/self-critique steps are emitted by the server.
 
+   Report creation also runs through a server-side `BaseAgent` pipeline:
+   `Vision -> Self-Verify -> Geo -> Context -> Risk -> Route -> Draft -> Monitor`.
+   Each stage records timing/status evidence on the issue, shares context with
+   later stages, computes SLA/risk server-side, and emits an immutable completion
+   event for the accountability ledger.
+
 2. **The agent grounds itself in the real world.** It can call `get_local_context`
    to pull **live weather (Open-Meteo)**, **nearby schools/hospitals
    (OpenStreetMap)**, and **same-area recurrence** before judging severity/priority

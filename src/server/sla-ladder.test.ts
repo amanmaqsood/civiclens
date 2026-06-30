@@ -15,7 +15,8 @@ describe("SLA ladder worker", () => {
     expect(server).toContain("const SLA_MATRIX_HOURS");
     expect(server).toContain("function resolveSlaPolicy");
     expect(server).toContain("source: \"category_severity_matrix\"");
-    expect(server).toContain("Object.assign(report, buildSlaIssueFields(report, nowIso))");
+    expect(server).toContain("const pipelineContext = await runReportCreatePipeline");
+    expect(server).toContain("Object.assign(ctx.report, buildSlaIssueFields(ctx.report, ctx.nowIso))");
     expect(server).toContain("Object.assign(updateData, buildSlaIssueFields({ ...issueData, resolutionPlan: planResult.data }, updateData.updatedAt))");
     expect(server).toContain("...buildSlaIssueFields(data, nowIso)");
     expect(server).toContain("Object.assign(agentIssueUpdates, buildSlaIssueFields({ ...issueForPlan, resolutionPlan }, nowIso))");

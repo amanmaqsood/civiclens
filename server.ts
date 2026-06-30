@@ -1450,6 +1450,210 @@ Coordinates: lat ${input.lat || "unknown"}, lng ${input.lng || "unknown"}`;
     };
   }
 
+  type BaseAgentStage<TContext> = {
+    name: string;
+    retries?: number;
+    optional?: boolean;
+    run: (context: TContext) => Promise<string | void> | string | void;
+  };
+
+  class BaseAgent<TContext extends { steps: any[] }> {
+    constructor(private readonly name: string, private readonly stages: BaseAgentStage<TContext>[]) {}
+
+    async run(context: TContext) {
+      const startedAt = Date.now();
+      for (const stage of this.stages) {
+        const maxAttempts = Math.max(1, (stage.retries || 0) + 1);
+        let attempt = 0;
+        while (attempt < maxAttempts) {
+          attempt++;
+          const stageStartedAt = Date.now();
+          try {
+            const outputSummary = await stage.run(context);
+            context.steps.push({
+              stage: stage.name,
+              status: "done",
+              attempt,
+              maxAttempts,
+              durationMs: Date.now() - stageStartedAt,
+              outputSummary: cleanText(outputSummary, `${stage.name} completed`, 500),
+            });
+            break;
+          } catch (error: any) {
+            const isFinalAttempt = attempt >= maxAttempts;
+            context.steps.push({
+              stage: stage.name,
+              status: isFinalAttempt ? "failed" : "retry",
+              attempt,
+              maxAttempts,
+              durationMs: Date.now() - stageStartedAt,
+              errorMsg: cleanText(error?.message || String(error), "stage failed", 500),
+            });
+            if (isFinalAttempt) {
+              if (stage.optional) break;
+              throw error;
+            }
+          }
+        }
+      }
+      return {
+        name: this.name,
+        version: "base-agent-v1",
+        durationMs: Date.now() - startedAt,
+        completedAt: new Date().toISOString(),
+        steps: context.steps,
+      };
+    }
+  }
+
+  type ReportCreatePipelineContext = {
+    issueId: string;
+    actor: RequestActor;
+    report: any;
+    nowIso: string;
+    steps: any[];
+    shared: Record<string, unknown>;
+  };
+
+  function summarizeGroundingForReport(grounding: any) {
+    return {
+      weather: grounding?.weather || null,
+      nearbyAmenitiesCount: Array.isArray(grounding?.nearbyAmenities) ? grounding.nearbyAmenities.length : 0,
+      recurrence: grounding?.recurrence || null,
+      sources: Array.isArray(grounding?.sources) ? grounding.sources.slice(0, 6) : [],
+      errors: Array.isArray(grounding?.errors) ? grounding.errors.slice(0, 4) : [],
+    };
+  }
+
+  async function runReportCreatePipeline(context: ReportCreatePipelineContext) {
+    const pipeline = new BaseAgent<ReportCreatePipelineContext>("report_create_pipeline", [
+      {
+        name: "Vision",
+        run: (ctx) => {
+          ctx.shared.vision = {
+            category: ctx.report.category,
+            title: ctx.report.title,
+            confidence: ctx.report.confidence,
+            visibleHazards: ctx.report.visibleHazards,
+            source: "client_gemini_or_manual_intake",
+          };
+          return `Vision intake accepted ${ctx.report.category} at confidence ${ctx.report.confidence}.`;
+        },
+      },
+      {
+        name: "Self-Verify",
+        run: (ctx) => {
+          ctx.report.category = categoriesList.includes(ctx.report.category) ? ctx.report.category : "other";
+          ctx.report.urgency = urgenciesList.includes(ctx.report.urgency) ? ctx.report.urgency : "routine";
+          ctx.report.severity = Math.round(cleanNumber(ctx.report.severity, 3, 1, 5));
+          ctx.shared.selfVerify = {
+            category: ctx.report.category,
+            urgency: ctx.report.urgency,
+            severity: ctx.report.severity,
+          };
+          return `Self-verified ${ctx.report.category}, severity ${ctx.report.severity}, ${ctx.report.urgency}.`;
+        },
+      },
+      {
+        name: "Geo",
+        run: (ctx) => {
+          const hash = geoHash7(ctx.report.lat, ctx.report.lng);
+          if (hash) ctx.report.geohash7 = hash;
+          ctx.shared.geo = {
+            geohash7: hash,
+            hasCoordinates: typeof ctx.report.lat === "number" && typeof ctx.report.lng === "number",
+          };
+          return hash ? `Computed geohash ${hash}.` : "No geohash because coordinates were incomplete.";
+        },
+      },
+      {
+        name: "Context",
+        retries: 1,
+        optional: true,
+        run: async (ctx) => {
+          if (typeof ctx.report.lat !== "number" || typeof ctx.report.lng !== "number") {
+            ctx.shared.localContext = { skipped: true, reason: "coordinates unavailable" };
+            return "Skipped external context because coordinates were unavailable.";
+          }
+          const grounding = await fetchExternalGrounding(ctx.report.lat, ctx.report.lng, ctx.report.category, ctx.issueId);
+          const summary = summarizeGroundingForReport(grounding);
+          ctx.shared.localContext = summary;
+          ctx.report.localContext = summary;
+          return `Grounded context from ${summary.sources.length} source(s).`;
+        },
+      },
+      {
+        name: "Risk",
+        run: (ctx) => {
+          ctx.report.priorityScore = serverPriorityScore(ctx.report);
+          Object.assign(ctx.report, buildSlaIssueFields(ctx.report, ctx.nowIso));
+          ctx.shared.risk = {
+            priorityScore: ctx.report.priorityScore,
+            slaDeadline: ctx.report.slaDeadline,
+            slaPolicy: ctx.report.slaPolicy,
+          };
+          return `Priority ${ctx.report.priorityScore}; SLA ${ctx.report.slaPolicy?.slaHours}h.`;
+        },
+      },
+      {
+        name: "Route",
+        run: (ctx) => {
+          const route = validateAuthorityAgainstRegistry(ctx.report.locationName, {
+            authority: "",
+            sla: ctx.report.slaPolicy?.slaDays || 7,
+            channel: "",
+          });
+          ctx.shared.route = route;
+          ctx.report.routingHint = {
+            recommendedAuthority: route.authority,
+            contactChannel: route.channel,
+            slaDays: route.sla,
+            registryValidated: route.registryValidated,
+            registryId: route.registryId,
+          };
+          return `Route hint ${route.authority}; registry ${route.registryId}.`;
+        },
+      },
+      {
+        name: "Draft",
+        run: (ctx) => {
+          ctx.report.pipelineDraft = {
+            subject: `Draft Civic Grievance: ${ctx.report.title || ctx.report.category}`,
+            summary: ctx.report.summary || ctx.report.description,
+            nextAction: "Human operator reviews route and escalation draft before any outside-app action.",
+          };
+          return "Prepared internal draft packet preview.";
+        },
+      },
+      {
+        name: "Monitor",
+        run: (ctx) => {
+          ctx.report.monitoring = {
+            nextWorker: "sla",
+            slaDeadline: ctx.report.slaDeadline || null,
+            followUpSource: "report_create_pipeline",
+            createdAt: ctx.nowIso,
+          };
+          return "Registered SLA monitoring handoff.";
+        },
+      },
+    ]);
+
+    const result = await pipeline.run(context);
+    context.report.createPipeline = {
+      ...result,
+      sharedContext: {
+        vision: context.shared.vision || null,
+        selfVerify: context.shared.selfVerify || null,
+        geo: context.shared.geo || null,
+        localContext: context.shared.localContext || null,
+        risk: context.shared.risk || null,
+        route: context.shared.route || null,
+      },
+    };
+    return context;
+  }
+
   function nextPendingSlaStage(issue: any, nowMs: number, overrideThresholdHours?: number): { stage: SlaStage; dueAt: string; policy: any; deadlines: any } | null {
     const policy = resolveSlaPolicy(issue);
     const deadlines = buildSlaSchedule(issue, policy, overrideThresholdHours);
@@ -2156,14 +2360,20 @@ Mark suspicious only for obvious mismatch, pile-on, or unverifiable reasoning. K
       agentTrace: [],
       priorityScore: 0,
     };
-    report.priorityScore = serverPriorityScore(report);
-    Object.assign(report, buildSlaIssueFields(report, nowIso));
+    const pipelineContext = await runReportCreatePipeline({
+      issueId: issueRef.id,
+      actor,
+      report,
+      nowIso,
+      steps: [],
+      shared: {},
+    });
 
     const queryEmbedding = await embedText(issueEmbeddingText(report));
     if (queryEmbedding) {
       (report as any).embedding = queryEmbedding;
     }
-    const reportGeohash7 = geoHash7(report.lat, report.lng);
+    const reportGeohash7 = cleanText((report as any).geohash7, "", 16) || geoHash7(report.lat, report.lng);
     if (reportGeohash7) {
       (report as any).geohash7 = reportGeohash7;
     }
@@ -2262,6 +2472,7 @@ Mark suspicious only for obvious mismatch, pile-on, or unverifiable reasoning. K
               category: report.category,
               title: report.title,
               summary: report.summary,
+              createPipeline: (report as any).createPipeline,
             });
             tx.update(candidateRef, {
               reportCount: nextReportCount,
@@ -2288,6 +2499,7 @@ Mark suspicious only for obvious mismatch, pile-on, or unverifiable reasoning. K
             duplicateSimilarity: mergeCandidate.similarity,
             duplicateDistanceM: mergeCandidate.distanceM,
             evidenceId: idempotencyKey,
+            pipelineStageCount: pipelineContext.report.createPipeline?.steps?.length || 0,
           });
           return {
             canonicalIssueId: candidateRef.id,
@@ -2318,6 +2530,7 @@ Mark suspicious only for obvious mismatch, pile-on, or unverifiable reasoning. K
           byUid: actor.uid,
           embeddingAvailable: !!queryEmbedding,
           geohash7: reportGeohash7,
+          pipelineStageCount: pipelineContext.report.createPipeline?.steps?.length || 0,
         });
         return {
           canonicalIssueId: issueRef.id,
@@ -2347,6 +2560,7 @@ Mark suspicious only for obvious mismatch, pile-on, or unverifiable reasoning. K
             priorityScore: outcome.data?.priorityScore || null,
             embeddingAvailable: !!queryEmbedding,
             geohash7: reportGeohash7,
+            pipelineStageCount: pipelineContext.report.createPipeline?.steps?.length || 0,
           },
         });
       } else if (outcome.autoMerged && outcome.contributionCreated) {
@@ -2366,6 +2580,32 @@ Mark suspicious only for obvious mismatch, pile-on, or unverifiable reasoning. K
             duplicateSimilarity: outcome.duplicateSimilarity,
             duplicateDistanceM: outcome.duplicateDistanceM,
             reportCount: outcome.data?.reportCount || null,
+            pipelineStageCount: pipelineContext.report.createPipeline?.steps?.length || 0,
+          },
+        });
+      }
+      if (outcome.contributionCreated || outcome.createdNew) {
+        await recordEvent({
+          issueRef: adminDb.collection("issues").doc(outcome.canonicalIssueId),
+          actorType: "ai",
+          eventType: "report_create_pipeline_completed",
+          message: "Report-create BaseAgent pipeline completed.",
+          timestamp: nowIso,
+          actor,
+          source: "agent",
+          idempotencyKey,
+          payload: {
+            canonicalIssueId: outcome.canonicalIssueId,
+            requestedIssueId: issueRef.id,
+            autoMerged: outcome.autoMerged,
+            stageCount: pipelineContext.report.createPipeline?.steps?.length || 0,
+            durationMs: pipelineContext.report.createPipeline?.durationMs || null,
+            stages: (pipelineContext.report.createPipeline?.steps || []).map((step: any) => ({
+              stage: step.stage,
+              status: step.status,
+              durationMs: step.durationMs,
+              attempt: step.attempt,
+            })),
           },
         });
       }

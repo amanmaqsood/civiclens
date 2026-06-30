@@ -356,6 +356,18 @@ Phase 1.5 live agent stream closeout on 2026-06-30:
 - `npm run build`: passed; Vite transformed 2341 modules, emitted `dist/server.cjs` at 290.3 kB, and kept the largest JS chunk at `fb-firestore` 475.16 kB with no chunk over 500 kB.
 - `npm run test:e2e`: passed; 7 Chromium Playwright tests passed against local Firebase Auth, Firestore, and Storage emulators.
 
+Phase 3.1 report-create BaseAgent pipeline closeout on 2026-06-30:
+
+- `POST /api/issues/create` now routes each incoming report through a reusable `BaseAgent` runner with retry/timing records over a shared context object.
+- The report-create pipeline stages are `Vision -> Self-Verify -> Geo -> Context -> Risk -> Route -> Draft -> Monitor`; the `Risk` stage owns server priority/SLA stamping, and the `Route` stage validates authority hints against the jurisdiction registry.
+- New and auto-merged reports persist `createPipeline` evidence, auto-merge evidence carries the pipeline snapshot, and each successful create/merge writes a `report_create_pipeline_completed` event-spine entry with stage timing summaries.
+- `.\node_modules\.bin\tsc.cmd --noEmit`: passed with 0 errors.
+- `.\node_modules\.bin\vitest.cmd run src/server/report-create-pipeline.test.ts src/server/sla-ladder.test.ts src/server/behavioral-api.test.ts`: passed; 2 files passed, 1 skipped; 5 tests passed, 3 skipped.
+- `.\node_modules\.bin\vitest.cmd run`: passed; 31 files passed, 4 skipped; 123 tests passed, 11 skipped.
+- `npm run build`: passed; Vite transformed 2341 modules, emitted `dist/server.cjs` at 298.6 kB, and kept the largest JS chunk at `fb-firestore` 475.16 kB with no chunk over 500 kB.
+- Live emulator proof: `npm run test:behavioral-api` passed; 1 file passed, 3 tests passed; runner reported `BEHAVIORAL_API_TESTS passed authz=ok workerIdempotency=ok semanticDedup=ok`.
+- `npm run test:e2e`: passed; 7 Chromium Playwright tests passed against local Firebase Auth, Firestore, and Storage emulators.
+
 Phase 6.5 final golden-path verification on 2026-06-30:
 
 - Added `npm run test:golden-path`, `scripts/verify-final-golden-path-live.ps1`, and a gated live Vitest verifier that starts the app under Firebase Auth/Firestore/Storage emulators with real Gemini and a local authority webhook sink.

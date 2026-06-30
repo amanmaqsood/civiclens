@@ -229,6 +229,21 @@ describeBehavioral("behavioral API emulator suite", () => {
     });
     expect(create.response.status, JSON.stringify(create.body)).toBe(200);
     expect(create.body).toMatchObject({ success: true, autoMerged: false });
+    const createdIssue = (await db.collection("issues").doc(issueId).get()).data() || {};
+    expect(createdIssue.createPipeline?.name).toBe("report_create_pipeline");
+    expect((createdIssue.createPipeline?.steps || []).map((step: any) => step.stage)).toEqual([
+      "Vision",
+      "Self-Verify",
+      "Geo",
+      "Context",
+      "Risk",
+      "Route",
+      "Draft",
+      "Monitor",
+    ]);
+    expect(createdIssue.routingHint?.recommendedAuthority).toBeTruthy();
+    const createEventCounts = await readIssueEventCounts(issueId);
+    expect(createEventCounts.report_create_pipeline_completed).toBe(1);
 
     const near = await api("/api/dedup/semantic", {
       method: "POST",
